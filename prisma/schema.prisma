@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Restaurant {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  plan         String   @default("trial")
+  logoUrl      String?
+  primaryColor String   @default("#C9A84C")
+
+  // AI
+  openaiKey    String?
+
+  // OpenTable credentials (per tenant)
+  opentableClientId     String?
+  opentableClientSecret String?
+  opentableRestaurantId String?
+
+  // Toast POS credentials (per tenant)
+  toastApiKey         String?
+  toastRestaurantGuid String?
+
+  location     String?
+  timezone     String   @default("America/Los_Angeles")
+  trialEndsAt  DateTime?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
