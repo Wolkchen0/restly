@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    secret: process.env.NEXTAUTH_SECRET || "restly-super-secret-key-change-in-production-32chars",
+    trustHost: true,
     providers: [
         Credentials({
             name: "credentials",
