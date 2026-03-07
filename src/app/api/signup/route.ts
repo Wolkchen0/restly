@@ -27,7 +27,17 @@ export async function POST(req: NextRequest) {
         trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
         const restaurant = await prisma.restaurant.create({
-            data: { name, email, passwordHash, location: location || "", trialEndsAt, plan: "trial" },
+            data: {
+                name, email, passwordHash, trialEndsAt, plan: "trial",
+                // Create a default location for the new restaurant
+                locations: {
+                    create: {
+                        name: `${name} — Main`,
+                        city: body.city || null,
+                        isDefault: true,
+                    },
+                },
+            },
         });
 
         // Send welcome email (non-blocking — don't fail signup if email fails)

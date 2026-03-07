@@ -59,12 +59,12 @@ const MOCK_REQUESTS: TimeOffRequest[] = [
         employeeName: "Yuki Tanaka",
         employeeRole: "Sous Chef",
         startDate: "2026-03-28",
-        endDate: "2026-03-30",
-        reason: "Wedding attendance (sister's wedding)",
+        endDate: "2026-03-28",
+        reason: "Forgot to clock out on Tuesday shift",
         status: "APPROVED",
         submittedAt: "2026-02-20T08:00:00Z",
-        reviewNotes: "Approved. Coverage arranged with Marco.",
-        formSource: 2,
+        reviewNotes: "Approved. Fixed in Toast POS.",
+        formSource: 1, // Time Entry Fix Request
     },
     {
         id: "to5",

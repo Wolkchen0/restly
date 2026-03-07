@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <div className="main-content">
                 {children}
             </div>
-            <ChatBot restaurantName={session.user?.name || "Restaurant"} />
+            <ChatBot />
         </div>
     );
 }

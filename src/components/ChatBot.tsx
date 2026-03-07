@@ -1,120 +1,248 @@
 "use client";
+import { useChat } from "ai/react";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-interface Message { id: string; role: "user" | "assistant"; content: string; }
-
-const CHIPS = [
-    "Who's dining tonight?",
-    "Any VIP guests?",
-    "Low stock alerts",
-    "Pending time-off requests",
-    "Schedule conflicts?",
+const SUGGESTED_PROMPTS = [
+    { icon: "📋", text: "Who has reservations tonight?", category: "guests" },
+    { icon: "⚠️", text: "What's running low in the kitchen?", category: "inventory" },
+    { icon: "⭐", text: "Show me my VIP guests", category: "guests" },
+    { icon: "📅", text: "Any pending time-off requests?", category: "schedule" },
+    { icon: "🔗", text: "How do I connect Clover?", category: "setup" },
+    { icon: "🔗", text: "How do I connect Toast POS?", category: "setup" },
 ];
 
-export default function ChatBot({ restaurantName }: { restaurantName: string }) {
-    const [open, setOpen] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [input, setInput] = useState("");
-    const [loading, setLoading] = useState(false);
-    const endRef = useRef<HTMLDivElement>(null);
+function ToolResultCard({ toolName, result }: { toolName: string; result: any }) {
+    const router = useRouter();
 
-    useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
-
-    async function send(text?: string) {
-        const t = text ?? input;
-        if (!t.trim() || loading) return;
-        const userMsg: Message = { id: Date.now().toString(), role: "user", content: t };
-        const next = [...messages, userMsg];
-        setMessages(next); setInput(""); setLoading(true);
-
-        const aId = (Date.now() + 1).toString();
-        setMessages(prev => [...prev, { id: aId, role: "assistant", content: "" }]);
-
-        try {
-            const res = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: next.map(m => ({ role: m.role, content: m.content })) }),
-            });
-            if (!res.ok || !res.body) throw new Error("Failed");
-            const reader = res.body.getReader();
-            const dec = new TextDecoder();
-            let buf = "";
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buf += dec.decode(value, { stream: true });
-                const lines = buf.split("\n"); buf = lines.pop() ?? "";
-                for (const line of lines) {
-                    if (line.startsWith("0:")) {
-                        try {
-                            const chunk = JSON.parse(line.slice(2));
-                            setMessages(prev => prev.map(m => m.id === aId ? { ...m, content: m.content + chunk } : m));
-                        } catch { /* skip */ }
-                    }
-                }
-            }
-        } catch {
-            setMessages(prev => prev.map(m => m.id === aId ? { ...m, content: "Sorry, something went wrong. Please try again." } : m));
-        } finally { setLoading(false); }
+    if (toolName === "navigate_to" && result.actionRequired) {
+        return (
+            <div style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 340 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>📍 Navigate</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 12, lineHeight: 1.5 }}>{result.instructions}</div>
+                <button
+                    onClick={() => router.push(result.path)}
+                    style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", color: "#1a1000", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%" }}
+                >
+                    Go to {result.label} →
+                </button>
+            </div>
+        );
     }
 
-    const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-    };
+    if (toolName === "get_pos_setup_guide") {
+        return (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 380 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 10 }}>{result.icon} {result.posName} Setup Guide</div>
+                <ol style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                    {result.stepsToGetCredentials.map((step: string, i: number) => (
+                        <li key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, paddingLeft: 4 }}>{step}</li>
+                    ))}
+                </ol>
+                <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(201,168,76,0.1)", borderRadius: 8, fontSize: 12, color: "#E8C96E", lineHeight: 1.5 }}>
+                    ✓ {result.nextStep}
+                </div>
+                <button
+                    onClick={() => router.push("/dashboard/settings")}
+                    style={{ marginTop: 10, background: "rgba(255,255,255,0.06)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%" }}
+                >
+                    Open Settings →
+                </button>
+            </div>
+        );
+    }
+
+    if (toolName === "get_low_stock_alerts") {
+        const { outOfStock = [], lowStock = [], urgency } = result;
+        return (
+            <div style={{ background: urgency === "CRITICAL" ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)", border: `1px solid ${urgency === "CRITICAL" ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`, borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 360 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: urgency === "CRITICAL" ? "#f87171" : "#fbbf24", marginBottom: 8, textTransform: "uppercase" }}>
+                    {urgency === "CRITICAL" ? "🚨 Critical Stock Alert" : "⚠️ Stock Alert"}
+                </div>
+                {outOfStock.length > 0 && <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, marginBottom: 4 }}>OUT OF STOCK ({outOfStock.length})</div>
+                    {outOfStock.map((i: any) => <div key={i.name} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "3px 0" }}>• {i.name} — {i.supplier}</div>)}
+                </div>}
+                {lowStock.length > 0 && <div>
+                    <div style={{ fontSize: 11, color: "#fbbf24", fontWeight: 700, marginBottom: 4 }}>LOW STOCK ({lowStock.length})</div>
+                    {lowStock.map((i: any) => <div key={i.name} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "3px 0" }}>• {i.name} — {i.quantity} left</div>)}
+                </div>}
+            </div>
+        );
+    }
+
+    return null; // Other tools don't need special cards — AI text handles them
+}
+
+export default function ChatBot() {
+    const [open, setOpen] = useState(false);
+    const bottomRef = useRef<HTMLDivElement>(null);
+
+    const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+        api: "/api/chat",
+    });
+
+    useEffect(() => {
+        if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, open]);
+
+    const hasMessages = messages.length > 0;
 
     return (
         <>
-            {open && (
-                <div className="chatbot-panel">
-                    <div className="chat-header">
-                        <div className="chat-avatar">🤖</div>
-                        <div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>Restly AI Manager</div>
-                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{restaurantName} · GPT-4o</div>
-                        </div>
-                        <div className="chat-status" />
-                        <button onClick={() => setOpen(false)} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 18 }}>✕</button>
-                    </div>
-
-                    <div className="chat-messages">
-                        {messages.length === 0 && (
-                            <div className="chat-message assistant fade-in">
-                                {`👋 Hi! I'm the AI manager for ${restaurantName}.\n\nI can help with:\n• 👤 Guest profiles & VIP status\n• 🍽️ Tonight's reservations\n• 📦 Inventory & stock\n• 📅 Time-off & scheduling\n\nWhat do you need?`}
-                            </div>
-                        )}
-                        {messages.map(m => (
-                            <div key={m.id} className={`chat-message ${m.role} fade-in`}>{m.content}</div>
-                        ))}
-                        {loading && messages[messages.length - 1]?.role !== "assistant" && (
-                            <div className="chat-message thinking shimmer">✦ Thinking…</div>
-                        )}
-                        <div ref={endRef} />
-                    </div>
-
-                    {messages.length === 0 && (
-                        <div className="chat-chips">
-                            {CHIPS.map(c => <button key={c} className="chat-chip" onClick={() => send(c)}>{c}</button>)}
-                        </div>
-                    )}
-
-                    <div className="chat-input-area">
-                        <textarea className="chat-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={onKey} placeholder="Ask anything…" rows={1} style={{ height: 42 }} />
-                        <button className="chat-send" onClick={() => send()} disabled={loading || !input.trim()}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a1000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+            {/* ── FLOATING BUTTON ── */}
+            {!open && (
+                <button
+                    onClick={() => setOpen(true)}
+                    style={{
+                        position: "fixed", bottom: 24, right: 24, zIndex: 1000,
+                        width: 58, height: 58, borderRadius: "50%",
+                        background: "linear-gradient(135deg,#C9A84C,#E8C96E)",
+                        border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: "0 4px 24px rgba(201,168,76,0.5)",
+                        fontSize: 24, transition: "transform 0.2s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
+                    onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                    title="Ask Restly AI"
+                >
+                    🤖
+                </button>
             )}
 
-            <button className="chatbot-toggle" onClick={() => setOpen(!open)} title="AI Manager">
-                {open
-                    ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a1000" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a1000" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                }
-            </button>
+            {/* ── CHAT PANEL ── */}
+            {open && (
+                <div style={{
+                    position: "fixed", bottom: 24, right: 24, zIndex: 1000,
+                    width: "min(420px, calc(100vw - 32px))",
+                    height: "min(620px, calc(100vh - 100px))",
+                    background: "#0d0d1a",
+                    border: "1px solid rgba(201,168,76,0.2)",
+                    borderRadius: 20,
+                    display: "flex", flexDirection: "column",
+                    boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+                    overflow: "hidden",
+                    animation: "slideUp 0.25s ease",
+                }}>
+                    <style>{`
+            @keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+            .msg-bubble { animation: fadeIn 0.2s ease; }
+            @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+          `}</style>
+
+                    {/* Header */}
+                    <div style={{ padding: "16px 18px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))", border: "1px solid rgba(201,168,76,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
+                        <div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Restly AI</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                                {isLoading ? "Thinking…" : "Ready to help"}
+                            </div>
+                        </div>
+                        <button onClick={() => setOpen(false)} style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 20, cursor: "pointer", lineHeight: 1, padding: 4 }}>×</button>
+                    </div>
+
+                    {/* Messages */}
+                    <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+                        {!hasMessages && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "8px 0 12px" }}>
+                                    Ask me anything about your restaurant
+                                </div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                    {SUGGESTED_PROMPTS.map(p => (
+                                        <button
+                                            key={p.text}
+                                            onClick={() => { setInput(p.text); }}
+                                            style={{
+                                                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                                                borderRadius: 10, padding: "10px 10px", textAlign: "left", cursor: "pointer",
+                                                color: "rgba(255,255,255,0.7)", fontSize: 12, lineHeight: 1.4,
+                                                transition: "border-color 0.2s",
+                                            }}
+                                            onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)")}
+                                            onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)")}
+                                        >
+                                            <span style={{ display: "block", marginBottom: 3 }}>{p.icon}</span>
+                                            {p.text}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {messages.map((m, i) => (
+                            <div key={i} className="msg-bubble" style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 6 }}>
+                                {m.role === "user" ? (
+                                    <div style={{ background: "linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.1))", border: "1px solid rgba(201,168,76,0.2)", borderRadius: "14px 14px 4px 14px", padding: "10px 14px", maxWidth: "85%", fontSize: 13, color: "#fff", lineHeight: 1.5 }}>
+                                        {m.content as string}
+                                    </div>
+                                ) : (
+                                    <div style={{ maxWidth: "95%", display: "flex", flexDirection: "column", gap: 4 }}>
+                                        {/* Text content */}
+                                        {(m.content as string) && (
+                                            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: "4px 14px 14px 14px", padding: "10px 14px", fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                                                {m.content as string}
+                                            </div>
+                                        )}
+                                        {/* Tool result cards */}
+                                        {(m as any).toolInvocations?.map((inv: any, j: number) => (
+                                            inv.state === "result" && (
+                                                <ToolResultCard key={j} toolName={inv.toolName} result={inv.result} />
+                                            )
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {isLoading && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+                                <span style={{ display: "inline-flex", gap: 3 }}>
+                                    {[0, 1, 2].map(i => (
+                                        <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#C9A84C", animation: `pulse 1.2s ${i * 0.2}s ease-in-out infinite` }} />
+                                    ))}
+                                </span>
+                                <style>{`@keyframes pulse { 0%,80%,100%{opacity:0.3;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }`}</style>
+                            </div>
+                        )}
+                        <div ref={bottomRef} />
+                    </div>
+
+                    {/* Input */}
+                    <form
+                        onSubmit={handleSubmit}
+                        style={{ padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 10, flexShrink: 0 }}
+                    >
+                        <input
+                            value={input}
+                            onChange={handleInputChange}
+                            placeholder="Ask anything…"
+                            style={{
+                                flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: 12, padding: "11px 14px", fontSize: 13, color: "#fff",
+                                outline: "none", fontFamily: "inherit",
+                            }}
+                            onFocus={e => (e.target.style.borderColor = "rgba(201,168,76,0.4)")}
+                            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                        />
+                        <button
+                            type="submit"
+                            disabled={isLoading || !input.trim()}
+                            style={{
+                                width: 42, height: 42, background: input.trim() ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.06)",
+                                border: "none", borderRadius: 12, cursor: input.trim() ? "pointer" : "not-allowed",
+                                color: input.trim() ? "#1a1000" : "rgba(255,255,255,0.3)", fontSize: 18,
+                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                transition: "all 0.2s",
+                            }}
+                        >
+                            ↑
+                        </button>
+                    </form>
+                </div>
+            )}
         </>
     );
 }

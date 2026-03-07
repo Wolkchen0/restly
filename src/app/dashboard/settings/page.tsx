@@ -1,262 +1,400 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
-interface RestaurantProfile {
-    id: string; name: string; email: string; plan: string;
-    location: string; primaryColor: string; openaiKey: string;
-    trialEndsAt: string; createdAt: string;
+const POS_OPTIONS = [
+    { id: "toast", name: "Toast POS", emoji: "🍞", color: "#FF6B35", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter Toast API Key" }, { key: "posLocationId", label: "Restaurant GUID", placeholder: "e.g. abc123-def456-..." }] },
+    { id: "clover", name: "Clover", emoji: "🍀", color: "#1DA462", fields: [{ key: "posApiKey", label: "API Token", placeholder: "Enter Clover API Token" }, { key: "posLocationId", label: "Merchant ID", placeholder: "e.g. ABCD1234EFGH" }] },
+    { id: "square", name: "Square", emoji: "⬛", color: "#3E4348", fields: [{ key: "posApiKey", label: "Access Token", placeholder: "Enter Square Access Token" }, { key: "posLocationId", label: "Location ID", placeholder: "e.g. LKFQ8BKFQ8BK..." }] },
+    { id: "lightspeed", name: "Lightspeed", emoji: "⚡", color: "#005EB8", fields: [{ key: "posApiKey", label: "Client ID", placeholder: "Enter Client ID" }, { key: "posSecretKey", label: "Client Secret", placeholder: "Enter Client Secret" }] },
+    { id: "revel", name: "Revel Systems", emoji: "🔴", color: "#C41A1A", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter API Key" }, { key: "posSecretKey", label: "API Secret", placeholder: "Enter API Secret" }, { key: "posLocationId", label: "Establishment ID", placeholder: "Enter ID" }] },
+    { id: "manual", name: "Manual / CSV", emoji: "📋", color: "#6B7280", fields: [] },
+];
+
+const TIMEZONES = [
+    { value: "America/Los_Angeles", label: "Pacific (LA)" },
+    { value: "America/Denver", label: "Mountain (Denver)" },
+    { value: "America/Chicago", label: "Central (Chicago)" },
+    { value: "America/New_York", label: "Eastern (New York)" },
+];
+
+interface LocationData {
+    id: string;
+    name: string;
+    address: string | null;
+    city: string | null;
+    timezone: string;
+    posProvider: string | null;
+    isDefault: boolean;
+    isActive: boolean;
 }
 
-const INPUT_STYLE = {
-    background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10,
-    padding: "10px 14px", fontSize: 13, color: "var(--text-primary)", outline: "none",
-    width: "100%", fontFamily: "inherit",
-};
+interface EditState {
+    id?: string;
+    name?: string;
+    address?: string;
+    city?: string;
+    timezone?: string;
+    isDefault?: boolean;
+    posApiKey?: string;
+    posSecretKey?: string;
+    posLocationId?: string;
+    opentableClientId?: string;
+    opentableClientSecret?: string;
+    opentableRestaurantId?: string;
+}
+
+interface RestaurantInfo {
+    restaurantName: string;
+    plan: string;
+}
 
 export default function SettingsPage() {
-    const router = useRouter();
-    const [profile, setProfile] = useState<RestaurantProfile | null>(null);
-    const [form, setForm] = useState({ name: "", location: "", primaryColor: "#C9A84C", openaiKey: "" });
-    const [opentable, setOpentable] = useState({ clientId: "", clientSecret: "", restaurantId: "" });
-    const [toast, setToast] = useState({ apiKey: "", restaurantGuid: "" });
+    const [info, setInfo] = useState<RestaurantInfo>({ restaurantName: "", plan: "trial" });
+    const [locations, setLocations] = useState<LocationData[]>([]);
+    const [activeLocId, setActiveLocId] = useState<string>("");
+    const [editLoc, setEditLoc] = useState<EditState>({});
+    const [selectedPOS, setSelectedPOS] = useState<string>("manual");
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
+    const [addingLoc, setAddingLoc] = useState(false);
+    const [newLocName, setNewLocName] = useState("");
+    const [newLocCity, setNewLocCity] = useState("");
+    const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
 
     useEffect(() => {
-        fetch("/api/restaurant").then(r => r.json()).then((d: RestaurantProfile) => {
-            setProfile(d);
-            setForm({ name: d.name, location: d.location ?? "", primaryColor: d.primaryColor, openaiKey: d.openaiKey ?? "" });
-        });
+        fetch("/api/locations")
+            .then(r => r.json())
+            .then(d => {
+                if (d.locations?.length) {
+                    setInfo({ restaurantName: d.restaurantName || "", plan: d.plan || "trial" });
+                    setLocations(d.locations);
+                    const saved = localStorage.getItem("restly_active_location");
+                    const def = d.locations.find((l: LocationData) => l.id === saved)
+                        || d.locations.find((l: LocationData) => l.isDefault)
+                        || d.locations[0];
+                    selectLocation(def);
+                }
+            })
+            .catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    async function saveProfile() {
+    const selectLocation = (loc: LocationData) => {
+        setActiveLocId(loc.id);
+        setEditLoc({ id: loc.id, name: loc.name, address: loc.address || "", city: loc.city || "", timezone: loc.timezone });
+        setSelectedPOS(loc.posProvider || "manual");
+    };
+
+    const handleSaveLocation = async () => {
         setSaving(true);
-        await fetch("/api/restaurant", {
+        const payload = {
+            locationId: activeLocId,
+            posProvider: selectedPOS === "manual" ? null : selectedPOS,
+            name: editLoc.name,
+            address: editLoc.address,
+            city: editLoc.city,
+            timezone: editLoc.timezone,
+            posApiKey: editLoc.posApiKey,
+            posSecretKey: editLoc.posSecretKey,
+            posLocationId: editLoc.posLocationId,
+            opentableClientId: editLoc.opentableClientId,
+            opentableClientSecret: editLoc.opentableClientSecret,
+            opentableRestaurantId: editLoc.opentableRestaurantId,
+        };
+        await fetch("/api/locations", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
+            body: JSON.stringify(payload),
         });
-        setSaving(false); setSaved("profile");
-        setTimeout(() => setSaved(null), 2500);
-        router.refresh();
-    }
+        setSaving(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+    };
 
-    async function saveKeys(section: "openai" | "opentable" | "toast") {
-        setSaving(true);
-        const data: Record<string, string> = {};
-        if (section === "openai") data.openaiKey = form.openaiKey;
-        if (section === "opentable") {
-            data.opentableClientId = opentable.clientId;
-            data.opentableClientSecret = opentable.clientSecret;
-            data.opentableRestaurantId = opentable.restaurantId;
-        }
-        if (section === "toast") {
-            data.toastApiKey = toast.apiKey;
-            data.toastRestaurantGuid = toast.restaurantGuid;
-        }
-        await fetch("/api/restaurant", {
-            method: "PATCH",
+    const handleAddLocation = async () => {
+        if (!newLocName.trim()) return;
+        const res = await fetch("/api/locations", {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
+            body: JSON.stringify({ name: newLocName, city: newLocCity }),
         });
-        setSaving(false); setSaved(section);
-        setTimeout(() => setSaved(null), 2500);
-    }
+        if (res.ok) {
+            const data = await res.json();
+            const newLoc: LocationData = data.location;
+            setLocations(prev => [...prev, newLoc]);
+            setNewLocName(""); setNewLocCity(""); setAddingLoc(false);
+            selectLocation(newLoc);
+        }
+    };
 
-    const trialDays = profile?.trialEndsAt
-        ? Math.max(0, Math.ceil((new Date(profile.trialEndsAt).getTime() - Date.now()) / 86400000))
-        : 0;
+    const activeLoc = locations.find(l => l.id === activeLocId);
+    const posInfo = POS_OPTIONS.find(p => p.id === selectedPOS);
+
+    const planColors: Record<string, string> = {
+        trial: "#6B7280", starter: "#3B82F6", pro: "#C9A84C", enterprise: "#8B5CF6",
+    };
+    const planColor = planColors[info.plan] || "#6B7280";
 
     return (
-        <>
-            <div className="topbar">
-                <div className="topbar-title">⚙️ Settings</div>
-                <div className="topbar-right">
-                    {profile && (
-                        <span className={`badge ${profile.plan === "trial" ? "badge-yellow" : "badge-green"}`}>
-                            {profile.plan === "trial" ? `⏳ Trial — ${trialDays} days left` : `✦ ${profile.plan}`}
-                        </span>
+        <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 20px 80px" }}>
+            <style>{`
+        .stab { background:none; border:none; padding:10px 18px; font-size:14px; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; color:rgba(255,255,255,0.4); font-family:inherit; transition:all 0.15s; }
+        .stab.active { color:#E8C96E; border-bottom-color:#C9A84C; }
+        .stab:hover:not(.active) { color:rgba(255,255,255,0.8); }
+        .s-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:18px; padding:28px; margin-bottom:20px; }
+        .f-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+        .s-input { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:11px 14px; font-size:14px; color:#fff; outline:none; font-family:inherit; transition:border-color 0.15s; box-sizing:border-box; }
+        .s-input:focus { border-color:rgba(201,168,76,0.5); }
+        .btn-gold { background:linear-gradient(135deg,#C9A84C,#E8C96E); color:#1a1000; font-weight:800; font-size:14px; border:none; border-radius:10px; padding:12px 24px; cursor:pointer; font-family:inherit; }
+        .btn-ghost { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.6); font-size:13px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 16px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+        .btn-ghost:hover { background:rgba(255,255,255,0.1); color:#fff; }
+        .pos-opt { border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; cursor:pointer; display:flex; align-items:center; gap:10px; transition:all 0.2s; background:rgba(255,255,255,0.02); }
+        .pos-opt:hover { border-color:rgba(255,255,255,0.2); }
+        .loc-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; cursor:pointer; transition:background 0.15s; border-left:2px solid transparent; }
+        .loc-row:hover { background:rgba(255,255,255,0.04); }
+        .loc-row.active { background:rgba(201,168,76,0.06); border-left-color:#C9A84C; }
+        @media(max-width:700px){ .loc-edit-grid{ grid-template-columns:1fr !important; } .pos-grid{ grid-template-columns:1fr 1fr !important; } }
+      `}</style>
+
+            {/* ── PAGE HEADER ── */}
+            <div style={{ marginBottom: 24 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 4 }}>Settings</h1>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+                    Manage locations, POS integrations, and account — <strong style={{ color: "#E8C96E" }}>don't know how? Ask the AI 🤖</strong>
+                </p>
+            </div>
+
+            {/* ── TABS ── */}
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 28 }}>
+                {(["locations", "brand", "plan"] as const).map(t => (
+                    <button key={t} className={`stab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+                        {t === "locations" ? "📍 Locations" : t === "brand" ? "🏠 Brand" : "💳 Plan"}
+                    </button>
+                ))}
+            </div>
+
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {/* TAB: LOCATIONS                          */}
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {tab === "locations" && (
+                <div className="loc-edit-grid" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20 }}>
+
+                    {/* Left: location list */}
+                    <div className="s-card" style={{ padding: 14, height: "fit-content" }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 }}>
+                            Your Locations
+                        </div>
+
+                        {locations.map(loc => {
+                            const n = loc.name.replace(`${info.restaurantName} — `, "").replace(`${info.restaurantName} - `, "");
+                            return (
+                                <div
+                                    key={loc.id}
+                                    className={`loc-row${loc.id === activeLocId ? " active" : ""}`}
+                                    onClick={() => selectLocation(loc)}
+                                >
+                                    <div>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: loc.id === activeLocId ? "#E8C96E" : "#fff", lineHeight: 1.2 }}>{n}</div>
+                                        {loc.city && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loc.city}</div>}
+                                        {loc.posProvider && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{loc.posProvider}</div>}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Add location form */}
+                        {addingLoc ? (
+                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
+                                <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="Location name *" value={newLocName} onChange={e => setNewLocName(e.target.value)} autoFocus />
+                                <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="City" value={newLocCity} onChange={e => setNewLocCity(e.target.value)} />
+                                <div style={{ display: "flex", gap: 6 }}>
+                                    <button className="btn-gold" style={{ flex: 1, fontSize: 12, padding: "8px" }} onClick={handleAddLocation}>Add</button>
+                                    <button className="btn-ghost" style={{ fontSize: 12, padding: "8px" }} onClick={() => setAddingLoc(false)}>✕</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <button className="btn-ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => setAddingLoc(true)}>
+                                + Add Location
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Right: edit panel */}
+                    {activeLoc ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+                            {/* ── Location Details ── */}
+                            <div className="s-card">
+                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 18 }}>📍 Location Details</h2>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                    <div>
+                                        <div className="f-label">Location Name</div>
+                                        <input className="s-input" value={editLoc.name || ""} onChange={e => setEditLoc(p => ({ ...p, name: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                        <div className="f-label">City</div>
+                                        <input className="s-input" placeholder="e.g. Los Angeles, CA" value={editLoc.city || ""} onChange={e => setEditLoc(p => ({ ...p, city: e.target.value }))} />
+                                    </div>
+                                    <div style={{ gridColumn: "1/-1" }}>
+                                        <div className="f-label">Address</div>
+                                        <input className="s-input" placeholder="Full street address" value={editLoc.address || ""} onChange={e => setEditLoc(p => ({ ...p, address: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                        <div className="f-label">Timezone</div>
+                                        <select className="s-input" value={editLoc.timezone || "America/Los_Angeles"} onChange={e => setEditLoc(p => ({ ...p, timezone: e.target.value }))}>
+                                            {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── POS Integration ── */}
+                            <div className="s-card">
+                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🔗 POS Integration</h2>
+                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
+                                    Connect your Point of Sale for real-time inventory sync and COGS tracking.
+                                    <span style={{ color: "#E8C96E", fontWeight: 600 }}> Need help? Click the 🤖 AI button and ask "How do I connect Clover?"</span>
+                                </p>
+
+                                {/* POS picker */}
+                                <div className="pos-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
+                                    {POS_OPTIONS.map(pos => {
+                                        const sel = selectedPOS === pos.id;
+                                        return (
+                                            <div
+                                                key={pos.id}
+                                                className="pos-opt"
+                                                onClick={() => setSelectedPOS(pos.id)}
+                                                style={{ borderColor: sel ? pos.color : "rgba(255,255,255,0.08)", background: sel ? `${pos.color}14` : "rgba(255,255,255,0.02)" }}
+                                            >
+                                                <span style={{ fontSize: 22, flexShrink: 0 }}>{pos.emoji}</span>
+                                                <div>
+                                                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? pos.color : "rgba(255,255,255,0.8)", lineHeight: 1.2 }}>{pos.name}</div>
+                                                    {sel && <div style={{ fontSize: 10, color: pos.color, fontWeight: 800, marginTop: 2 }}>Selected ✓</div>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Credential fields for selected POS */}
+                                {posInfo && posInfo.fields.length > 0 ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: posInfo.color }}>
+                                            <span>{posInfo.emoji}</span> {posInfo.name} Credentials
+                                        </div>
+                                        {posInfo.fields.map(field => (
+                                            <div key={field.key}>
+                                                <div className="f-label">{field.label}</div>
+                                                <input
+                                                    className="s-input"
+                                                    type={field.key.includes("Secret") || field.key === "posApiKey" ? "password" : "text"}
+                                                    placeholder={field.placeholder}
+                                                    value={(editLoc as Record<string, string>)[field.key] || ""}
+                                                    onChange={e => setEditLoc(p => ({ ...p, [field.key]: e.target.value }))}
+                                                />
+                                            </div>
+                                        ))}
+                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                            🔒 Credentials encrypted at rest · Only used for data sync · Never shared
+                                        </div>
+                                    </div>
+                                ) : posInfo?.id === "manual" ? (
+                                    <div style={{ padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+                                        📋 Manual mode — enter inventory manually or import via CSV. No API connection.
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            {/* ── OpenTable ── */}
+                            <div className="s-card">
+                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🍽️ OpenTable Guest Sync</h2>
+                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
+                                    Pull guest profiles, VIP flags, dietary notes, and reservation history into your dashboard.
+                                </p>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                    <div>
+                                        <div className="f-label">Client ID</div>
+                                        <input className="s-input" type="password" placeholder="OpenTable Client ID" value={editLoc.opentableClientId || ""} onChange={e => setEditLoc(p => ({ ...p, opentableClientId: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                        <div className="f-label">Client Secret</div>
+                                        <input className="s-input" type="password" placeholder="OpenTable Client Secret" value={editLoc.opentableClientSecret || ""} onChange={e => setEditLoc(p => ({ ...p, opentableClientSecret: e.target.value }))} />
+                                    </div>
+                                    <div style={{ gridColumn: "1/-1" }}>
+                                        <div className="f-label">Restaurant ID</div>
+                                        <input className="s-input" placeholder="Restaurant ID from your OpenTable URL" value={editLoc.opentableRestaurantId || ""} onChange={e => setEditLoc(p => ({ ...p, opentableRestaurantId: e.target.value }))} />
+                                    </div>
+                                </div>
+                                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 12 }}>
+                                    Not sure how to get these? Ask the AI: "How do I connect OpenTable?"
+                                </p>
+                            </div>
+
+                            {/* ── Save ── */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 20 }}>
+                                <button className="btn-gold" onClick={handleSaveLocation} disabled={saving}>
+                                    {saving ? "Saving…" : "✓ Save Location Settings"}
+                                </button>
+                                {saved && (
+                                    <span style={{ color: "#4ade80", fontSize: 14, fontWeight: 700, animation: "fadeIn 0.3s ease" }}>
+                                        ✓ Saved successfully!
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 14, padding: 60 }}>
+                            Select a location to edit
+                        </div>
                     )}
                 </div>
-            </div>
+            )}
 
-            <div className="page-content fade-in">
-                {/* ── RESTAURANT PROFILE ── */}
-                <div className="card" style={{ marginBottom: 24 }}>
-                    <div className="card-header"><span className="card-title">🏪 Restaurant Profile</span></div>
-                    <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div className="grid-2">
-                            <div>
-                                <label className="form-label">Restaurant Name</label>
-                                <input style={INPUT_STYLE} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Meyhouse" />
-                            </div>
-                            <div>
-                                <label className="form-label">Location</label>
-                                <input style={INPUT_STYLE} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. Los Angeles, CA" />
-                            </div>
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {/* TAB: BRAND                              */}
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {tab === "brand" && (
+                <div className="s-card">
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>🏠 Brand Settings</h2>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                        <div>
+                            <div className="f-label">Brand Name</div>
+                            <input className="s-input" defaultValue={info.restaurantName} />
                         </div>
                         <div>
-                            <label className="form-label">Account Email <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(read-only)</span></label>
-                            <input style={{ ...INPUT_STYLE, opacity: 0.6, cursor: "not-allowed" }} value={profile?.email ?? ""} readOnly />
-                        </div>
-                        <div>
-                            <label className="form-label">Sidebar Accent Color</label>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                <input type="color" value={form.primaryColor} onChange={e => setForm(f => ({ ...f, primaryColor: e.target.value }))}
-                                    style={{ width: 48, height: 40, border: "1px solid var(--border)", borderRadius: 8, background: "none", cursor: "pointer" }} />
-                                <code style={{ fontSize: 13, color: "var(--text-muted)" }}>{form.primaryColor}</code>
-                            </div>
-                        </div>
-                        <div>
-                            <button onClick={saveProfile} disabled={saving} className="btn-primary" style={{ width: "fit-content" }}>
-                                {saved === "profile" ? "✓ Saved!" : saving ? "Saving…" : "Save Profile"}
-                            </button>
+                            <div className="f-label">Brand Color</div>
+                            <input className="s-input" type="color" defaultValue="#C9A84C" style={{ height: 44, padding: "4px 8px", cursor: "pointer" }} />
                         </div>
                     </div>
+                    <button className="btn-gold" style={{ marginTop: 20 }}>Save Brand Settings</button>
                 </div>
+            )}
 
-                {/* ── OPENAI ── */}
-                <div className="card" style={{ marginBottom: 24 }}>
-                    <div className="card-header">
-                        <span className="card-title">🤖 OpenAI API Key</span>
-                        <span className={`badge ${form.openaiKey ? "badge-green" : "badge-yellow"}`}>
-                            {form.openaiKey ? "✓ Configured" : "⏳ Using Default"}
-                        </span>
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {/* TAB: PLAN                               */}
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {tab === "plan" && (
+                <div className="s-card" style={{ textAlign: "center", padding: "56px 32px" }}>
+                    <div style={{ fontSize: 52, marginBottom: 16 }}>💳</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 8 }}>
+                        Current Plan:{" "}
+                        <span style={{ color: planColor, textTransform: "capitalize" }}>{info.plan}</span>
                     </div>
-                    <div className="card-body">
-                        <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                            <span>💡</span>
-                            <div>Go to <strong>platform.openai.com → API Keys</strong> to create your own key. Using your own key = unlimited AI queries with your own billing.</div>
-                        </div>
-                        <label className="form-label">Your OpenAI API Key</label>
-                        <input
-                            style={{ ...INPUT_STYLE, marginBottom: 14, fontFamily: "monospace", letterSpacing: 1 }}
-                            type="password" value={form.openaiKey} placeholder="sk-proj-..."
-                            onChange={e => setForm(f => ({ ...f, openaiKey: e.target.value }))}
-                        />
-                        <button onClick={() => saveKeys("openai")} className="btn-primary" style={{ width: "fit-content" }}>
-                            {saved === "openai" ? "✓ Saved!" : "Save API Key"}
-                        </button>
+                    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32, maxWidth: 400, margin: "0 auto 32px" }}>
+                        {info.plan === "trial"
+                            ? "Your 14-day trial includes all Pro features. Upgrade before it expires to keep access."
+                            : `You're on the ${info.plan} plan. Manage your subscription below.`}
+                    </p>
+                    <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+                        <button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>Upgrade Plan</button>
+                        <button className="btn-ghost" style={{ fontSize: 15, padding: "14px 28px" }}>View Invoices</button>
                     </div>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 20 }}>
+                        Cancel anytime · No hidden fees · AI included in all plans
+                    </p>
                 </div>
-
-                {/* ── OPENTABLE ── */}
-                <div className="card" style={{ marginBottom: 24 }}>
-                    <div className="card-header">
-                        <span className="card-title">🍽️ OpenTable Integration</span>
-                        <span className="badge badge-yellow">⏳ Demo Mode</span>
-                    </div>
-                    <div className="card-body">
-                        <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                            <span>📋</span>
-                            <div>
-                                <strong>How to get credentials:</strong>
-                                <ol style={{ marginTop: 8, marginBottom: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-                                    <li>Log in to <strong>restaurant.opentable.com</strong></li>
-                                    <li>Go to <strong>Settings → Integrations → API Access</strong></li>
-                                    <li>Click <strong>"Generate New Credentials"</strong></li>
-                                    <li>Copy Client ID, Client Secret, and Restaurant ID here</li>
-                                </ol>
-                            </div>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            {[
-                                { label: "Client ID", key: "clientId", ph: "ot-client-xxxx" },
-                                { label: "Client Secret", key: "clientSecret", ph: "ot-secret-xxxx" },
-                                { label: "Restaurant ID", key: "restaurantId", ph: "12345" },
-                            ].map(f => (
-                                <div key={f.key}>
-                                    <label className="form-label">{f.label}</label>
-                                    <input
-                                        style={{ ...INPUT_STYLE, fontFamily: "monospace" }}
-                                        type="password" placeholder={f.ph}
-                                        value={(opentable as any)[f.key]}
-                                        onChange={e => setOpentable(o => ({ ...o, [f.key]: e.target.value }))}
-                                    />
-                                </div>
-                            ))}
-                            <button onClick={() => saveKeys("opentable")} className="btn-primary" style={{ width: "fit-content", marginTop: 4 }}>
-                                {saved === "opentable" ? "✓ Saved!" : "Connect OpenTable"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── TOAST ── */}
-                <div className="card" style={{ marginBottom: 24 }}>
-                    <div className="card-header">
-                        <span className="card-title">🍞 Toast POS Integration</span>
-                        <span className="badge badge-yellow">⏳ Demo Mode</span>
-                    </div>
-                    <div className="card-body">
-                        <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                            <span>📋</span>
-                            <div>
-                                <strong>How to get credentials:</strong>
-                                <ol style={{ marginTop: 8, marginBottom: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-                                    <li>Log in to your <strong>Toast Back Office</strong> (pos.toasttab.com)</li>
-                                    <li>Go to <strong>Settings → Integrations → API Access</strong></li>
-                                    <li>Click <strong>"Create New API Key"</strong> — select <em>Inventory Read</em> scope</li>
-                                    <li>Copy API Key and Restaurant GUID here</li>
-                                </ol>
-                            </div>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                            {[
-                                { label: "Toast API Key", key: "apiKey", ph: "toast-api-xxxx" },
-                                { label: "Restaurant GUID", key: "restaurantGuid", ph: "xxxxxxxx-xxxx-xxxx" },
-                            ].map(f => (
-                                <div key={f.key}>
-                                    <label className="form-label">{f.label}</label>
-                                    <input
-                                        style={{ ...INPUT_STYLE, fontFamily: "monospace" }}
-                                        type="password" placeholder={f.ph}
-                                        value={(toast as any)[f.key]}
-                                        onChange={e => setToast(t => ({ ...t, [f.key]: e.target.value }))}
-                                    />
-                                </div>
-                            ))}
-                            <button onClick={() => saveKeys("toast")} className="btn-primary" style={{ width: "fit-content", marginTop: 4 }}>
-                                {saved === "toast" ? "✓ Saved!" : "Connect Toast POS"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── CCPA + GO-LIVE ── */}
-                <div className="card">
-                    <div className="card-header">
-                        <span className="card-title">🔒 CCPA/CPRA & Go-Live Checklist</span>
-                        <span className="badge badge-green">✓ Compliant</span>
-                    </div>
-                    <div className="card-body">
-                        {[
-                            { done: true, text: "Account created & AI chatbot active" },
-                            { done: !!form.openaiKey, text: "Custom OpenAI API key configured" },
-                            { done: !!opentable.clientId, text: "OpenTable credentials connected" },
-                            { done: !!toast.apiKey, text: "Toast POS credentials connected" },
-                            { done: true, text: "Google Forms for time-off configured" },
-                            { done: false, text: "Deploy to Vercel with custom domain" },
-                        ].map((item, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0", borderBottom: i < 5 ? "1px solid var(--border)" : "none" }}>
-                                <div style={{
-                                    width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
-                                    background: item.done ? "rgba(34,197,94,0.12)" : "var(--bg-secondary)",
-                                    border: `1px solid ${item.done ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
-                                    color: item.done ? "var(--green)" : "var(--text-muted)",
-                                }}>
-                                    {item.done ? "✓" : String(i + 1)}
-                                </div>
-                                <span style={{ fontSize: 14, color: item.done ? "var(--text-secondary)" : "var(--text-primary)", textDecoration: item.done ? "line-through" : "none" }}>
-                                    {item.text}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </>
+            )}
+        </main>
     );
 }

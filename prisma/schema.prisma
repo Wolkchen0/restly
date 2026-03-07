@@ -8,31 +8,57 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─── RESTAURANT (parent account / tenant) ────────────────────────────────────
+// One restaurant account = one email/password login
+// Can have MULTIPLE locations (branches)
 model Restaurant {
   id           String   @id @default(cuid())
-  name         String
+  name         String                        // Brand name e.g. "Meyhouse"
   email        String   @unique
   passwordHash String
-  plan         String   @default("trial")
+  plan         String   @default("trial")    // trial | starter | pro | enterprise
   logoUrl      String?
   primaryColor String   @default("#C9A84C")
 
-  // AI
+  // AI (platform covers cost — optional custom key for high-volume)
   openaiKey    String?
 
-  // OpenTable credentials (per tenant)
-  opentableClientId     String?
-  opentableClientSecret String?
-  opentableRestaurantId String?
-
-  // Toast POS credentials (per tenant)
-  toastApiKey         String?
-  toastRestaurantGuid String?
-
-  location     String?
-  timezone     String   @default("America/Los_Angeles")
   trialEndsAt  DateTime?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Relations
+  locations    Location[]
+}
+
+// ─── LOCATION (individual branch/outlet) ─────────────────────────────────────
+// Each location has its own POS, OpenTable, and settings
+// Users switch between locations in the dashboard without re-login
+model Location {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  name         String                         // e.g. "Meyhouse Downtown", "Meyhouse Beverly Hills"
+  address      String?
+  city         String?
+  timezone     String     @default("America/Los_Angeles")
+  primaryColor String?                        // Override brand color per-location (optional)
+  isActive     Boolean    @default(true)
+  isDefault    Boolean    @default(false)     // Which location opens on login
+
+  // POS integration (per-location — each branch has its own POS account)
+  posProvider  String?                        // "toast" | "clover" | "square" | "lightspeed" | "revel" | "manual"
+  posApiKey    String?
+  posSecretKey String?
+  posLocationId String?                       // Merchant ID / Location ID / GUID (varies by provider)
+
+  // OpenTable (per-location)
+  opentableClientId     String?
+  opentableClientSecret String?
+  opentableRestaurantId String?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }

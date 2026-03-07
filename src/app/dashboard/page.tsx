@@ -1,163 +1,215 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
-export default function DashboardPage() {
-    const [guests, setGuests] = useState<any>(null);
-    const [inventory, setInventory] = useState<any>(null);
-    const [schedule, setSchedule] = useState<any>(null);
+// Dummy live sales data for the chart
+const salesData = [
+    { time: "10am", today: 120, yesterday: 90 },
+    { time: "12pm", today: 850, yesterday: 700 },
+    { time: "2pm", today: 1400, yesterday: 1100 },
+    { time: "4pm", today: 1800, yesterday: 1600 },
+    { time: "6pm", today: 3200, yesterday: 2900 },
+    { time: "8pm", today: 5400, yesterday: 4800 },
+    { time: "10pm", today: 6100, yesterday: 5500 },
+];
+
+export default function DashboardOverview() {
+    const [activeLoc, setActiveLoc] = useState<string>("Loading...");
+    const [currentTime, setCurrentTime] = useState("");
 
     useEffect(() => {
-        fetch("/api/guests").then(r => r.json()).then(setGuests);
-        fetch("/api/inventory").then(r => r.json()).then(setInventory);
-        fetch("/api/timeoff").then(r => r.json()).then(setSchedule);
+        // Current time ticker
+        const updateTime = () => setCurrentTime(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+        updateTime();
+        const t = setInterval(updateTime, 1000);
+
+        fetch("/api/locations")
+            .then(r => r.json())
+            .then(d => {
+                if (d.locations?.length > 0) {
+                    const savedId = localStorage.getItem("restly_active_location");
+                    const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];
+                    setActiveLoc(loc.name.split("— ").pop() || loc.name); // only branch name
+                } else {
+                    setActiveLoc(d.restaurantName || "No Location Setup");
+                }
+            }).catch(() => {
+                setActiveLoc("Setup Required");
+            });
+
+        return () => clearInterval(t);
     }, []);
 
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-
     return (
-        <>
-            <div className="topbar">
+        <main style={{ padding: "32px 28px 80px", maxWidth: 1200, margin: "0 auto" }}>
+            <style>{`
+        .kpi-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:16px; padding:24px; display:flex; flex-direction:column; gap:8px; transition:all 0.2s; }
+        .kpi-card:hover { border-color:rgba(201,168,76,0.3); background:rgba(255,255,255,0.04); transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,0.2); }
+        .kpi-val { font-size:32px; font-weight:900; color:#fff; letter-spacing:-1px; }
+        .kpi-label { font-size:13px; font-weight:700; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.5px; }
+        .kpi-diff { font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; }
+        .diff-pos { background:rgba(74, 222, 128, 0.1); color:#4ade80; }
+        .diff-neg { background:rgba(248, 113, 113, 0.1); color:#f87171; }
+        .panel { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:20px; padding:28px; }
+        .ai-pulse { animation:pulse 2s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(201,168,76,0.4)} 70%{box-shadow:0 0 0 10px rgba(201,168,76,0)} 100%{box-shadow:0 0 0 0 rgba(201,168,76,0)} }
+      `}</style>
+
+            {/* ── HEADER ── */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
                 <div>
-                    <div className="topbar-title">{greeting}, Manager 👋</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
-                        {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                    <div style={{ fontSize: 13, color: "#E8C96E", fontWeight: 700, marginBottom: 4, letterSpacing: 1, textTransform: "uppercase" }}>
+                        Live Dashboard • {currentTime}
                     </div>
+                    <h1 style={{ fontSize: 32, fontWeight: 900, color: "#fff", letterSpacing: "-1px" }}>
+                        Overview: {activeLoc}
+                    </h1>
                 </div>
-                <div className="topbar-right">
-                    <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
-                        🇺🇸 California · CCPA Compliant
-                    </span>
+                <div style={{ display: "flex", gap: 12 }}>
+                    <button style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                        Export CSV
+                    </button>
+                    <button style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                        Sync POS
+                    </button>
                 </div>
             </div>
 
-            <div className="page-content fade-in">
-                {/* KPIs */}
-                <div className="kpi-grid">
-                    {[
-                        {
-                            label: "Covers Tonight", icon: "🍽️",
-                            value: guests?.todayReservations?.reduce((a: number, r: any) => a + r.partySize, 0) ?? "—",
-                            sub: `${guests?.todayReservations?.length ?? 0} reservations`,
-                            color: "var(--gold-light)",
-                        },
-                        {
-                            label: "VIP Guests Tonight", icon: "⭐",
-                            value: guests?.todayReservations?.filter((r: any) => r.isVip).length ?? "—",
-                            sub: "Require special attention",
-                            color: "var(--purple)",
-                        },
-                        {
-                            label: "Stock Alerts", icon: "⚠️",
-                            value: inventory?.lowStock?.length ?? "—",
-                            sub: `${inventory?.stats?.outOfStock ?? 0} out of stock`,
-                            color: inventory?.stats?.outOfStock > 0 ? "var(--red)" : "var(--yellow)",
-                        },
-                        {
-                            label: "Pending Time-Off", icon: "📅",
-                            value: schedule?.stats?.pending ?? "—",
-                            sub: "Awaiting your review",
-                            color: "var(--yellow)",
-                        },
-                    ].map(card => (
-                        <div key={card.label} className="kpi-card">
-                            <div className="kpi-label">{card.icon} {card.label}</div>
-                            <div className="kpi-value" style={{ color: card.color }}>{card.value}</div>
-                            <div className="kpi-sub">{card.sub}</div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="grid-2" style={{ gap: 20 }}>
-                    {/* Tonight's Reservations */}
-                    <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">🍽️ Tonight&apos;s Reservations</span>
-                            <Link href="/dashboard/guests" style={{ fontSize: 12, color: "var(--gold-light)", textDecoration: "none" }}>View all →</Link>
-                        </div>
-                        <div style={{ overflowX: "auto" }}>
-                            <table className="data-table">
-                                <thead><tr><th>Time</th><th>Guest</th><th>Party</th><th>Table</th><th>Status</th></tr></thead>
-                                <tbody>
-                                    {!guests && <tr><td colSpan={5} style={{ textAlign: "center", padding: 24, color: "var(--text-muted)" }}>Loading…</td></tr>}
-                                    {guests?.todayReservations?.slice(0, 7).map((r: any, i: number) => (
-                                        <tr key={i}>
-                                            <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{r.time}</td>
-                                            <td>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                    {r.isVip && <span style={{ color: "var(--gold-light)", fontSize: 14 }}>⭐</span>}
-                                                    <span style={{ color: r.isVip ? "var(--gold-light)" : "inherit", fontWeight: r.isVip ? 600 : 400 }}>{r.guestName}</span>
-                                                </div>
-                                            </td>
-                                            <td>{r.partySize}</td>
-                                            <td>T{r.tableNumber}</td>
-                                            <td><span className={`badge badge-${r.status === "confirmed" ? "blue" : r.status === "seated" ? "green" : "yellow"}`}>{r.status}</span></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+            {/* ── AI PROACTIVE INSIGHT (Restoke-style smart actionable alert) ── */}
+            <div className="panel" style={{ background: "linear-gradient(to right, rgba(201,168,76,0.1), rgba(201,168,76,0.02))", borderColor: "rgba(201,168,76,0.2)", marginBottom: 24, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div className="ai-pulse" style={{ width: 44, height: 44, borderRadius: "50%", background: "#1a1a24", border: "1px solid #C9A84C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+                        🤖
                     </div>
-
-                    {/* Stock Alerts */}
-                    <div className="card">
-                        <div className="card-header">
-                            <span className="card-title">⚠️ Stock Alerts</span>
-                            <Link href="/dashboard/inventory" style={{ fontSize: 12, color: "var(--gold-light)", textDecoration: "none" }}>Manage →</Link>
-                        </div>
-                        <div className="card-body" style={{ padding: 0 }}>
-                            {inventory?.stats?.outOfStock > 0 && (
-                                <div className="alert alert-danger" style={{ margin: 16, marginBottom: 8 }}>
-                                    <span>🚨</span>
-                                    <div><strong>{inventory.stats.outOfStock} items</strong> out of stock — may affect tonight&apos;s menu!</div>
-                                </div>
-                            )}
-                            {!inventory && <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>}
-                            {inventory?.lowStock?.slice(0, 6).map((item: any, i: number) => (
-                                <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--border)" }}>
-                                    <div>
-                                        <div style={{ fontSize: 13, fontWeight: 600 }}>{item.name}</div>
-                                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{item.category}</div>
-                                    </div>
-                                    <span className={`badge ${item.status === "OUT_OF_STOCK" ? "badge-red" : "badge-yellow"}`}>
-                                        {item.status === "OUT_OF_STOCK" ? "OUT" : `${item.quantity} ${item.unit}`}
-                                    </span>
-                                </div>
-                            ))}
+                    <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#E8C96E", marginBottom: 4 }}>Restly AI Insight</div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)" }}>
+                            Based on tonight's reservations (82 covers), you are projected to run out of <strong>Truffle Oil</strong> and <strong>Ribeye Steaks</strong> before 9 PM.
                         </div>
                     </div>
                 </div>
-
-                {/* Pending Time-Off */}
-                {schedule?.requests?.filter((r: any) => r.status === "PENDING").length > 0 && (
-                    <div className="card" style={{ marginTop: 20 }}>
-                        <div className="card-header">
-                            <span className="card-title">📅 Pending Time-Off Requests</span>
-                            <Link href="/dashboard/schedule" style={{ fontSize: 12, color: "var(--gold-light)", textDecoration: "none" }}>Review all →</Link>
-                        </div>
-                        <table className="data-table">
-                            <thead><tr><th>Employee</th><th>Role</th><th>Dates</th><th>Reason</th><th>Action</th></tr></thead>
-                            <tbody>
-                                {schedule.requests.filter((r: any) => r.status === "PENDING").slice(0, 4).map((r: any) => (
-                                    <tr key={r.id}>
-                                        <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{r.employeeName}</td>
-                                        <td><span className="badge badge-blue">{r.employeeRole}</span></td>
-                                        <td style={{ fontSize: 12 }}>{r.startDate} → {r.endDate}</td>
-                                        <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 200 }}>{r.reason}</td>
-                                        <td>
-                                            <div style={{ display: "flex", gap: 6 }}>
-                                                <button style={{ fontSize: 11, padding: "5px 10px", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "var(--green)", borderRadius: 6, cursor: "pointer" }}>✓ Approve</button>
-                                                <button style={{ fontSize: 11, padding: "5px 10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--red)", borderRadius: 6, cursor: "pointer" }}>✗ Deny</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                <Link href="/dashboard/inventory" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", textDecoration: "none", padding: "10px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                    Check Inventory →
+                </Link>
             </div>
-        </>
+
+            {/* ── KPI GRID ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 32 }}>
+                <div className="kpi-card">
+                    <div className="kpi-label">Gross Sales (Today)</div>
+                    <div className="kpi-val">$6,100</div>
+                    <div className="kpi-diff diff-pos">↑ 14.5% vs yesterday</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Total Covers</div>
+                    <div className="kpi-val">124</div>
+                    <div className="kpi-diff diff-pos">↑ 8% vs yesterday</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Avg Spend per Guest</div>
+                    <div className="kpi-val">$49.19</div>
+                    <div className="kpi-diff diff-neg">↓ 2.1% vs yesterday</div>
+                </div>
+                <div className="kpi-card">
+                    <div className="kpi-label">Labour Cost %</div>
+                    <div className="kpi-val">28.4%</div>
+                    <div className="kpi-diff diff-pos">Optimal (Target: 30%)</div>
+                </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+                {/* ── LIVE SALES CHART ── */}
+                <div className="panel">
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                        <div>
+                            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Live Sales Trajectory</h2>
+                            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Cumulative hourly sales compared to yesterday</p>
+                        </div>
+                    </div>
+                    <div style={{ height: 300, width: "100%" }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={salesData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorToday" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#C9A84C" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
+                                <YAxis stroke="rgba(255,255,255,0.2)" fontSize={12} tickFormatter={(val) => `$${val}`} axisLine={false} tickLine={false} />
+                                <RechartsTooltip
+                                    contentStyle={{ background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff" }}
+                                    formatter={(value) => [`$${value}`, ""]}
+                                />
+                                <Area type="monotone" dataKey="yesterday" name="Yesterday" stroke="rgba(255,255,255,0.2)" fill="transparent" strokeWidth={2} strokeDasharray="5 5" />
+                                <Area type="monotone" dataKey="today" name="Today" stroke="#C9A84C" fillOpacity={1} fill="url(#colorToday)" strokeWidth={3} activeDot={{ r: 6, fill: "#E8C96E", stroke: "#1a1a24", strokeWidth: 2 }} />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* ── RIGHT COLUMN (Floor Status & Tasks) ── */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                    {/* Floor Status */}
+                    <div className="panel" style={{ flex: 1 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>Floor Status</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            <div>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Dining Room Capacity</span>
+                                    <span style={{ fontWeight: 700, color: "#fff" }}>78%</span>
+                                </div>
+                                <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
+                                    <div style={{ width: "78%", height: "100%", background: "#4ade80", borderRadius: 4 }} />
+                                </div>
+                            </div>
+                            <div>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Kitchen Ticket Time (Avg)</span>
+                                    <span style={{ fontWeight: 700, color: "#fff" }}>14m 30s</span>
+                                </div>
+                                <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
+                                    <div style={{ width: "45%", height: "100%", background: "#C9A84C", borderRadius: 4 }} />
+                                </div>
+                            </div>
+                            <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                                <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, textAlign: "center" }}>
+                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>14</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: 2 }}>Active Tables</div>
+                                </div>
+                                <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, textAlign: "center" }}>
+                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#E8C96E" }}>4</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: 2 }}>VIPs Seated</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Tasks */}
+                    <div className="panel" style={{ flex: 1 }}>
+                        <h2 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 16 }}>Pending Actions</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <span style={{ background: "rgba(248, 113, 113, 0.1)", color: "#f87171", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📦</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Approve PO #1042</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>US Foods (Due tomorrow)</div>
+                                </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <span style={{ background: "rgba(74, 222, 128, 0.1)", color: "#4ade80", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⏱️</span>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Review Time-off</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Sarah M. (Chef) requested Friday</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
     );
 }

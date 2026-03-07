@@ -1,288 +1,363 @@
+"use client";
 import Link from "next/link";
 
-const features = [
+const POS_LOGOS = [
+    { name: "Toast", emoji: "🍞", color: "#FF6B35" },
+    { name: "Clover", emoji: "🍀", color: "#1DA462" },
+    { name: "Square", emoji: "⬛", color: "#3E4348" },
+    { name: "Lightspeed", emoji: "⚡", color: "#005EB8" },
+    { name: "Revel", emoji: "🔴", color: "#C41A1A" },
+    { name: "OpenTable", emoji: "🍽️", color: "#DA3743" },
+];
+
+const FEATURES = [
     {
         icon: "🤖",
-        title: "AI Manager Chatbot",
-        desc: "Ask anything in plain English. Get instant answers about tonight's guests, stock levels, or staffing conflicts.",
+        title: "AI Manager — Always On",
+        desc: "Ask anything in plain English. 'Who are my VIP guests tonight?' 'What's running low in the kitchen?' Get instant answers.",
+        badge: "✦ Restly AI",
+        badgeColor: "rgba(139,92,246,0.2)",
+        badgeText: "#a78bfa",
+    },
+    {
+        icon: "🔗",
+        title: "Works With Every POS",
+        desc: "Toast, Clover, Square, Lightspeed, Revel — connect any POS system in minutes. Real-time inventory sync, COGS tracking, and more.",
+        badge: "6+ Integrations",
+        badgeColor: "rgba(34,197,94,0.2)",
+        badgeText: "#4ade80",
     },
     {
         icon: "👤",
         title: "Guest Intelligence",
-        desc: "Every guest's preferences, dietary notes, VIP status, and spending history — pulled from OpenTable automatically.",
+        desc: "Full guest profiles from OpenTable. VIP alerts, dietary notes, special occasions, spending history — all in one place.",
+        badge: "OpenTable Sync",
+        badgeColor: "rgba(201,168,76,0.2)",
+        badgeText: "#E8C96E",
     },
     {
         icon: "📦",
-        title: "Live Inventory Sync",
-        desc: "Real-time stock levels from Toast POS. Get alerts before you run out of key ingredients during service.",
+        title: "Live Inventory & COGS",
+        desc: "Real-time stock alerts before service. Automated cost-of-goods tracking linked to your POS sales data.",
+        badge: "Auto-Updated",
+        badgeColor: "rgba(59,130,246,0.2)",
+        badgeText: "#60a5fa",
     },
     {
         icon: "📅",
-        title: "Smart Scheduling",
-        desc: "Staff time-off requests via Google Forms, conflict detection, and AI-assisted scheduling recommendations.",
+        title: "Smart Staff Scheduling",
+        desc: "Time-off requests, shift conflicts, and labor cost forecasting — all managed in one dashboard.",
+        badge: "Google Forms",
+        badgeColor: "rgba(249,115,22,0.2)",
+        badgeText: "#fb923c",
     },
     {
-        icon: "🔒",
-        title: "CCPA Compliant",
-        desc: "Built for California. Guest data handling follows CCPA/CPRA regulations with built-in consent flows.",
-    },
-    {
-        icon: "⚡",
-        title: "Works in Minutes",
-        desc: "No IT team needed. Sign up, connect your OpenTable and Toast accounts, and you're live same day.",
+        icon: "📊",
+        title: "Revenue Insights",
+        desc: "Sales forecasting, cover projections, and margin analysis. Know before service what tonight will cost.",
+        badge: "Coming Soon",
+        badgeColor: "rgba(156,163,175,0.15)",
+        badgeText: "#9ca3af",
     },
 ];
 
-const pricing = [
+const HOW_IT_WORKS = [
+    { step: "1", title: "Sign up free", desc: "Create your account in 2 minutes. No credit card. No setup fees." },
+    { step: "2", title: "Connect your systems", desc: "Plug in your POS (Toast, Clover, Square…) and OpenTable. Takes 10 minutes max." },
+    { step: "3", title: "Ask the AI anything", desc: "Launch the chat and start managing your restaurant in plain language." },
+];
+
+const TESTIMONIALS = [
+    {
+        name: "Marcus Reid",
+        role: "Owner, The Embers LA",
+        text: "Before Restly I'd spend 2 hours every morning checking stock and reviewing the guest list. Now I just ask the AI and I'm done in 5 minutes.",
+        avatar: "MR",
+        stars: 5,
+    },
+    {
+        name: "Priya Nair",
+        role: "GM, Saffron Table",
+        text: "The VIP alerts alone are worth it. Michael Chen came in and I already knew his table preference, his allergy, and his favorite wine before he sat down.",
+        avatar: "PN",
+        stars: 5,
+    },
+    {
+        name: "Doug Castellano",
+        role: "F&B Director, Harbour Group",
+        text: "We run on Clover, competitors said they'd add us 'eventually'. Restly connected in 20 minutes. The inventory sync is flawless.",
+        avatar: "DC",
+        stars: 5,
+    },
+];
+
+const PRICING = [
     {
         name: "Starter",
-        price: "$149",
-        period: "per month",
-        desc: "Perfect for single-location restaurants",
-        popular: false,
+        price: "$99",
+        period: "/mo",
+        desc: "Perfect for single-location restaurants getting started with AI.",
+        color: "var(--border)",
         features: [
-            "AI Manager Chatbot",
-            "Guest Intelligence (up to 500 guests)",
-            "Inventory Management",
-            "Schedule & Time-Off",
-            "OpenTable + Toast integrations",
-            "CCPA compliance tools",
+            "✦ Unlimited AI Manager queries",
+            "1 POS integration (any brand)",
+            "OpenTable guest sync",
+            "Live inventory alerts",
+            "Staff scheduling & time-off",
             "Email support",
         ],
         cta: "Start Free Trial",
-        href: "/signup?plan=starter",
+        highlight: false,
+        note: "14-day free trial",
     },
     {
-        name: "Professional",
-        price: "$299",
-        period: "per month",
-        desc: "For growing multi-location restaurants",
-        popular: true,
+        name: "Pro",
+        price: "$199",
+        period: "/mo",
+        desc: "For busy restaurants that want full automation and insights.",
+        color: "var(--gold)",
         features: [
-            "Everything in Starter",
-            "Unlimited guest profiles",
-            "Multi-location support (up to 3)",
-            "Google Sheets auto-sync",
-            "Advanced analytics & reports",
-            "Custom AI training on your menu",
-            "Priority support + onboarding call",
+            "✦ Everything in Starter",
+            "Unlimited POS integrations",
+            "Live COGS & food cost tracking",
+            "Revenue & cover forecasting",
+            "Recipe costing module",
+            "Priority support (chat + phone)",
+            "Custom branding & colors",
         ],
         cta: "Start Free Trial",
-        href: "/signup?plan=pro",
+        highlight: true,
+        note: "Most popular",
     },
     {
         name: "Enterprise",
-        price: "Custom",
-        period: "contact us",
-        desc: "For restaurant groups & chains",
-        popular: false,
+        price: "$399",
+        period: "/mo",
+        desc: "For restaurant groups and multi-location chains.",
+        color: "rgba(139,92,246,0.6)",
         features: [
-            "Everything in Professional",
-            "Unlimited locations",
-            "White-label branding",
-            "Custom integrations",
-            "Dedicated account manager",
-            "SLA guarantee",
-            "On-site training",
+            "✦ Everything in Pro",
+            "Multi-location dashboard",
+            "HQ command center",
+            "Team roles & permissions",
+            "Dedicated onboarding manager",
+            "99.9% uptime SLA",
         ],
-        cta: "Contact Sales",
-        href: "mailto:hello@restly.ai",
+        cta: "Contact Us",
+        highlight: false,
+        note: "Custom quote available",
     },
-];
-
-const stats = [
-    { value: "2 min", label: "Average setup time" },
-    { value: "40%", label: "Less time on admin tasks" },
-    { value: "∞", label: "AI queries per day" },
-    { value: "14 days", label: "Free trial, no card needed" },
 ];
 
 export default function LandingPage() {
     return (
-        <div className="landing">
+        <main style={{ background: "#08080f", minHeight: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", overflowX: "hidden" }}>
+            {/* ── FONTS ── */}
+            <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+          --gold: #C9A84C; --gold-light: #E8C96E;
+          --border: rgba(255,255,255,0.08);
+          --text-muted: rgba(255,255,255,0.35);
+          --text-secondary: rgba(255,255,255,0.6);
+        }
+        .fade-up { animation: fadeUp 0.7s ease both; }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:none; } }
+        .glow-gold { box-shadow: 0 0 60px rgba(201,168,76,0.15); }
+        .hero-btn-primary {
+          display:inline-flex; align-items:center; gap:8px;
+          background:linear-gradient(135deg,#C9A84C,#E8C96E);
+          color:#1a1000; font-size:16px; font-weight:800;
+          text-decoration:none; border-radius:14px;
+          padding:15px 32px; transition:transform 0.2s, box-shadow 0.2s;
+          box-shadow:0 4px 24px rgba(201,168,76,0.3);
+        }
+        .hero-btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(201,168,76,0.45); }
+        .hero-btn-secondary {
+          display:inline-flex; align-items:center; gap:8px;
+          background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.85);
+          font-size:16px; font-weight:600; text-decoration:none;
+          border-radius:14px; padding:15px 32px;
+          border:1px solid rgba(255,255,255,0.12); transition:all 0.2s;
+        }
+        .hero-btn-secondary:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.2); }
+        @media(max-width:768px){
+          .hero-headline { font-size:clamp(32px,8vw,52px) !important; }
+          .desktop-only { display:none !important; }
+          .mobile-stack { flex-direction:column !important; }
+          .pricing-grid { grid-template-columns:1fr !important; }
+          .features-grid { grid-template-columns:1fr !important; }
+          .testimonials-grid { grid-template-columns:1fr !important; }
+          .how-grid { grid-template-columns:1fr !important; }
+        }
+      `}</style>
+
             {/* ── NAV ── */}
-            <nav className="nav">
-                <div className="nav-logo">✦ Restly</div>
-                <div className="nav-links">
-                    <a href="#features" className="nav-link">Features</a>
-                    <a href="#pricing" className="nav-link">Pricing</a>
-                    <a href="#how" className="nav-link">How it works</a>
-                    <Link href="/login" className="btn-ghost" style={{ fontSize: 14, padding: "8px 18px" }}>
-                        Log in
+            <nav style={{ position: "sticky", top: 0, zIndex: 100, padding: "0 24px", background: "rgba(8,8,15,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", height: 64, gap: 32 }}>
+                    <Link href="/" style={{ fontWeight: 900, fontSize: 20, color: "#E8C96E", textDecoration: "none", letterSpacing: "-0.5px", display: "flex", alignItems: "center", gap: 6 }}>
+                        ✦ Restly
                     </Link>
-                    <Link href="/signup" className="btn-primary" style={{ fontSize: 14, padding: "10px 22px" }}>
-                        Start Free Trial
-                    </Link>
+                    <div className="desktop-only" style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                        {["Features", "Integrations", "Pricing", "How it works"].map(item => (
+                            <a key={item} href={`#${item.toLowerCase().replace(/ /g, "-")}`}
+                                style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: 500, padding: "8px 14px", borderRadius: 8, transition: "color 0.15s" }}
+                                onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
+                                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.6)")}
+                            >{item}</a>
+                        ))}
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+                        <Link href="/login" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none", fontSize: 14, fontWeight: 600, padding: "8px 16px" }}>Log in</Link>
+                        <Link href="/signup" className="hero-btn-primary" style={{ fontSize: 14, padding: "10px 22px", borderRadius: 10 }}>Start Free</Link>
+                    </div>
                 </div>
             </nav>
 
             {/* ── HERO ── */}
-            <section style={{ position: "relative", overflow: "hidden", paddingTop: 160, paddingBottom: 100 }}>
-                {/* Background blobs */}
-                <div className="hero-blob" style={{ width: 600, height: 600, background: "rgba(201,168,76,0.06)", top: -100, left: "50%", transform: "translateX(-60%)" }} />
-                <div className="hero-blob" style={{ width: 400, height: 400, background: "rgba(168,85,247,0.05)", top: 50, right: "5%" }} />
+            <section style={{ padding: "80px 24px 60px", textAlign: "center", position: "relative" }}>
+                {/* Background glow */}
+                <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 400, background: "radial-gradient(ellipse,rgba(201,168,76,0.08) 0%,transparent 70%)", pointerEvents: "none" }} />
 
-                <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center", padding: "0 24px", position: "relative", zIndex: 1 }}>
-                    {/* Badge */}
-                    <div style={{
-                        display: "inline-flex", alignItems: "center", gap: 8,
-                        background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)",
-                        borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 600,
-                        color: "var(--gold-light)", marginBottom: 28,
-                    }}>
-                        <span>✦</span> AI-Powered Restaurant Management
+                <div style={{ maxWidth: 800, margin: "0 auto", position: "relative" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 50, padding: "7px 18px", marginBottom: 28, fontSize: 13, fontWeight: 700, color: "#E8C96E", letterSpacing: "0.5px" }}>
+                        ✦ AI-Powered Restaurant Management
                     </div>
 
-                    <h1 style={{
-                        fontFamily: "'Plus Jakarta Sans', sans-serif",
-                        fontSize: "clamp(40px, 6vw, 72px)",
-                        fontWeight: 900, lineHeight: 1.05,
-                        letterSpacing: "-0.03em", marginBottom: 24,
-                    }}>
-                        Run Your Restaurant<br />
-                        <span className="gradient-text">10× Smarter</span>
+                    <h1 className="hero-headline fade-up" style={{ fontSize: "clamp(40px,6vw,68px)", fontWeight: 900, lineHeight: 1.1, letterSpacing: "-2px", color: "#fff", marginBottom: 24 }}>
+                        Your restaurant,
+                        <br />
+                        <span style={{ background: "linear-gradient(135deg,#E8C96E,#C9A84C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                            10× smarter.
+                        </span>
                     </h1>
 
-                    <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "var(--text-secondary)", maxWidth: 600, margin: "0 auto 40px", lineHeight: 1.7 }}>
-                        Restly is the AI manager that never sleeps. Ask it about tonight&apos;s guests,
-                        check stock levels, handle time-off requests — all through a simple chat interface.
+                    <p style={{ fontSize: "clamp(16px,2.5vw,20px)", color: "rgba(255,255,255,0.6)", lineHeight: 1.7, maxWidth: 600, margin: "0 auto 40px", fontWeight: 400 }}>
+                        The AI manager that never sleeps. Works with Toast, Clover, Square, Lightspeed — and speaks plain English.
                     </p>
 
-                    <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 60 }}>
-                        <Link href="/signup" className="btn-primary" style={{ fontSize: 16, padding: "16px 32px" }}>
-                            Start Free — No Card Required →
-                        </Link>
-                        <Link href="/login" className="btn-secondary" style={{ fontSize: 16, padding: "15px 32px" }}>
-                            See Live Demo
-                        </Link>
+                    <div className="mobile-stack" style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginBottom: 56 }}>
+                        <Link href="/signup" className="hero-btn-primary">Start Free — No Card Required →</Link>
+                        <Link href="/login?demo=true" className="hero-btn-secondary">See Live Demo →</Link>
                     </div>
 
-                    {/* Stats strip */}
-                    <div style={{
-                        display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 0,
-                        background: "var(--bg-card)", border: "1px solid var(--border)",
-                        borderRadius: 16, padding: "4px 0", maxWidth: 680, margin: "0 auto",
-                    }}>
-                        {stats.map((s, i) => (
-                            <div key={i} style={{
-                                flex: 1, minWidth: 130, textAlign: "center", padding: "18px 16px",
-                                borderRight: i < stats.length - 1 ? "1px solid var(--border)" : "none",
-                            }}>
-                                <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 22, fontWeight: 800, color: "var(--gold-light)" }}>{s.value}</div>
-                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+                    {/* Stats bar */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {[
+                            { val: "2 min", label: "Setup time" },
+                            { val: "6+", label: "POS integrations" },
+                            { val: "40%", label: "Less admin work" },
+                            { val: "14 days", label: "Free trial" },
+                        ].map((s, i) => (
+                            <div key={i} style={{ padding: "20px 16px", textAlign: "center", background: "rgba(255,255,255,0.02)" }}>
+                                <div style={{ fontSize: 24, fontWeight: 900, color: "#E8C96E", letterSpacing: "-1px" }}>{s.val}</div>
+                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 500 }}>{s.label}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* ── DASHBOARD PREVIEW ── */}
-            <section style={{ padding: "0 40px 80px", maxWidth: 1100, margin: "0 auto" }}>
-                <div style={{
-                    background: "var(--bg-card)", border: "1px solid var(--border)",
-                    borderRadius: 24, overflow: "hidden",
-                    boxShadow: "0 40px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,168,76,0.08)",
-                }}>
-                    {/* Mock browser bar */}
-                    <div style={{ background: "var(--bg-secondary)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid var(--border)" }}>
-                        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--red)" }} />
-                        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--yellow)" }} />
-                        <div style={{ width: 12, height: 12, borderRadius: "50%", background: "var(--green)" }} />
-                        <div style={{ flex: 1, background: "var(--bg-card)", borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "var(--text-muted)", marginLeft: 12 }}>
-                            app.restly.ai/dashboard
-                        </div>
-                    </div>
-                    {/* Mock dashboard */}
-                    <div style={{ display: "flex", minHeight: 380 }}>
-                        {/* Sidebar */}
-                        <div style={{ width: 200, background: "var(--bg-secondary)", borderRight: "1px solid var(--border)", padding: "20px 12px" }}>
-                            <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 16, fontWeight: 800, background: "linear-gradient(135deg,#E8C96E,#C9A84C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 20, paddingLeft: 8 }}>✦ Restly</div>
-                            {["📊  Overview", "👤  Guests", "📦  Inventory", "📅  Schedule", "⚙️  Settings"].map((item, i) => (
-                                <div key={i} style={{
-                                    padding: "9px 12px", borderRadius: 8, fontSize: 13, marginBottom: 2,
-                                    background: i === 0 ? "rgba(201,168,76,0.12)" : "transparent",
-                                    color: i === 0 ? "var(--gold-light)" : "var(--text-muted)",
-                                }}>{item}</div>
-                            ))}
-                        </div>
-                        {/* Main */}
-                        <div style={{ flex: 1, padding: 24 }}>
-                            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Good evening, Manager 👋</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
-                                {[
-                                    { label: "Covers Tonight", value: "84", color: "var(--gold-light)" },
-                                    { label: "VIP Guests", value: "6", color: "var(--purple)" },
-                                    { label: "Stock Alerts", value: "3", color: "var(--red)" },
-                                    { label: "Pending PTO", value: "2", color: "var(--yellow)" },
-                                ].map(c => (
-                                    <div key={c.label} style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px" }}>
-                                        <div style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{c.label}</div>
-                                        <div style={{ fontSize: 24, fontWeight: 800, color: c.color }}>{c.value}</div>
-                                    </div>
-                                ))}
+            {/* ── POS INTEGRATIONS TICKER ── */}
+            <section id="integrations" style={{ padding: "20px 24px 56px" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+                    <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: 24 }}>
+                        Works with every major POS system
+                    </p>
+                    <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                        {POS_LOGOS.map(pos => (
+                            <div key={pos.name} style={{
+                                display: "flex", alignItems: "center", gap: 10,
+                                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                                borderRadius: 12, padding: "10px 20px", fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.7)",
+                                transition: "all 0.2s",
+                            }}>
+                                <span style={{ fontSize: 20 }}>{pos.emoji}</span> {pos.name}
                             </div>
-                            {/* AI chat preview */}
-                            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 12, padding: 16 }}>
-                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, fontWeight: 600 }}>🤖 AI Manager</div>
-                                <div style={{ fontSize: 13, background: "rgba(201,168,76,0.15)", padding: "8px 12px", borderRadius: 10, marginBottom: 8, width: "fit-content", color: "#1a1000", fontWeight: 500 }}>
-                                    Who are my VIP guests tonight?
-                                </div>
-                                <div style={{ fontSize: 13, color: "var(--text-secondary)", background: "var(--bg-card)", padding: "8px 12px", borderRadius: 10 }}>
-                                    You have <strong style={{ color: "var(--gold-light)" }}>3 VIP guests</strong> tonight: Michael Chen (Table 12, 6pm), James Hartley (Table 5, 7pm), and Robert Williams (Table 8, 7:30pm). Michael brings a party of 6 and has a no-shellfish allergy — ensure kitchen is notified. 🌟
-                                </div>
-                            </div>
+                        ))}
+                        <div style={{ display: "flex", alignItems: "center", padding: "10px 20px", fontSize: 14, color: "rgba(255,255,255,0.3)", fontWeight: 500 }}>
+                            + more
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* ── FEATURES ── */}
-            <section className="section" id="features">
-                <div style={{ textAlign: "center", marginBottom: 20 }}>
-                    <div className="section-label">Features</div>
-                    <h2 className="section-title">
-                        Everything your restaurant needs,<br />
-                        <span className="gradient-text">powered by AI</span>
-                    </h2>
-                    <p className="section-sub" style={{ margin: "0 auto" }}>
-                        Restly connects to your existing tools — OpenTable, Toast POS, and Google Forms — and adds an AI brain on top.
-                    </p>
-                </div>
-                <div className="feature-grid">
-                    {features.map(f => (
-                        <div key={f.title} className="feature-card">
-                            <div className="feature-icon">{f.icon}</div>
-                            <div className="feature-title">{f.title}</div>
-                            <div className="feature-desc">{f.desc}</div>
-                        </div>
-                    ))}
+            <section id="features" style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+                    <div style={{ textAlign: "center", marginBottom: 56 }}>
+                        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 900, color: "#fff", letterSpacing: "-1.5px", marginBottom: 12 }}>
+                            Everything your team needs
+                        </h2>
+                        <p style={{ fontSize: 17, color: "rgba(255,255,255,0.5)", maxWidth: 480, margin: "0 auto" }}>
+                            From guest check-in to inventory reorder — managed by AI, controlled by you.
+                        </p>
+                    </div>
+                    <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+                        {FEATURES.map((f, i) => (
+                            <div key={i} style={{
+                                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+                                borderRadius: 20, padding: "28px 24px", transition: "border-color 0.2s, transform 0.2s",
+                            }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(201,168,76,0.3)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLElement).style.transform = "none"; }}
+                            >
+                                <div style={{ fontSize: 32, marginBottom: 14 }}>{f.icon}</div>
+                                <div>
+                                    <span style={{ fontSize: 11, fontWeight: 700, background: f.badgeColor, color: f.badgeText, padding: "3px 10px", borderRadius: 20, letterSpacing: "0.5px" }}>{f.badge}</span>
+                                </div>
+                                <h3 style={{ fontSize: 18, fontWeight: 800, color: "#fff", margin: "14px 0 10px", letterSpacing: "-0.5px" }}>{f.title}</h3>
+                                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.65 }}>{f.desc}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </section>
 
             {/* ── HOW IT WORKS ── */}
-            <section className="section" id="how" style={{ background: "var(--bg-card)", maxWidth: "100%", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                    <div style={{ textAlign: "center", marginBottom: 56 }}>
-                        <div className="section-label">How it works</div>
-                        <h2 className="section-title">Live in under 5 minutes</h2>
+            <section id="how-it-works" style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ maxWidth: 900, margin: "0 auto" }}>
+                    <div style={{ textAlign: "center", marginBottom: 48 }}>
+                        <h2 style={{ fontSize: "clamp(26px,4vw,40px)", fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 12 }}>Up and running in minutes</h2>
+                        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)" }}>No long setup. No training. Just connect, ask, and manage.</p>
                     </div>
-                    <div className="grid-3">
-                        {[
-                            { step: "1", title: "Sign Up", desc: "Create your restaurant account. No credit card required for the 14-day free trial.", icon: "✍️" },
-                            { step: "2", title: "Connect Your Tools", desc: "Link your OpenTable, Toast POS account, and Google Forms for time-off requests.", icon: "🔌" },
-                            { step: "3", title: "Ask Your AI Manager", desc: "Open the chat, ask anything. Stock levels, guest preferences, schedule conflicts — instant answers.", icon: "💬" },
-                        ].map(s => (
-                            <div key={s.step} style={{ textAlign: "center", padding: 32 }}>
-                                <div style={{
-                                    width: 64, height: 64, borderRadius: 20,
-                                    background: "linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.05))",
-                                    border: "1px solid rgba(201,168,76,0.2)",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    fontSize: 28, margin: "0 auto 20px",
-                                }}>{s.icon}</div>
-                                <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: 11, fontWeight: 700, color: "var(--gold)", letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Step {s.step}</div>
-                                <div className="feature-title" style={{ fontSize: 18, marginBottom: 10 }}>{s.title}</div>
-                                <div className="feature-desc">{s.desc}</div>
+                    <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
+                        {HOW_IT_WORKS.map((s, i) => (
+                            <div key={i} style={{ textAlign: "center", padding: "28px 20px" }}>
+                                <div style={{ width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05))", border: "1px solid rgba(201,168,76,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", fontSize: 20, fontWeight: 900, color: "#E8C96E" }}>
+                                    {s.step}
+                                </div>
+                                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{s.title}</h3>
+                                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{s.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── TESTIMONIALS ── */}
+            <section style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+                    <h2 style={{ textAlign: "center", fontSize: "clamp(26px,4vw,38px)", fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 40 }}>
+                        Loved by restaurant professionals
+                    </h2>
+                    <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+                        {TESTIMONIALS.map((t, i) => (
+                            <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "28px 24px" }}>
+                                <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
+                                    {Array.from({ length: t.stars }).map((_, j) => <span key={j} style={{ color: "#E8C96E", fontSize: 14 }}>★</span>)}
+                                </div>
+                                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>"{t.text}"</p>
+                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))", border: "1px solid rgba(201,168,76,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#E8C96E" }}>
+                                        {t.avatar}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t.name}</div>
+                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.role}</div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -290,73 +365,91 @@ export default function LandingPage() {
             </section>
 
             {/* ── PRICING ── */}
-            <section className="section" id="pricing">
-                <div style={{ textAlign: "center", marginBottom: 20 }}>
-                    <div className="section-label">Pricing</div>
-                    <h2 className="section-title">
-                        Simple, transparent pricing.<br />
-                        <span className="gradient-text">Cancel anytime.</span>
-                    </h2>
-                    <p className="section-sub" style={{ margin: "0 auto" }}>
-                        Start your 14-day free trial today. No credit card required.
-                    </p>
-                </div>
-                <div className="pricing-grid">
-                    {pricing.map(p => (
-                        <div key={p.name} className={`pricing-card${p.popular ? " popular" : ""}`}>
-                            {p.popular && <div className="popular-badge">Most Popular</div>}
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1 }}>{p.name}</div>
-                            <div className="price-amount" style={{ color: p.popular ? "var(--gold-light)" : "var(--text-primary)" }}>{p.price}</div>
-                            <div className="price-period">{p.period}</div>
-                            <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8 }}>{p.desc}</div>
-                            <div className="price-features">
-                                {p.features.map(f => (
-                                    <div key={f} className="price-feature">
-                                        <span className="price-feature-check">✓</span>
-                                        <span style={{ fontSize: 14 }}>{f}</span>
+            <section id="pricing" style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+                    <div style={{ textAlign: "center", marginBottom: 48 }}>
+                        <h2 style={{ fontSize: "clamp(26px,4vw,42px)", fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 12 }}>
+                            Simple, transparent pricing
+                        </h2>
+                        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", maxWidth: 480, margin: "0 auto" }}>
+                            14-day free trial on all plans. No credit card. Cancel any time.
+                        </p>
+                    </div>
+                    <div className="pricing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, alignItems: "start" }}>
+                        {PRICING.map((plan, i) => (
+                            <div key={i} style={{
+                                background: plan.highlight ? "linear-gradient(160deg,rgba(201,168,76,0.08),rgba(201,168,76,0.02))" : "rgba(255,255,255,0.02)",
+                                border: `1px solid ${plan.highlight ? "rgba(201,168,76,0.35)" : "rgba(255,255,255,0.07)"}`,
+                                borderRadius: 24, padding: "32px 28px", position: "relative",
+                                boxShadow: plan.highlight ? "0 0 60px rgba(201,168,76,0.08)" : "none",
+                            }}>
+                                {plan.highlight && (
+                                    <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#C9A84C,#E8C96E)", color: "#1a1000", fontSize: 12, fontWeight: 800, padding: "5px 18px", borderRadius: 50, whiteSpace: "nowrap" }}>
+                                        MOST POPULAR
                                     </div>
-                                ))}
+                                )}
+                                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{plan.name}</h3>
+                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>{plan.desc}</p>
+                                <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 28 }}>
+                                    <span style={{ fontSize: 42, fontWeight: 900, color: plan.highlight ? "#E8C96E" : "#fff", letterSpacing: "-2px" }}>{plan.price}</span>
+                                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{plan.period}</span>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
+                                    {plan.features.map(f => (
+                                        <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
+                                            <span style={{ color: "#4ade80", fontSize: 13, flexShrink: 0 }}>✓</span> {f}
+                                        </div>
+                                    ))}
+                                </div>
+                                <Link href="/signup" style={{
+                                    display: "block", textAlign: "center", textDecoration: "none",
+                                    background: plan.highlight ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.06)",
+                                    color: plan.highlight ? "#1a1000" : "#fff",
+                                    fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 12,
+                                    border: plan.highlight ? "none" : "1px solid rgba(255,255,255,0.1)",
+                                    transition: "opacity 0.2s",
+                                }}>{plan.cta}</Link>
                             </div>
-                            <Link
-                                href={p.href}
-                                className={p.popular ? "btn-primary" : "btn-secondary"}
-                                style={{ marginTop: 28, display: "flex", justifyContent: "center", width: "100%" }}
-                            >
-                                {p.cta}
-                            </Link>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </section>
 
-            {/* ── CTA FOOTER ── */}
-            <section style={{ padding: "80px 40px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                <div className="hero-blob" style={{ width: 500, height: 500, background: "rgba(201,168,76,0.06)", top: "50%", left: "50%", transform: "translate(-50%,-50%)" }} />
-                <div style={{ position: "relative", zIndex: 1 }}>
-                    <h2 className="section-title" style={{ fontSize: "clamp(28px,4vw,52px)", marginBottom: 16 }}>
-                        Ready to run a smarter restaurant?
+            {/* ── FINAL CTA ── */}
+            <section style={{ padding: "70px 24px 80px", textAlign: "center" }}>
+                <div style={{ maxWidth: 640, margin: "0 auto" }}>
+                    <h2 style={{ fontSize: "clamp(28px,5vw,50px)", fontWeight: 900, color: "#fff", letterSpacing: "-1.5px", marginBottom: 16, lineHeight: 1.1 }}>
+                        Ready to run your restaurant
+                        <br />
+                        <span style={{ background: "linear-gradient(135deg,#E8C96E,#C9A84C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                            smarter?
+                        </span>
                     </h2>
-                    <p style={{ fontSize: 17, color: "var(--text-secondary)", marginBottom: 36 }}>
-                        Join hundreds of restaurants already using Restly. Start your free trial today.
+                    <p style={{ fontSize: 17, color: "rgba(255,255,255,0.5)", marginBottom: 36 }}>
+                        Join restaurants already saving hours every week with Restly AI.
                     </p>
-                    <Link href="/signup" className="btn-primary" style={{ fontSize: 17, padding: "18px 40px" }}>
-                        Get Started Free — 14 Days Trial →
-                    </Link>
+                    <div className="mobile-stack" style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+                        <Link href="/signup" className="hero-btn-primary" style={{ fontSize: 17 }}>Get Started Free →</Link>
+                        <Link href="/login?demo=true" className="hero-btn-secondary" style={{ fontSize: 17 }}>View Live Demo →</Link>
+                    </div>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", marginTop: 20 }}>
+                        14-day free trial · No credit card · Cancel anytime
+                    </p>
                 </div>
             </section>
 
             {/* ── FOOTER ── */}
-            <footer style={{ borderTop: "1px solid var(--border)", padding: "32px 40px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-                <div className="nav-logo">✦ Restly</div>
-                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                    © 2026 Restly. CCPA/CPRA Compliant. Built for California restaurants.
-                </div>
-                <div style={{ display: "flex", gap: 24 }}>
-                    {["Privacy Policy", "Terms of Service", "Contact"].map(l => (
-                        <a key={l} href="#" style={{ fontSize: 13, color: "var(--text-muted)", textDecoration: "none" }}>{l}</a>
-                    ))}
+            <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "32px 24px", textAlign: "center" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+                    <div style={{ fontWeight: 900, fontSize: 18, color: "#E8C96E", marginBottom: 16 }}>✦ Restly</div>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>
+                        © 2026 Restly · AI Restaurant Management Platform · CCPA/CPRA Compliant
+                        <br />
+                        <Link href="/login" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none", marginRight: 16 }}>Log in</Link>
+                        <Link href="/signup" style={{ color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Sign up</Link>
+                    </p>
                 </div>
             </footer>
-        </div>
+        </main>
     );
 }

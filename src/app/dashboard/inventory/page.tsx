@@ -6,6 +6,7 @@ export default function InventoryPage() {
     const [search, setSearch] = useState("");
     const [category, setCategory] = useState("All");
     const [statusFilter, setStatus] = useState("ALL");
+    const [activeTab, setActiveTab] = useState<"All" | "Food" | "Drink">("All");
 
     useEffect(() => {
         fetch("/api/inventory").then(r => r.json()).then(setData);
@@ -14,11 +15,16 @@ export default function InventoryPage() {
     const items: any[] = data?.inventory ?? [];
     const categories = ["All", ...Array.from(new Set(items.map((i: any) => i.category)))];
 
-    const filtered = items.filter((i: any) =>
-        (!search || i.name.toLowerCase().includes(search.toLowerCase())) &&
-        (category === "All" || i.category === category) &&
-        (statusFilter === "ALL" || i.status === statusFilter)
-    );
+    const filtered = items.filter((i: any) => {
+        const isDrink = i.category === "Beverages" || i.category === "Alcohol";
+        const matchesTab = activeTab === "All" || (activeTab === "Drink" ? isDrink : !isDrink);
+        return (
+            matchesTab &&
+            (!search || i.name.toLowerCase().includes(search.toLowerCase())) &&
+            (category === "All" || i.category === category) &&
+            (statusFilter === "ALL" || i.status === statusFilter)
+        );
+    });
 
     const statusClass: Record<string, string> = {
         IN_STOCK: "badge-green", LOW_STOCK: "badge-yellow", OUT_OF_STOCK: "badge-red",
@@ -35,6 +41,26 @@ export default function InventoryPage() {
                     <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
                         🟢 Toast POS Connected (Demo)
                     </span>
+                </div>
+            </div>
+
+            {/* TAB SELECTOR: Food vs Drink */}
+            <div style={{ padding: "0 28px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}>
+                <div style={{ display: "flex", gap: 24, maxWidth: 1200, margin: "0 auto" }}>
+                    {(["All", "Food", "Drink"] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTab(t)}
+                            style={{
+                                background: "none", border: "none", padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                                color: activeTab === t ? "#E8C96E" : "rgba(255,255,255,0.4)",
+                                borderBottom: activeTab === t ? "2px solid #C9A84C" : "2px solid transparent",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            {t === "All" ? "📦 All Items" : t === "Food" ? "🍽️ Food" : "🍹 Drink"}
+                        </button>
+                    ))}
                 </div>
             </div>
 
