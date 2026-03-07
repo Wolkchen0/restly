@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { WelcomeEmail } from "@/emails/welcome";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "re_test");
 
 interface SendWelcomeEmailParams {
     restaurantName: string;
