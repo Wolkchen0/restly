@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function proxy(req: NextRequest) {
+export default function proxy(req: NextRequest) {
     const { pathname } = req.nextUrl;
     const isLoggedIn = !!req.cookies.get("authjs.session-token") || !!req.cookies.get("__Secure-authjs.session-token");
 
