@@ -67,30 +67,6 @@ const HOW_IT_WORKS = [
     { step: "3", title: "Ask the AI anything", desc: "Launch the chat and start managing your restaurant in plain language." },
 ];
 
-const TESTIMONIALS = [
-    {
-        name: "Marcus Reid",
-        role: "Owner, The Embers LA",
-        text: "Before Restly I'd spend 2 hours every morning checking stock and reviewing the guest list. Now I just ask the AI and I'm done in 5 minutes.",
-        avatar: "MR",
-        stars: 5,
-    },
-    {
-        name: "Priya Nair",
-        role: "GM, Saffron Table",
-        text: "The VIP alerts alone are worth it. Michael Chen came in and I already knew his table preference, his allergy, and his favorite wine before he sat down.",
-        avatar: "PN",
-        stars: 5,
-    },
-    {
-        name: "Doug Castellano",
-        role: "F&B Director, Harbour Group",
-        text: "We run on Clover, competitors said they'd add us 'eventually'. Restly connected in 20 minutes. The inventory sync is flawless.",
-        avatar: "DC",
-        stars: 5,
-    },
-];
-
 const PRICING = [
     {
         name: "Starter",
@@ -330,34 +306,6 @@ export default function LandingPage() {
                                 </div>
                                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginBottom: 8 }}>{s.title}</h3>
                                 <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>{s.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* ── TESTIMONIALS ── */}
-            <section style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                    <h2 style={{ textAlign: "center", fontSize: "clamp(26px,4vw,38px)", fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 40 }}>
-                        Loved by restaurant professionals
-                    </h2>
-                    <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-                        {TESTIMONIALS.map((t, i) => (
-                            <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 20, padding: "28px 24px" }}>
-                                <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
-                                    {Array.from({ length: t.stars }).map((_, j) => <span key={j} style={{ color: "#E8C96E", fontSize: 14 }}>★</span>)}
-                                </div>
-                                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.7, marginBottom: 20, fontStyle: "italic" }}>"{t.text}"</p>
-                                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                    <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))", border: "1px solid rgba(201,168,76,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#E8C96E" }}>
-                                        {t.avatar}
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t.name}</div>
-                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{t.role}</div>
-                                    </div>
-                                </div>
                             </div>
                         ))}
                     </div>
