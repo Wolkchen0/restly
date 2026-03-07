@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
                 locations: {
                     create: {
                         name: `${name} — Main`,
-                        city: body.city || null,
+                        city: location || null,
                         isDefault: true,
                     },
                 },
