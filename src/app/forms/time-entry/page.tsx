@@ -1,14 +1,53 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function TimeEntryFixForm() {
-    const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+function FormContent() {
+    const searchParams = useSearchParams();
+    const locId = searchParams.get("locId") || "";
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        const formData = new FormData(e.currentTarget);
+        const employeeName = formData.get("employeeName") as string;
+        const employeeRole = formData.get("employeeRole") as string;
+        const date = formData.get("date") as string;
+        const clockIn = formData.get("clockIn") as string;
+        const clockOut = formData.get("clockOut") as string;
+        const reasonStr = formData.get("reason") as string;
+
+        const fullReason = `Missing punch on ${date}. In: ${clockIn || "N/A"}, Out: ${clockOut || "N/A"}. ${reasonStr}`;
+
+        if (!locId) {
+            alert("No Location ID found. This form link is invalid.");
+            return;
+        }
+
         setStatus("loading");
-        // Simulate API call to webhook
-        setTimeout(() => setStatus("success"), 1200);
+        try {
+            const res = await fetch("/api/timeoff", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    locationId: locId,
+                    type: "TIMEENTRY",
+                    employeeName,
+                    employeeRole,
+                    startDate: date,
+                    endDate: date,
+                    reason: fullReason,
+                })
+            });
+            if (res.ok) {
+                setStatus("success");
+            } else {
+                setStatus("error");
+            }
+        } catch (e) {
+            setStatus("error");
+        }
     };
 
     if (status === "success") {
@@ -36,33 +75,33 @@ export default function TimeEntryFixForm() {
 
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Full Name *</label>
-                        <input required type="text" placeholder="e.g. Carlos Rivera" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                        <input name="employeeName" required type="text" placeholder="e.g. Carlos Rivera" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                     </div>
 
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Role / Department *</label>
-                        <input required type="text" placeholder="e.g. Server, Line Cook, Bartender" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                        <input name="employeeRole" required type="text" placeholder="e.g. Server, Line Cook, Bartender" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                     </div>
 
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Date of Missing Punch *</label>
-                        <input required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                        <input name="date" required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
                         <div>
                             <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Correct Clock-In Time</label>
-                            <input type="time" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                            <input name="clockIn" type="time" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                         </div>
                         <div>
                             <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Correct Clock-Out Time</label>
-                            <input type="time" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                            <input name="clockOut" type="time" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                         </div>
                     </div>
 
                     <div style={{ marginBottom: 32 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Reason (Optional)</label>
-                        <textarea placeholder="Forgot to punch out, POS was down, etc." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15, fontFamily: "inherit", resize: "vertical" }} />
+                        <textarea name="reason" placeholder="Forgot to punch out, POS was down, etc." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15, fontFamily: "inherit", resize: "vertical" }} />
                     </div>
 
                     <button
@@ -79,5 +118,13 @@ export default function TimeEntryFixForm() {
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function TimeEntryFixForm() {
+    return (
+        <Suspense fallback={<div>Loading form...</div>}>
+            <FormContent />
+        </Suspense>
     );
 }

@@ -61,4 +61,23 @@ model Location {
 
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
+  timeRequests TimeRequest[]
+}
+
+// ─── TIME REQUESTS (Shift time entry fixes and Time off requests) ────────────
+model TimeRequest {
+  id           String   @id @default(cuid())
+  locationId   String
+  location     Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  employeeName String
+  employeeRole String?
+  startDate    String
+  endDate      String
+  reason       String?
+  status       String   @default("PENDING") // PENDING, APPROVED, DENIED
+  type         String   @default("TIMEOFF") // TIMEOFF or TIMEENTRY
+  
+  createdAt    DateTime @default(now())
 }

@@ -207,7 +207,7 @@ export default function SchedulePage() {
                                 { key: "entry", icon: "🕐", title: "Time Entry Fix Request", desc: "For correcting clock-in/out errors", path: FORM_TIME_ENTRY },
                                 { key: "off", icon: "🏖️", title: "Time Off Request", desc: "For vacation, sick days & personal time", path: FORM_TIME_OFF },
                             ].map(f => {
-                                const fullUrl = typeof window !== "undefined" ? `${window.location.origin}${f.path}?locationId=${locationId}` : `${f.path}?locationId=${locationId}`;
+                                const fullUrl = typeof window !== "undefined" ? `${window.location.origin}${f.path}?locId=${locationId}` : `${f.path}?locId=${locationId}`;
                                 return (
                                     <div key={f.key} style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 14, padding: 24 }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>

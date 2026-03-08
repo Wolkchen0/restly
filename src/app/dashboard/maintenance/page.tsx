@@ -106,12 +106,12 @@ export default function MaintenancePage() {
                 ) : (
                     <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                         <div style={{ fontSize: 48, marginBottom: 16 }}>🔧</div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Equipment Maintenance Not Connected</h2>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Equipment & Contractor Directory</h2>
                         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
-                            Please integrate your facility management systems or add your first piece of equipment to begin tracking asset health and scheduling maintenance.
+                            Keep all your important contacts in one place. Add your electrician, plumber, or equipment details manually so everything is just one click away when an emergency happens.
                         </p>
-                        <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>
-                            Go to Integrations
+                        <button className="btn-primary" onClick={() => alert("Add Entry Modal coming soon...")}>
+                            + Add Contact or Equipment
                         </button>
                     </div>
                 )}

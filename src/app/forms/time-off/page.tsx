@@ -1,14 +1,50 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
-export default function TimeOffForm() {
-    const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+function FormContent() {
+    const searchParams = useSearchParams();
+    const locId = searchParams.get("locId") || "";
+    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+
+        const formData = new FormData(e.currentTarget);
+        const employeeName = formData.get("employeeName") as string;
+        const employeeRole = formData.get("employeeRole") as string;
+        const startDate = formData.get("startDate") as string;
+        const endDate = formData.get("endDate") as string;
+        const reason = formData.get("reason") as string;
+
+        if (!locId) {
+            alert("No Location ID found. This form link is invalid.");
+            return;
+        }
+
         setStatus("loading");
-        // Simulate API call to webhook
-        setTimeout(() => setStatus("success"), 1200);
+        try {
+            const res = await fetch("/api/timeoff", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    locationId: locId,
+                    type: "TIMEOFF",
+                    employeeName,
+                    employeeRole,
+                    startDate,
+                    endDate,
+                    reason,
+                })
+            });
+            if (res.ok) {
+                setStatus("success");
+            } else {
+                setStatus("error");
+            }
+        } catch (e) {
+            setStatus("error");
+        }
     };
 
     if (status === "success") {
@@ -36,28 +72,28 @@ export default function TimeOffForm() {
 
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Full Name *</label>
-                        <input required type="text" placeholder="e.g. Lisa Park" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                        <input name="employeeName" required type="text" placeholder="e.g. Lisa Park" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                     </div>
 
                     <div style={{ marginBottom: 20 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Role / Department *</label>
-                        <input required type="text" placeholder="e.g. Server, Line Cook, Bartender" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                        <input name="employeeRole" required type="text" placeholder="e.g. Server, Line Cook, Bartender" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
                         <div>
                             <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Start Date *</label>
-                            <input required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                            <input name="startDate" required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                         </div>
                         <div>
                             <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>End Date *</label>
-                            <input required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
+                            <input name="endDate" required type="date" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15 }} />
                         </div>
                     </div>
 
                     <div style={{ marginBottom: 32 }}>
                         <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 8 }}>Reason *</label>
-                        <textarea required placeholder="Sick day, planned vacation, doctor's appointment, etc." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15, fontFamily: "inherit", resize: "vertical" }} />
+                        <textarea name="reason" required placeholder="Sick day, planned vacation, doctor's appointment, etc." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 14px", color: "white", fontSize: 15, fontFamily: "inherit", resize: "vertical" }} />
                     </div>
 
                     <button
@@ -74,5 +110,13 @@ export default function TimeOffForm() {
                 </form>
             </div>
         </div>
+    );
+}
+
+export default function TimeOffForm() {
+    return (
+        <Suspense fallback={<div>Loading form...</div>}>
+            <FormContent />
+        </Suspense>
     );
 }
