@@ -63,13 +63,21 @@ export default function SettingsPage() {
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
 
     const handleConnectApp = (appName: string, url: string) => {
-        // Open a real window to simulate OAuth redirect perfectly
-        window.open(url, "_blank", "width=500,height=600,left=200,top=200");
+        if (confirm(`Do you want to authorize Restly to securely connect to your ${appName} account?`)) {
+            // Open a real window to simulate OAuth redirect perfectly
+            window.open(url, "_blank", "width=500,height=600,left=200,top=200");
 
-        // Simulate a successful callback after user "authenticates" 
-        setTimeout(() => {
-            setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
-        }, 2000);
+            // Simulate a successful callback after user "authenticates" 
+            setTimeout(() => {
+                setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
+            }, 2000);
+        }
+    };
+
+    const handleDisconnectApp = (appName: string) => {
+        if (confirm(`Are you sure you want to disconnect ${appName}? You will need to re-authenticate to sync data.`)) {
+            setConnectedApps(prev => prev.filter(app => app !== appName));
+        }
     };
 
     useEffect(() => {
@@ -325,19 +333,19 @@ export default function SettingsPage() {
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                                     {connectedApps.includes("Google Business") ? (
-                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600 }}>
+                                        <button onClick={() => handleDisconnectApp("Google Business")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
-                                        </div>
+                                        </button>
                                     ) : (
                                         <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Google Business", "https://accounts.google.com/signin")}>
-                                            <span style={{ fontSize: 18 }}>🌐</span> Connect Google Business
+                                            <span style={{ fontSize: 18 }}>🌐</span> Connect Google
                                         </button>
                                     )}
 
                                     {connectedApps.includes("Yelp") ? (
-                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600 }}>
+                                        <button onClick={() => handleDisconnectApp("Yelp")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
-                                        </div>
+                                        </button>
                                     ) : (
                                         <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Yelp", "https://biz.yelp.com/login")}>
                                             <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
@@ -345,12 +353,42 @@ export default function SettingsPage() {
                                     )}
 
                                     {connectedApps.includes("OpenTable") ? (
-                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, gridColumn: "1 / -1" }}>
+                                        <button onClick={() => handleDisconnectApp("OpenTable")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
-                                        </div>
+                                        </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => handleConnectApp("OpenTable", "https://restaurant.opentable.com/")}>
-                                            <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable (1-Click)
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("OpenTable", "https://guestcenter.opentable.com/")}>
+                                            <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable
+                                        </button>
+                                    )}
+
+                                    {connectedApps.includes("Instagram") ? (
+                                        <button onClick={() => handleDisconnectApp("Instagram")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                            <span style={{ fontSize: 18 }}>📸</span> Instagram Connected
+                                        </button>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Instagram", "https://instagram.com/accounts/login/")}>
+                                            <span style={{ fontSize: 18 }}>📸</span> Connect Instagram
+                                        </button>
+                                    )}
+
+                                    {connectedApps.includes("Facebook") ? (
+                                        <button onClick={() => handleDisconnectApp("Facebook")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                            <span style={{ fontSize: 18 }}>📘</span> Facebook Connected
+                                        </button>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Facebook", "https://facebook.com/login/")}>
+                                            <span style={{ fontSize: 18 }}>📘</span> Connect Facebook
+                                        </button>
+                                    )}
+
+                                    {connectedApps.includes("TikTok") ? (
+                                        <button onClick={() => handleDisconnectApp("TikTok")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                            <span style={{ fontSize: 18 }}>🎵</span> TikTok Connected
+                                        </button>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("TikTok", "https://tiktok.com/login/")}>
+                                            <span style={{ fontSize: 18 }}>🎵</span> Connect TikTok
                                         </button>
                                     )}
                                 </div>
