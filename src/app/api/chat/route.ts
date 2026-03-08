@@ -124,6 +124,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get all reservations for today — covers count, VIP guests, party details",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { message: "No reservations found. OpenTable integration is not set up." };
                         const r = getTodayReservations();
                         return {
                             totalCovers: r.reduce((a, x) => a + x.partySize, 0),
@@ -146,6 +147,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get the full VIP guest list with preferences and spending",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { count: 0, vips: [], message: "No OpenTable integration found." };
                         const v = getVipGuests();
                         return {
                             count: v.length,
@@ -166,6 +168,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Check inventory — overview stats, or search for a specific item",
                     parameters: z.object({ item: z.string().optional().describe("Item name to search, or omit for overview") }),
                     execute: async ({ item }) => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { found: false, message: "Inventory integration not set up. Connect Toast/Square POS." };
                         if (item) {
                             const all = getInventory();
                             const found = all.filter(i => i.name.toLowerCase().includes(item.toLowerCase()));
@@ -181,6 +184,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get all low stock and out-of-stock items requiring immediate attention",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { totalAlerts: 0, outOfStock: [], lowStock: [], urgency: "NONE", message: "Inventory integration not set up. Connect Toast/Square POS." };
                         const items = getLowStockItems();
                         return {
                             totalAlerts: items.length,
@@ -305,6 +309,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get financial performance, profit and loss (P&L), Net Profit, COGS, and Labor costs. Useful for questions like 'what is my profit today?' or 'show me my financial stats'.",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { message: "Finance module locked. Please connect your POS and Payroll system." };
                         const totalRevenue = 176000;
                         const cogs = 51300;
                         const labor = 57100;
@@ -327,6 +332,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get kitchen station performance, average ticket times, and identify bottlenecks.",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { message: "No KDS connected." };
                         return {
                             averageTicketTime: "18m 30s",
                             longestTicket: "28m 05s",
@@ -343,6 +349,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get the cost, price, and COGS for menu items and recipes.",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { message: "Recipe costing requires integration with your supplier invoices." };
                         return {
                             recipes: [
                                 { name: "Truffle Burger", cost: "$3.45", price: "$16.00", cogs: "21.5%" },
@@ -359,6 +366,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get the maintenance status of kitchen equipment and appliances.",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { alerts: [], systemStatus: "Maintenance module not connected." };
                         return {
                             alerts: [
                                 { name: "Pitco Fryer #2", status: "BROKEN", urgent: true },
@@ -374,6 +382,7 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get recent shift logs, manager handover notes, and daily recaps.",
                     parameters: z.object({}),
                     execute: async () => {
+                        if (restaurantName?.toLowerCase() !== "meyhouse") return { aiRecap: "No shift logs found.", actionItems: "Start logging shift handovers in the Maintenance & Logs dashboard." };
                         return {
                             aiRecap: "Excellent health inspection (98) yesterday morning. Evening rush caused a draft IPA stockout. Today began with a vendor issue (late delivery, rejected tomatoes).",
                             actionItems: "Follow up on tomato credit, update 86 list for IPA, and ensure grill cooks run hood fans on high during peak."
@@ -386,8 +395,15 @@ When users ask how to connect a POS or don't know what to do:
                     description: "Get recent social media and dining reviews from Google, Yelp, and OpenTable. Analyze sentiment and show what customers are saying.",
                     parameters: z.object({}),
                     execute: async () => {
-                        const reviews = getRecentReviews();
-                        const stats = getReviewStats();
+                        const reviews = getRecentReviews(restaurantName);
+                        const stats = getReviewStats(restaurantName);
+
+                        if (reviews.length === 0) {
+                            return {
+                                message: "No recent reviews found yet. Make sure your Google Business, Yelp, and OpenTable accounts are connected in the Integrations dashboard."
+                            };
+                        }
+
                         return {
                             stats,
                             latestReviews: reviews.map(r => ({
@@ -398,7 +414,9 @@ When users ask how to connect a POS or don't know what to do:
                                 excerpt: `"${r.text}"`,
                                 when: r.date
                             })),
-                            aiSummary: "The 'Truffle Burger' and 'Spicy Marg' are driving highly positive sentiment across Google and OpenTable. However, there is a recurring complaint on Yelp about hostess stand bottlenecks and wait times."
+                            aiSummary: restaurantName.toLowerCase() === "meyhouse"
+                                ? "The 'Truffle Burger' and 'Spicy Marg' are driving highly positive sentiment across Google and OpenTable. However, there is a recurring complaint on Yelp about hostess stand bottlenecks and wait times."
+                                : "No clear sentiment trends yet. Keep gathering reviews!"
                         };
                     },
                 }),

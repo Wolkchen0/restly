@@ -47,11 +47,19 @@ const MOCK_REVIEWS: Review[] = [
     }
 ];
 
-export function getRecentReviews(): Review[] {
+export function getRecentReviews(restaurantName: string): Review[] {
+    if (restaurantName?.toLowerCase() !== "meyhouse") return [];
     return MOCK_REVIEWS;
 }
 
-export function getReviewStats() {
+export function getReviewStats(restaurantName: string) {
+    if (restaurantName?.toLowerCase() !== "meyhouse") {
+        return {
+            averageRating: 0,
+            totalReviews: 0,
+            sentimentBreakdown: { positive: "0%", neutral: "0%", negative: "0%" }
+        };
+    }
     return {
         averageRating: 4.0,
         totalReviews: 1248,
