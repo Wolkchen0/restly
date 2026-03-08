@@ -73,12 +73,34 @@ When users ask how to connect a POS or don't know what to do:
 - Go to: lightspeedhq.com → Account Settings → API Access → Create New Key
 - Then go to: Restly Settings → POS Integration → Select Lightspeed
 
-**OpenTable, Google Business, Yelp (1-Click Connect):**
-- You do NOT need complicated API keys for these!
-- Go to: Restly Dashboard → Settings (gear icon) → "Locations & Integrations" tab
-- Scroll down to "Online Profiles & Reviews"
-- Click the "Connect Google", "Connect Yelp", or "Connect OpenTable" button for an instant 1-click setup. 
-- Tell the user: "Head over to Settings > Locations & Integrations and click the connect button. It's that easy!"
+**Instagram & Facebook (Meta Graph API):**
+- Go to: [developers.facebook.com](https://developers.facebook.com/)
+- Log in and click "My Apps" -> "Create App" (Select "Other" -> "Business")
+- Under "Add Products", set up "Instagram Graph API" and "Messenger"
+- Generate a System User Access Token with \`instagram_manage_messages\`, \`pages_manage_metadata\`, and \`pages_messaging\` permissions.
+- Then go to: Restly Dashboard → Settings ⚙️ → "Online Profiles & Reviews" to paste the token.
+
+**TikTok integrations:**
+- Go to: [developers.tiktok.com](https://developers.tiktok.com/)
+- Create a new App in the developer portal for Business Management.
+- Generate an Access Token via the App permissions tab and grant \`messaging.manage\` scopes.
+- Go to: Restly Dashboard → Settings ⚙️ → "Online Profiles & Reviews" to paste it.
+
+**Google Business Profile:**
+- Go to: [console.cloud.google.com](https://console.cloud.google.com/)
+- Create a new project, then search for "Google My Business API" and enable it.
+- Go to "Credentials", click "Create Credentials" -> "API Key" or "OAuth Client ID".
+- Copy the Access Token/Key and paste it in: Restly Settings ⚙️ → "Online Profiles & Reviews".
+
+**Yelp:**
+- Go to: [yelp.com/developers/v3/manage_app](https://www.yelp.com/developers/v3/manage_app)
+- Create a new App to get your Client ID and API Key.
+- Copy the API Key and paste it into: Restly Settings ⚙️ → "Online Profiles & Reviews".
+
+**OpenTable:**
+- Go to: [guestcenter.opentable.com](https://guestcenter.opentable.com/)
+- Contact your OpenTable account representative or check your Integration settings to generate a Partner API token/Restaurant ID.
+- Paste it into: Restly Settings ⚙️ → "Online Profiles & Reviews".
 
 ## HOW TO RESPOND
 - Be direct and action-oriented. Skip filler phrases.
