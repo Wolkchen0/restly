@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const RECIPES = [
     { id: 1, name: "Truffle Burger", cost: 3.45, price: 16.00, cogs: 21.5, type: "Main", ingredients: ["150g Beef Patty", "1x Brioche Bun", "15g Truffle Mayo", "1x Cheddar Slice"] },
@@ -10,6 +10,17 @@ const RECIPES = [
 export default function RecipesPage() {
     const [uploading, setUploading] = useState(false);
     const [aiResult, setAiResult] = useState<any>(null);
+    const [isDemo, setIsDemo] = useState(true);
+
+    useEffect(() => {
+        fetch("/api/locations")
+            .then(r => r.json())
+            .then(d => {
+                const restName = d.restaurantName || "";
+                setIsDemo(restName.toLowerCase() === "meyhouse");
+            })
+            .catch(() => { });
+    }, []);
 
     const handlePhotoUpload = () => {
         setUploading(true);
@@ -77,44 +88,57 @@ export default function RecipesPage() {
                     </div>
                 )}
 
-                <div className="grid-3">
-                    {RECIPES.map(recipe => (
-                        <div key={recipe.id} className="card">
-                            <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
-                                <span className="badge badge-purple">{recipe.type}</span>
-                                <span style={{ fontSize: 18 }}>⋮</span>
-                            </div>
-                            <div className="card-body">
-                                <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 10, marginBottom: 16 }}>{recipe.name}</h3>
-
-                                <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px", marginBottom: 16 }}>
-                                    <div>
-                                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Plate Cost</div>
-                                        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>${recipe.cost.toFixed(2)}</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Menu Price</div>
-                                        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--green)" }}>${recipe.price.toFixed(2)}</div>
-                                    </div>
-                                    <div style={{ textAlign: "right" }}>
-                                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>COGS</div>
-                                        <div style={{ fontSize: 16, fontWeight: 800, color: recipe.cogs > 25 ? "var(--yellow)" : "inherit" }}>{recipe.cogs}%</div>
-                                    </div>
+                {isDemo ? (
+                    <div className="grid-3">
+                        {RECIPES.map(recipe => (
+                            <div key={recipe.id} className="card">
+                                <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
+                                    <span className="badge badge-purple">{recipe.type}</span>
+                                    <span style={{ fontSize: 18 }}>⋮</span>
                                 </div>
+                                <div className="card-body">
+                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 10, marginBottom: 16 }}>{recipe.name}</h3>
 
-                                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>BOM (Bill of Materials)</div>
-                                <ul style={{ listStyleType: "none", padding: 0, margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-                                    {recipe.ingredients.map((ing, i) => (
-                                        <li key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
-                                            <span>{ing}</span>
-                                            <span style={{ color: "#4ade80" }}>Linked ✓</span>
-                                        </li>
-                                    ))}
-                                </ul>
+                                    <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px", marginBottom: 16 }}>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Plate Cost</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>${recipe.cost.toFixed(2)}</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Menu Price</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--green)" }}>${recipe.price.toFixed(2)}</div>
+                                        </div>
+                                        <div style={{ textAlign: "right" }}>
+                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>COGS</div>
+                                            <div style={{ fontSize: 16, fontWeight: 800, color: recipe.cogs > 25 ? "var(--yellow)" : "inherit" }}>{recipe.cogs}%</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>BOM (Bill of Materials)</div>
+                                    <ul style={{ listStyleType: "none", padding: 0, margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+                                        {recipe.ingredients.map((ing, i) => (
+                                            <li key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
+                                                <span>{ing}</span>
+                                                <span style={{ color: "#4ade80" }}>Linked ✓</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>📖</div>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>No Recipes Found</h2>
+                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
+                            Sync your POS and Inventory to automatically calculate recipe plate costs, BOMs, and margins. Or click "AI Photo Import" to try our AI recipe scanner.
+                        </p>
+                        <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>
+                            Go to Integrations
+                        </button>
+                    </div>
+                )}
 
             </div>
         </>
