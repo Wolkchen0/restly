@@ -22,6 +22,13 @@ export default function GuestsPage() {
             .catch(() => { });
     }, []);
 
+    const MOCK_REVIEWS = [
+        { id: "r1", platform: "Google", icon: "🌐", author: "Raj K.", rating: 5, date: "Today", text: "Amazing experience! The lamb chops were cooked to perfection. Waitstaff was extremely attentive." },
+        { id: "r2", platform: "Yelp", icon: "🔴", author: "Sarah M.", rating: 4, date: "Yesterday", text: "Great ambiance and good cocktails. It gets a little loud on Friday nights but overall a solid spot." },
+        { id: "r3", platform: "OpenTable", icon: "🍽️", author: "David Brooks", rating: 5, date: "Yesterday", text: "We celebrated our anniversary here and the team made it so special. Highly recommend the tasting menu." },
+        { id: "r4", platform: "Google", icon: "🌐", author: "Amanda G.", rating: 2, date: "2 days ago", text: "Food was okay but service was incredibly slow. We had to wait 20 minutes just to get our check." },
+    ];
+
     function giveConsent() {
         sessionStorage.setItem("guests_consent", "true");
         setConsent(true);
@@ -116,180 +123,216 @@ export default function GuestsPage() {
                 )}
 
                 {isDemo ? (
-                    <div className="grid-2" style={{ gap: 20, alignItems: "start" }}>
-                        {/* Guest List */}
-                        <div className="card">
-                            <div className="card-header">
-                                <span className="card-title">All Guests</span>
-                                <input
-                                    type="text" value={search} onChange={e => setSearch(e.target.value)}
-                                    placeholder="Search by name or email…"
-                                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: 13, color: "var(--text-primary)", outline: "none", width: 220 }}
-                                />
-                            </div>
-                            <div style={{ maxHeight: 600, overflowY: "auto" }}>
-                                {!data && (
-                                    <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}>Loading guest data…</div>
-                                )}
-                                {filtered.map((g: any) => (
-                                    <div
-                                        key={g.id}
-                                        onClick={() => setSelected(g)}
-                                        style={{
-                                            display: "flex", alignItems: "center", gap: 14,
-                                            padding: "14px 20px", border: "none",
-                                            borderBottom: "1px solid var(--border)",
-                                            cursor: "pointer",
-                                            background: selected?.id === g.id ? "rgba(201,168,76,0.06)" : "transparent",
-                                            transition: "background 0.15s",
-                                        }}
-                                    >
-                                        {/* Avatar */}
-                                        <div style={{
-                                            width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                                            background: g.isVip
-                                                ? "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))"
-                                                : "var(--bg-secondary)",
-                                            border: g.isVip ? "1px solid rgba(201,168,76,0.4)" : "1px solid var(--border)",
-                                            display: "flex", alignItems: "center", justifyContent: "center",
-                                            fontSize: 15, fontWeight: 700, color: g.isVip ? "var(--gold-light)" : "var(--text-secondary)",
-                                        }}>
-                                            {g.firstName[0]}{g.lastName[0]}
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
-                                                {g.isVip && <span style={{ color: "var(--gold-light)", fontSize: 13 }}>⭐</span>}
-                                                {g.firstName} {g.lastName}
-                                            </div>
-                                            <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
-                                                <span>{g.visitCount} visits</span>
-                                                <span>·</span>
-                                                <span>avg ${g.averageSpend}</span>
-                                                <span>·</span>
-                                                <span>last: {g.lastVisit}</span>
-                                            </div>
-                                        </div>
-                                        {g.dietaryNotes && g.dietaryNotes !== "None" && (
-                                            <span style={{ fontSize: 10, background: "rgba(59,130,246,0.12)", color: "var(--blue)", padding: "3px 8px", borderRadius: 10, fontWeight: 600, whiteSpace: "nowrap" }}>
-                                                {g.dietaryNotes}
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Guest Detail Panel */}
-                        <div className="card" style={{ position: "sticky", top: 88 }}>
-                            {!selected ? (
-                                <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-                                    <div style={{ fontSize: 40, marginBottom: 12 }}>👈</div>
-                                    <div style={{ fontSize: 14 }}>Select a guest to view their full profile</div>
+                    <>
+                        <div className="grid-2" style={{ gap: 20, alignItems: "start" }}>
+                            {/* Guest List */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <span className="card-title">All Guests</span>
+                                    <input
+                                        type="text" value={search} onChange={e => setSearch(e.target.value)}
+                                        placeholder="Search by name or email…"
+                                        style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: 13, color: "var(--text-primary)", outline: "none", width: 220 }}
+                                    />
                                 </div>
-                            ) : (
-                                <>
-                                    <div className="card-header" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%" }}>
+                                <div style={{ maxHeight: 600, overflowY: "auto" }}>
+                                    {!data && (
+                                        <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}>Loading guest data…</div>
+                                    )}
+                                    {filtered.map((g: any) => (
+                                        <div
+                                            key={g.id}
+                                            onClick={() => setSelected(g)}
+                                            style={{
+                                                display: "flex", alignItems: "center", gap: 14,
+                                                padding: "14px 20px", border: "none",
+                                                borderBottom: "1px solid var(--border)",
+                                                cursor: "pointer",
+                                                background: selected?.id === g.id ? "rgba(201,168,76,0.06)" : "transparent",
+                                                transition: "background 0.15s",
+                                            }}
+                                        >
+                                            {/* Avatar */}
                                             <div style={{
-                                                width: 56, height: 56, borderRadius: "50%",
-                                                background: selected.isVip ? "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))" : "var(--bg-secondary)",
-                                                border: selected.isVip ? "2px solid var(--gold)" : "1px solid var(--border)",
+                                                width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                                                background: g.isVip
+                                                    ? "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))"
+                                                    : "var(--bg-secondary)",
+                                                border: g.isVip ? "1px solid rgba(201,168,76,0.4)" : "1px solid var(--border)",
                                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                                fontSize: 20, fontWeight: 700, color: selected.isVip ? "var(--gold-light)" : "var(--text-secondary)",
+                                                fontSize: 15, fontWeight: 700, color: g.isVip ? "var(--gold-light)" : "var(--text-secondary)",
                                             }}>
-                                                {selected.firstName[0]}{selected.lastName[0]}
+                                                {g.firstName[0]}{g.lastName[0]}
                                             </div>
-                                            <div>
-                                                <div style={{ fontWeight: 800, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
-                                                    {selected.firstName} {selected.lastName}
-                                                    {selected.isVip && <span className="badge badge-yellow">⭐ VIP</span>}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontWeight: 600, fontSize: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                                                    {g.isVip && <span style={{ color: "var(--gold-light)", fontSize: 13 }}>⭐</span>}
+                                                    {g.firstName} {g.lastName}
                                                 </div>
-                                                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{selected.email}</div>
+                                                <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", gap: 10, marginTop: 2, flexWrap: "wrap" }}>
+                                                    <span>{g.visitCount} visits</span>
+                                                    <span>·</span>
+                                                    <span>avg ${g.averageSpend}</span>
+                                                    <span>·</span>
+                                                    <span>last: {g.lastVisit}</span>
+                                                </div>
                                             </div>
-                                            <button onClick={() => setSelected(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer" }}>✕</button>
+                                            {g.dietaryNotes && g.dietaryNotes !== "None" && (
+                                                <span style={{ fontSize: 10, background: "rgba(59,130,246,0.12)", color: "var(--blue)", padding: "3px 8px", borderRadius: 10, fontWeight: 600, whiteSpace: "nowrap" }}>
+                                                    {g.dietaryNotes}
+                                                </span>
+                                            )}
                                         </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Guest Detail Panel */}
+                            <div className="card" style={{ position: "sticky", top: 88 }}>
+                                {!selected ? (
+                                    <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
+                                        <div style={{ fontSize: 40, marginBottom: 12 }}>👈</div>
+                                        <div style={{ fontSize: 14 }}>Select a guest to view their full profile</div>
                                     </div>
-                                    <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                                        {/* Quick stats */}
-                                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-                                            {[
-                                                { label: "Total Visits", value: selected.visitCount },
-                                                { label: "Avg Spend", value: `$${selected.averageSpend}` },
-                                                { label: "Party Size", value: selected.averagePartySize },
-                                            ].map(s => (
-                                                <div key={s.label} style={{ background: "var(--bg-secondary)", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-                                                    <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold-light)" }}>{s.value}</div>
-                                                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+                                ) : (
+                                    <>
+                                        <div className="card-header" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 14, width: "100%" }}>
+                                                <div style={{
+                                                    width: 56, height: 56, borderRadius: "50%",
+                                                    background: selected.isVip ? "linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))" : "var(--bg-secondary)",
+                                                    border: selected.isVip ? "2px solid var(--gold)" : "1px solid var(--border)",
+                                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                                    fontSize: 20, fontWeight: 700, color: selected.isVip ? "var(--gold-light)" : "var(--text-secondary)",
+                                                }}>
+                                                    {selected.firstName[0]}{selected.lastName[0]}
                                                 </div>
-                                            ))}
+                                                <div>
+                                                    <div style={{ fontWeight: 800, fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+                                                        {selected.firstName} {selected.lastName}
+                                                        {selected.isVip && <span className="badge badge-yellow">⭐ VIP</span>}
+                                                    </div>
+                                                    <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{selected.email}</div>
+                                                </div>
+                                                <button onClick={() => setSelected(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer" }}>✕</button>
+                                            </div>
                                         </div>
-
-                                        {/* Contact */}
-                                        <div>
-                                            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Contact</div>
-                                            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.phone}</div>
-                                            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.email}</div>
-                                        </div>
-
-                                        {/* Preferences */}
-                                        <div>
-                                            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Preferences</div>
-                                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                                {selected.preferences.map((p: string) => (
-                                                    <span key={p} className="badge badge-blue">{p}</span>
+                                        <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                                            {/* Quick stats */}
+                                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+                                                {[
+                                                    { label: "Total Visits", value: selected.visitCount },
+                                                    { label: "Avg Spend", value: `$${selected.averageSpend}` },
+                                                    { label: "Party Size", value: selected.averagePartySize },
+                                                ].map(s => (
+                                                    <div key={s.label} style={{ background: "var(--bg-secondary)", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                                                        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--gold-light)" }}>{s.value}</div>
+                                                        <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</div>
+                                                    </div>
                                                 ))}
                                             </div>
-                                        </div>
 
-                                        {/* Dietary */}
-                                        {selected.dietaryNotes && selected.dietaryNotes !== "None" && (
+                                            {/* Contact */}
                                             <div>
-                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Dietary Notes</div>
-                                                <div className="alert alert-warning" style={{ fontSize: 13, padding: "8px 12px" }}>
-                                                    ⚠️ {selected.dietaryNotes}
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Contact</div>
+                                                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.phone}</div>
+                                                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.email}</div>
+                                            </div>
+
+                                            {/* Preferences */}
+                                            <div>
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Preferences</div>
+                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                                    {selected.preferences.map((p: string) => (
+                                                        <span key={p} className="badge badge-blue">{p}</span>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* Favorites */}
-                                        <div>
-                                            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Favorite Items</div>
-                                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                                {selected.favoriteItems.map((f: string) => (
-                                                    <span key={f} style={{ fontSize: 12, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "4px 10px", color: "var(--gold-light)" }}>{f}</span>
-                                                ))}
-                                            </div>
-                                        </div>
+                                            {/* Dietary */}
+                                            {selected.dietaryNotes && selected.dietaryNotes !== "None" && (
+                                                <div>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Dietary Notes</div>
+                                                    <div className="alert alert-warning" style={{ fontSize: 13, padding: "8px 12px" }}>
+                                                        ⚠️ {selected.dietaryNotes}
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                        {/* Special occasions */}
-                                        {selected.specialOccasions.length > 0 && (
+                                            {/* Favorites */}
                                             <div>
-                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Special Occasions</div>
-                                                {selected.specialOccasions.map((o: string) => (
-                                                    <div key={o} className="alert alert-success" style={{ fontSize: 13, padding: "8px 12px", marginBottom: 6 }}>🎉 {o}</div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Notes */}
-                                        {selected.notes && (
-                                            <div>
-                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Manager Notes</div>
-                                                <div style={{ fontSize: 13, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px", lineHeight: 1.6 }}>
-                                                    {selected.notes}
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Favorite Items</div>
+                                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                                    {selected.favoriteItems.map((f: string) => (
+                                                        <span key={f} style={{ fontSize: 12, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "4px 10px", color: "var(--gold-light)" }}>{f}</span>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* Last visit */}
-                                        <div style={{ fontSize: 12, color: "var(--text-muted)", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-                                            Last visit: {selected.lastVisit} &nbsp;·&nbsp; Source: OpenTable
+                                            {/* Special occasions */}
+                                            {selected.specialOccasions.length > 0 && (
+                                                <div>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Special Occasions</div>
+                                                    {selected.specialOccasions.map((o: string) => (
+                                                        <div key={o} className="alert alert-success" style={{ fontSize: 13, padding: "8px 12px", marginBottom: 6 }}>🎉 {o}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Notes */}
+                                            {selected.notes && (
+                                                <div>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Manager Notes</div>
+                                                    <div style={{ fontSize: 13, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px", lineHeight: 1.6 }}>
+                                                        {selected.notes}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Last visit */}
+                                            <div style={{ fontSize: 12, color: "var(--text-muted)", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                                                Last visit: {selected.lastVisit} &nbsp;·&nbsp; Source: OpenTable
+                                            </div>
                                         </div>
-                                    </div>
-                                </>
-                            )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                    </div>
+
+                        {/* Daily Reviews Feed */}
+                        <div className="card" style={{ marginTop: 24 }}>
+                            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span className="card-title">Daily Reviews & Sentiment Intelligence</span>
+                                <span style={{ fontSize: 13, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)", color: "var(--gold-light)", padding: "4px 10px", borderRadius: 12, fontWeight: 700 }}>
+                                    🧠 AI Sentiment: 85% Positive
+                                </span>
+                            </div>
+                            <div className="card-body">
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                                    {MOCK_REVIEWS.map(r => (
+                                        <div key={r.id} style={{ padding: 20, background: "var(--bg-secondary)", borderRadius: 12, border: "1px solid var(--border)" }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                    <span style={{ fontSize: 20 }}>{r.icon}</span>
+                                                    <span style={{ fontWeight: 700, fontSize: 15 }}>{r.author}</span>
+                                                    <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--bg-card)", padding: "3px 8px", borderRadius: 8, border: "1px solid var(--border)" }}>via {r.platform}</span>
+                                                </div>
+                                                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.date}</div>
+                                            </div>
+                                            <div style={{ marginBottom: 12 }}>
+                                                {Array.from({ length: 5 }).map((_, i) => (
+                                                    <span key={i} style={{ color: i < r.rating ? "#E8C96E" : "rgba(255,255,255,0.1)", fontSize: 16 }}>★</span>
+                                                ))}
+                                            </div>
+                                            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
+                                                &quot;{r.text}&quot;
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </>
                 ) : (
                     <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                         <div style={{ fontSize: 48, marginBottom: 16 }}>👤</div>
