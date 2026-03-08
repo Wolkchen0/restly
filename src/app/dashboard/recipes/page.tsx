@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const INITIAL_RECIPES = [
     { id: 1, name: "Truffle Burger", cost: 3.45, price: 16.00, cogs: 21.5, type: "Main", ingredients: ["150g Beef Patty", "1x Brioche Bun", "15g Truffle Mayo", "1x Cheddar Slice"] },
@@ -12,6 +12,7 @@ export default function RecipesPage() {
     const [uploading, setUploading] = useState(false);
     const [aiResult, setAiResult] = useState<any>(null);
     const [isDemo, setIsDemo] = useState(true);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         fetch("/api/locations")
@@ -24,18 +25,49 @@ export default function RecipesPage() {
     }, []);
 
     const handlePhotoUpload = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
         setUploading(true);
-        // Simulate AI analyzing a hand-written recipe card 
-        setTimeout(() => {
-            setUploading(false);
-            setAiResult({
-                name: "AI Generated: Lobster Roll",
-                ingredients: ["100g Lobster Meat ($5.00)", "1x Split Top Bun ($0.40)", "10g Lemon Butter ($0.15)", "Mayo ($0.05)"],
-                totalCost: 5.60,
-                suggestedPrice: 24.00,
-                projectedCOGS: 23.3
-            });
-        }, 2000);
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const result = reader.result as string;
+            // The result is a data URI, we pass the full base64 string to our API route
+            try {
+                const res = await fetch("/api/analyze-recipe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ imageBase64: result })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    setAiResult({
+                        name: "AI Generated: " + data.name,
+                        ingredients: data.ingredients,
+                        totalCost: data.totalCost,
+                        suggestedPrice: data.suggestedPrice,
+                        projectedCOGS: data.projectedCOGS
+                    });
+                } else {
+                    alert("Failed to analyze image. Please try again.");
+                }
+            } catch (err) {
+                console.error("AI Analysis error:", err);
+                alert("Failed to connect to the AI engine.");
+            } finally {
+                setUploading(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleNewRecipe = () => {
@@ -71,6 +103,13 @@ export default function RecipesPage() {
 
     return (
         <>
+            <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                ref={fileInputRef}
+                onChange={handleFileChange}
+            />
             <div className="topbar">
                 <div className="topbar-title">🍽️ Chef & Recipe Management</div>
                 <div className="topbar-right">
