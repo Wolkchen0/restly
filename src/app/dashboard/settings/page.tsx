@@ -60,6 +60,17 @@ export default function SettingsPage() {
     const [newLocName, setNewLocName] = useState("");
     const [newLocCity, setNewLocCity] = useState("");
     const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
+    const [connectedApps, setConnectedApps] = useState<string[]>([]);
+
+    const handleConnectApp = (appName: string, url: string) => {
+        // Open a real window to simulate OAuth redirect perfectly
+        window.open(url, "_blank", "width=500,height=600,left=200,top=200");
+
+        // Simulate a successful callback after user "authenticates" 
+        setTimeout(() => {
+            setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
+        }, 2000);
+    };
 
     useEffect(() => {
         fetch("/api/locations")
@@ -313,24 +324,35 @@ export default function SettingsPage() {
                                     Connect your profiles with a single click. AI securely uses these to fetch reviews, guest profiles, and analyze sentiment automatically. No complex API keys required.
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => {
-                                        alert("Redirecting to Google 1-Click Auth... (OAuth Flow simulation)");
-                                        setTimeout(() => alert("Google Business successfully linked!"), 1500);
-                                    }}>
-                                        <span style={{ fontSize: 18 }}>🌐</span> Connect Google Business
-                                    </button>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => {
-                                        alert("Redirecting to Yelp 1-Click Auth... (OAuth Flow simulation)");
-                                        setTimeout(() => alert("Yelp successfully linked!"), 1500);
-                                    }}>
-                                        <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
-                                    </button>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => {
-                                        alert("Redirecting to OpenTable 1-Click Auth... (OAuth Flow simulation)");
-                                        setTimeout(() => alert("OpenTable successfully linked!"), 1500);
-                                    }}>
-                                        <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable (1-Click)
-                                    </button>
+                                    {connectedApps.includes("Google Business") ? (
+                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600 }}>
+                                            <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
+                                        </div>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Google Business", "https://accounts.google.com/signin")}>
+                                            <span style={{ fontSize: 18 }}>🌐</span> Connect Google Business
+                                        </button>
+                                    )}
+
+                                    {connectedApps.includes("Yelp") ? (
+                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600 }}>
+                                            <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
+                                        </div>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Yelp", "https://biz.yelp.com/login")}>
+                                            <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
+                                        </button>
+                                    )}
+
+                                    {connectedApps.includes("OpenTable") ? (
+                                        <div style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, gridColumn: "1 / -1" }}>
+                                            <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
+                                        </div>
+                                    ) : (
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => handleConnectApp("OpenTable", "https://restaurant.opentable.com/")}>
+                                            <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable (1-Click)
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
