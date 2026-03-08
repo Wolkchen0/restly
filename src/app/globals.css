@@ -1036,6 +1036,22 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 280px;
+        box-shadow: 20px 0 60px rgba(0,0,0,0.8);
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding-top: 64px; /* Space for the mobile header */
+    }
+
     .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -1050,5 +1066,11 @@ body {
 
     .section {
         padding: 60px 20px;
+    }
+}
+
+@media (min-width: 769px) {
+    .desktop-only-hidden {
+        display: none !important;
     }
 }

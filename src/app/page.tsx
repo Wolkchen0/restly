@@ -70,7 +70,7 @@ const HOW_IT_WORKS = [
 const PRICING = [
     {
         name: "Starter",
-        price: "$99",
+        price: "$199",
         period: "/mo",
         desc: "Perfect for single-location restaurants getting started with AI.",
         color: "var(--border)",
@@ -88,7 +88,7 @@ const PRICING = [
     },
     {
         name: "Pro",
-        price: "$199",
+        price: "$399",
         period: "/mo",
         desc: "For busy restaurants that want full automation and insights.",
         color: "var(--gold)",
@@ -108,7 +108,7 @@ const PRICING = [
     },
     {
         name: "Enterprise",
-        price: "$399",
+        price: "$799",
         period: "/mo",
         desc: "For restaurant groups and multi-location chains.",
         color: "rgba(139,92,246,0.6)",
