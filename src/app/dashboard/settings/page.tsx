@@ -62,16 +62,30 @@ export default function SettingsPage() {
     const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
 
-    const handleConnectApp = (appName: string, url: string) => {
-        if (confirm(`Do you want to authorize Restly to securely connect to your ${appName} account?`)) {
-            // Open a real window to simulate OAuth redirect perfectly
-            window.open(url, "_blank", "width=500,height=600,left=200,top=200");
+    const [connectingApp, setConnectingApp] = useState<string | null>(null);
 
-            // Simulate a successful callback after user "authenticates" 
-            setTimeout(() => {
-                setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
-            }, 2000);
-        }
+    const handleConnectApp = (appName: string, url: string) => {
+        setConnectingApp(appName);
+        // Open a real window to simulate OAuth redirect perfectly
+        const win = window.open(url, "_blank", "width=500,height=600,left=200,top=200");
+        const openTime = Date.now();
+
+        // Check when the user closes the window
+        const timer = setInterval(() => {
+            if (!win || win.closed) {
+                clearInterval(timer);
+                const timeSpent = Date.now() - openTime;
+                setConnectingApp(null);
+
+                // If they closed the window quickly, they likely backed out without connecting
+                if (timeSpent < 4000) {
+                    alert(`Connection to ${appName} was cancelled or incomplete. Please complete the authorization to sync your profile.`);
+                } else {
+                    // They spent enough time, assume connecting success
+                    setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
+                }
+            }
+        }, 500);
     };
 
     const handleDisconnectApp = (appName: string) => {
@@ -337,8 +351,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Google Business", "https://accounts.google.com/signin")}>
-                                            <span style={{ fontSize: 18 }}>🌐</span> Connect Google
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Google Business" ? 0.5 : 1 }} onClick={() => handleConnectApp("Google Business", "https://accounts.google.com/signin")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🌐</span> {connectingApp === "Google Business" ? "Connecting..." : "Connect Google"}
                                         </button>
                                     )}
 
@@ -347,8 +361,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Yelp", "https://biz.yelp.com/login")}>
-                                            <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Yelp" ? 0.5 : 1 }} onClick={() => handleConnectApp("Yelp", "https://biz.yelp.com/login")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🔴</span> {connectingApp === "Yelp" ? "Connecting..." : "Connect Yelp"}
                                         </button>
                                     )}
 
@@ -357,8 +371,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("OpenTable", "https://guestcenter.opentable.com/")}>
-                                            <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "https://guestcenter.opentable.com/")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🍽️</span> {connectingApp === "OpenTable" ? "Connecting..." : "Connect OpenTable"}
                                         </button>
                                     )}
 
@@ -367,8 +381,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>📸</span> Instagram Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Instagram", "https://instagram.com/accounts/login/")}>
-                                            <span style={{ fontSize: 18 }}>📸</span> Connect Instagram
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Instagram" ? 0.5 : 1 }} onClick={() => handleConnectApp("Instagram", "https://instagram.com/accounts/login/")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>📸</span> {connectingApp === "Instagram" ? "Connecting..." : "Connect Instagram"}
                                         </button>
                                     )}
 
@@ -377,8 +391,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>📘</span> Facebook Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("Facebook", "https://facebook.com/login/")}>
-                                            <span style={{ fontSize: 18 }}>📘</span> Connect Facebook
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Facebook" ? 0.5 : 1 }} onClick={() => handleConnectApp("Facebook", "https://facebook.com/login/")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>📘</span> {connectingApp === "Facebook" ? "Connecting..." : "Connect Facebook"}
                                         </button>
                                     )}
 
@@ -387,8 +401,8 @@ export default function SettingsPage() {
                                             <span style={{ fontSize: 18 }}>🎵</span> TikTok Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => handleConnectApp("TikTok", "https://tiktok.com/login/")}>
-                                            <span style={{ fontSize: 18 }}>🎵</span> Connect TikTok
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "TikTok" ? 0.5 : 1 }} onClick={() => handleConnectApp("TikTok", "https://tiktok.com/login/")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🎵</span> {connectingApp === "TikTok" ? "Connecting..." : "Connect TikTok"}
                                         </button>
                                     )}
                                 </div>
