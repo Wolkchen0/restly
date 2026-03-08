@@ -98,6 +98,7 @@ const PRICING = [
             "Live COGS & food cost tracking",
             "Revenue & cover forecasting",
             "Recipe costing module",
+            "CA Food & Beverage Training (AI + On-Site)",
             "Priority support (chat + phone)",
             "Custom branding & colors",
         ],

@@ -17,6 +17,7 @@ const salesData = [
 export default function DashboardOverview() {
     const [activeLoc, setActiveLoc] = useState<string>("Loading...");
     const [currentTime, setCurrentTime] = useState("");
+    const [reviewsData, setReviewsData] = useState<any>(null);
 
     useEffect(() => {
         // Current time ticker
@@ -37,6 +38,10 @@ export default function DashboardOverview() {
             }).catch(() => {
                 setActiveLoc("Setup Required");
             });
+
+        fetch("/api/reviews")
+            .then(r => r.json())
+            .then(d => setReviewsData(d));
 
         return () => clearInterval(t);
     }, []);
@@ -207,6 +212,36 @@ export default function DashboardOverview() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Social Sentiment (New Widget) */}
+                    {reviewsData && (
+                        <div className="panel" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                                <h2 style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>Live Social Sentiment</h2>
+                                <span style={{ fontSize: 12, fontWeight: 700, background: "rgba(201,168,76,0.1)", color: "var(--gold-light)", padding: "4px 8px", borderRadius: 8 }}>
+                                    ★ {reviewsData.stats?.averageRating} Avg
+                                </span>
+                            </div>
+
+                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+                                {reviewsData.reviews?.slice(0, 3).map((r: any) => (
+                                    <div key={r.id} style={{ padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{r.platform} • {r.author}</div>
+                                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{r.date}</div>
+                                        </div>
+                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                            "{r.text}"
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ marginTop: 12, fontSize: 11, color: "#E8C96E", fontStyle: "italic", textAlign: "center" }}>
+                                ✨ AI Insight: {reviewsData.aiInsight}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { searchGuests, getVipGuests, getTodayReservations } from "@/services/opentable";
 import { getInventory, getLowStockItems, getInventoryStats, POS_PROVIDERS } from "@/services/toast";
 import { getAllTimeOffRequests, getPendingRequests, checkConflicts, getScheduleStats } from "@/services/timeoff";
+import { getRecentReviews, getReviewStats } from "@/services/reviews";
 
 export const maxDuration = 30;
 
@@ -42,9 +43,10 @@ You are NOT just a chatbot — you are an active operations assistant. You can:
 5. **Analyze Kitchen Performance** — monitor KDS bottlenecks and average ticket times
 6. **Manage Chef & Recipes** — track recipe costs, profit margins, and AI photo breakdown
 7. **Equipment Maintenance** — check status of appliances, report broken equipment, and log fix requests
-8. **View Shift Logbook** — read manager handovers and daily summaries
-9. **Guide setup & onboarding** — explain exactly how to connect any POS system, get API keys, configure OpenTable
-10. **Navigate the system** — tell users exactly where to go if they ask about these features
+10. **Analyze Social Media Reviews** — pull the latest reviews from Google, Yelp, and OpenTable, assess sentiment, and track brand reputation.
+11. **California Training & Compliance (Pro Plan Only)** — provide up-to-date CA rules for food handling and alcohol serving, and explain how to schedule on-site training.
+12. **Guide setup & onboarding** — explain exactly how to connect any POS system, get API keys, configure OpenTable
+13. **Navigate the system** — tell users exactly where to go if they ask about these features
 
 ## INTEGRATION SETUP KNOWLEDGE
 When users ask how to connect a POS or don't know what to do:
@@ -375,6 +377,52 @@ When users ask how to connect a POS or don't know what to do:
                         return {
                             aiRecap: "Excellent health inspection (98) yesterday morning. Evening rush caused a draft IPA stockout. Today began with a vendor issue (late delivery, rejected tomatoes).",
                             actionItems: "Follow up on tomato credit, update 86 list for IPA, and ensure grill cooks run hood fans on high during peak."
+                        };
+                    },
+                }),
+
+                // ── SOCIAL MEDIA & REVIEWS TOOLS ────────────────────────────────────
+                analyze_social_reviews: tool({
+                    description: "Get recent social media and dining reviews from Google, Yelp, and OpenTable. Analyze sentiment and show what customers are saying.",
+                    parameters: z.object({}),
+                    execute: async () => {
+                        const reviews = getRecentReviews();
+                        const stats = getReviewStats();
+                        return {
+                            stats,
+                            latestReviews: reviews.map(r => ({
+                                platform: r.platform,
+                                rating: `⭐ ${r.rating}/5`,
+                                author: r.author,
+                                sentiment: r.sentiment.toUpperCase(),
+                                excerpt: `"${r.text}"`,
+                                when: r.date
+                            })),
+                            aiSummary: "The 'Truffle Burger' and 'Spicy Marg' are driving highly positive sentiment across Google and OpenTable. However, there is a recurring complaint on Yelp about hostess stand bottlenecks and wait times."
+                        };
+                    },
+                }),
+
+                // ── CALIFORNIA COMPLIANCE & TRAINING TOOLS ──────────────────────────
+                get_ca_compliance_info: tool({
+                    description: "Provide CA State rules for Food & Beverage and Alcohol (RBS) and how to schedule on-site training. Note: This feature is only available for Pro/Enterprise plans.",
+                    parameters: z.object({}),
+                    execute: async () => {
+                        if (restaurantPlan === "trial" || restaurantPlan === "starter") {
+                            return {
+                                accessStatus: "DENIED",
+                                message: "⚠️ The California Compliance & On-Site Training module is exclusive to our Pro and Enterprise plans. Please upgrade via Settings to access state regulations, AI quiz generation, and book your free on-site training."
+                            }
+                        }
+
+                        return {
+                            accessStatus: "GRANTED",
+                            caRulesV2026: {
+                                foodHandler: "All staff prepping/serving food must have a valid CA Food Handler Card within 30 days of hire. Restly syncs certification expiration dates in the Staff Dashboard.",
+                                alcoholRBS: "All managers and servers pouring alcohol MUST be RBS Certified (Responsible Beverage Service) under CA AB-1221.",
+                                requiredPosters: "Restaurants must display updated Minimum Wage, Cal/OSHA, and 'Wash Your Hands' posters in common areas."
+                            },
+                            onSiteTrainingInfo: "As a Pro member, you receive 1 free on-site CA compliance training session per year (max 20 staff). AI will simulate a health inspector walkthrough. Say 'Schedule my on-site training' and I will dispatch an agent."
                         };
                     },
                 }),
