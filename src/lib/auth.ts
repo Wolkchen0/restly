@@ -16,6 +16,74 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
 
+                // --- SANDBOX DEMO INTERCEPTION ---
+                if (credentials.email === "demo@meyhouse.com" && credentials.password === "demo1234") {
+                    // 1. Asynchronously clean up old sandboxes (> 24 hours old)
+                    prisma.restaurant.deleteMany({
+                        where: {
+                            email: { startsWith: "demo+" },
+                            createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+                        }
+                    }).catch(console.error);
+
+                    // 2. Create a fresh isolated Sandbox for this session
+                    const hash = await bcrypt.hash("demo1234", 10);
+                    const sandbox = await prisma.restaurant.create({
+                        data: {
+                            name: "Meyhouse",
+                            email: `demo+${Date.now()}_${Math.random().toString(36).substring(2, 7)}@meyhouse.com`,
+                            passwordHash: hash,
+                            plan: "pro",
+                            primaryColor: "#C9A84C",
+                            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+                            locations: {
+                                create: [
+                                    {
+                                        name: "Meyhouse — Hollywood",
+                                        address: "1234 Hollywood Blvd",
+                                        city: "Los Angeles, CA",
+                                        timezone: "America/Los_Angeles",
+                                        isDefault: true,
+                                        posProvider: "toast",
+                                        posApiKey: "demo-toast-key-hollywood",
+                                        posLocationId: "demo-guid-001",
+                                        opentableRestaurantId: "12345",
+                                    },
+                                    {
+                                        name: "Meyhouse — Beverly Hills",
+                                        address: "9876 Wilshire Blvd",
+                                        city: "Beverly Hills, CA",
+                                        timezone: "America/Los_Angeles",
+                                        isDefault: false,
+                                        posProvider: "clover",
+                                        posApiKey: "demo-clover-key-bh",
+                                        posLocationId: "demo-merchant-002",
+                                    },
+                                    {
+                                        name: "Meyhouse — Santa Monica",
+                                        address: "200 3rd Street Promenade",
+                                        city: "Santa Monica, CA",
+                                        timezone: "America/Los_Angeles",
+                                        isDefault: false,
+                                        posProvider: "square",
+                                        posApiKey: "demo-square-key-sm",
+                                        posLocationId: "demo-location-003",
+                                    },
+                                ],
+                            },
+                        }
+                    });
+
+                    return {
+                        id: sandbox.id,
+                        email: sandbox.email,
+                        name: sandbox.name,
+                        plan: sandbox.plan,
+                        primaryColor: sandbox.primaryColor,
+                    };
+                }
+                // --- END SANDBOX INTERCEPTION ---
+
                 const restaurant = await prisma.restaurant.findUnique({
                     where: { email: credentials.email as string },
                 });
