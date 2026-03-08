@@ -15,10 +15,19 @@ export default function SchedulePage() {
     const [activeTab, setActiveTab] = useState<"timeoff" | "timeentry">("timeoff");
     const [copied, setCopied] = useState<string | null>(null);
     const [locationId, setLocationId] = useState<string>("");
+    const [isDemo, setIsDemo] = useState(true);
 
     useEffect(() => {
         const loc = localStorage.getItem("restly_active_location");
         if (loc) setLocationId(loc);
+
+        fetch("/api/locations")
+            .then(r => r.json())
+            .then(d => {
+                const restName = d.restaurantName || "";
+                setIsDemo(restName.toLowerCase() === "meyhouse");
+            })
+            .catch(() => { });
 
         fetch("/api/timeoff").then(r => r.json()).then(d => {
             setData(d);
@@ -93,83 +102,98 @@ export default function SchedulePage() {
                     </div>
                 </div>
 
-                <div className="kpi-grid">
-                    {[
-                        { label: "Pending", icon: "⏳", value: tabRequests.filter(r => r.status === "PENDING").length, color: "var(--yellow)" },
-                        { label: "Approved", icon: "✅", value: tabRequests.filter(r => r.status === "APPROVED").length, color: "var(--green)" },
-                        { label: "Denied", icon: "❌", value: tabRequests.filter(r => r.status === "DENIED").length, color: "var(--red)" },
-                        { label: "Total", icon: "📋", value: tabRequests.length, color: "var(--text-primary)" },
-                    ].map(c => (
-                        <div key={c.label} className="kpi-card">
-                            <div className="kpi-label">{c.icon} {c.label}</div>
-                            <div className="kpi-value" style={{ color: c.color }}>{c.value ?? "—"}</div>
+                {isDemo ? (
+                    <>
+                        <div className="kpi-grid">
+                            {[
+                                { label: "Pending", icon: "⏳", value: tabRequests.filter(r => r.status === "PENDING").length, color: "var(--yellow)" },
+                                { label: "Approved", icon: "✅", value: tabRequests.filter(r => r.status === "APPROVED").length, color: "var(--green)" },
+                                { label: "Denied", icon: "❌", value: tabRequests.filter(r => r.status === "DENIED").length, color: "var(--red)" },
+                                { label: "Total", icon: "📋", value: tabRequests.length, color: "var(--text-primary)" },
+                            ].map(c => (
+                                <div key={c.label} className="kpi-card">
+                                    <div className="kpi-label">{c.icon} {c.label}</div>
+                                    <div className="kpi-value" style={{ color: c.color }}>{c.value ?? "—"}</div>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
 
-                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                    {["ALL", "PENDING", "APPROVED", "DENIED"].map(f => (
-                        <button key={f} onClick={() => setFilter(f)} style={{
-                            fontSize: 13, padding: "9px 16px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                            background: filter === f ? "var(--bg-card-hover)" : "var(--bg-card)",
-                            border: `1px solid ${filter === f ? "var(--border-light)" : "var(--border)"}`,
-                            color: filter === f ? "var(--text-primary)" : "var(--text-muted)",
-                            fontWeight: filter === f ? 600 : 400,
-                        }}>
-                            {f === "ALL" ? "All" : f[0] + f.slice(1).toLowerCase()}
-                            {f !== "ALL" && <span style={{ marginLeft: 6, background: "var(--bg-secondary)", borderRadius: 10, padding: "1px 7px", fontSize: 11, color: "var(--text-muted)" }}>{tabRequests.filter(r => r.status === f).length}</span>}
-                        </button>
-                    ))}
-                </div>
+                        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                            {["ALL", "PENDING", "APPROVED", "DENIED"].map(f => (
+                                <button key={f} onClick={() => setFilter(f)} style={{
+                                    fontSize: 13, padding: "9px 16px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                                    background: filter === f ? "var(--bg-card-hover)" : "var(--bg-card)",
+                                    border: `1px solid ${filter === f ? "var(--border-light)" : "var(--border)"}`,
+                                    color: filter === f ? "var(--text-primary)" : "var(--text-muted)",
+                                    fontWeight: filter === f ? 600 : 400,
+                                }}>
+                                    {f === "ALL" ? "All" : f[0] + f.slice(1).toLowerCase()}
+                                    {f !== "ALL" && <span style={{ marginLeft: 6, background: "var(--bg-secondary)", borderRadius: 10, padding: "1px 7px", fontSize: 11, color: "var(--text-muted)" }}>{tabRequests.filter(r => r.status === f).length}</span>}
+                                </button>
+                            ))}
+                        </div>
 
-                <div className="card">
-                    <div style={{ overflowX: "auto" }}>
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Employee</th><th>Role</th><th>Start</th><th>End</th>
-                                    <th>Days</th><th>Reason</th><th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {!data && <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading…</td></tr>}
-                                {filtered.length === 0 && data && <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>No {filter.toLowerCase()} requests</td></tr>}
-                                {filtered.map((r: any) => {
-                                    const days = Math.round((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 86400000) + 1;
-                                    return (
-                                        <tr key={r.id}>
-                                            <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{r.employeeName}</td>
-                                            <td><span className="badge badge-blue">{r.employeeRole}</span></td>
-                                            <td>{r.startDate}</td><td>{r.endDate}</td>
-                                            <td style={{ fontWeight: 600, color: days > 2 ? "var(--yellow)" : "inherit" }}>{days}d</td>
-                                            <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 180 }}>{r.reason}</td>
-                                            <td><span className={`badge ${STATUS_CLASS[r.status]}`}>{r.status}</span></td>
-                                            <td>
-                                                <div style={{ display: "flex", gap: 6 }}>
-                                                    {r.status === "PENDING" ? (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleStatusChange(r.id, "APPROVED")}
-                                                                style={{ fontSize: 11, padding: "5px 10px", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "var(--green)", borderRadius: 6, cursor: "pointer" }}>✓ Approve</button>
-                                                            <button
-                                                                onClick={() => handleStatusChange(r.id, "DENIED")}
-                                                                style={{ fontSize: 11, padding: "5px 10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--red)", borderRadius: 6, cursor: "pointer" }}>✗ Deny</button>
-                                                        </>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleStatusChange(r.id, "PENDING")}
-                                                            style={{ fontSize: 11, padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-muted)", borderRadius: 6, cursor: "pointer" }}>↩ Undo</button>
-                                                    )}
-                                                </div>
-                                            </td>
+                        <div className="card">
+                            <div style={{ overflowX: "auto" }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Employee</th><th>Role</th><th>Start</th><th>End</th>
+                                            <th>Days</th><th>Reason</th><th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        {!data && <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>Loading…</td></tr>}
+                                        {filtered.length === 0 && data && <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: "var(--text-muted)" }}>No {filter.toLowerCase()} requests</td></tr>}
+                                        {filtered.map((r: any) => {
+                                            const days = Math.round((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 86400000) + 1;
+                                            return (
+                                                <tr key={r.id}>
+                                                    <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>{r.employeeName}</td>
+                                                    <td><span className="badge badge-blue">{r.employeeRole}</span></td>
+                                                    <td>{r.startDate}</td><td>{r.endDate}</td>
+                                                    <td style={{ fontWeight: 600, color: days > 2 ? "var(--yellow)" : "inherit" }}>{days}d</td>
+                                                    <td style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 180 }}>{r.reason}</td>
+                                                    <td><span className={`badge ${STATUS_CLASS[r.status]}`}>{r.status}</span></td>
+                                                    <td>
+                                                        <div style={{ display: "flex", gap: 6 }}>
+                                                            {r.status === "PENDING" ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleStatusChange(r.id, "APPROVED")}
+                                                                        style={{ fontSize: 11, padding: "5px 10px", background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.3)", color: "var(--green)", borderRadius: 6, cursor: "pointer" }}>✓ Approve</button>
+                                                                    <button
+                                                                        onClick={() => handleStatusChange(r.id, "DENIED")}
+                                                                        style={{ fontSize: 11, padding: "5px 10px", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", color: "var(--red)", borderRadius: 6, cursor: "pointer" }}>✗ Deny</button>
+                                                                </>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => handleStatusChange(r.id, "PENDING")}
+                                                                    style={{ fontSize: 11, padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "var(--text-muted)", borderRadius: 6, cursor: "pointer" }}>↩ Undo</button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>📅</div>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Schedule System Not Connected</h2>
+                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
+                            Sync your 7shifts, Homebase, or other scheduling software to automatically approve requests based on staffing levels.
+                        </p>
+                        <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>
+                            Go to Integrations
+                        </button>
                     </div>
-                </div>
+                )}
 
                 {/* Form links */}
                 <div className="card" style={{ marginTop: 24 }}>
