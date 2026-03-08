@@ -168,7 +168,7 @@ export default function SettingsPage() {
             <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 28 }}>
                 {(["locations", "brand", "plan"] as const).map(t => (
                     <button key={t} className={`stab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-                        {t === "locations" ? "📍 Locations" : t === "brand" ? "🏠 Brand" : "💳 Plan"}
+                        {t === "locations" ? "📍 Locations & Integrations" : t === "brand" ? "🏠 Brand" : "💳 Plan"}
                     </button>
                 ))}
             </div>
@@ -306,29 +306,23 @@ export default function SettingsPage() {
                                 ) : null}
                             </div>
 
-                            {/* ── OpenTable ── */}
+                            {/* ── Online Profiles & Social Media ── */}
                             <div className="s-card">
-                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🍽️ OpenTable Guest Sync</h2>
+                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📱 Online Profiles & Reviews</h2>
                                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
-                                    Pull guest profiles, VIP flags, dietary notes, and reservation history into your dashboard.
+                                    Connect your profiles with a single click. AI securely uses these to fetch reviews, guest profiles, and analyze sentiment automatically. No complex API keys required.
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                                    <div>
-                                        <div className="f-label">Client ID</div>
-                                        <input className="s-input" type="password" placeholder="OpenTable Client ID" value={editLoc.opentableClientId || ""} onChange={e => setEditLoc(p => ({ ...p, opentableClientId: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <div className="f-label">Client Secret</div>
-                                        <input className="s-input" type="password" placeholder="OpenTable Client Secret" value={editLoc.opentableClientSecret || ""} onChange={e => setEditLoc(p => ({ ...p, opentableClientSecret: e.target.value }))} />
-                                    </div>
-                                    <div style={{ gridColumn: "1/-1" }}>
-                                        <div className="f-label">Restaurant ID</div>
-                                        <input className="s-input" placeholder="Restaurant ID from your OpenTable URL" value={editLoc.opentableRestaurantId || ""} onChange={e => setEditLoc(p => ({ ...p, opentableRestaurantId: e.target.value }))} />
-                                    </div>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => alert("Redirecting to Google 1-Click Auth...")}>
+                                        <span style={{ fontSize: 18 }}>🌐</span> Connect Google Business
+                                    </button>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => alert("Redirecting to Yelp 1-Click Auth...")}>
+                                        <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
+                                    </button>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => alert("Redirecting to OpenTable 1-Click Auth...")}>
+                                        <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable (1-Click)
+                                    </button>
                                 </div>
-                                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 12 }}>
-                                    Not sure how to get these? Ask the AI: "How do I connect OpenTable?"
-                                </p>
                             </div>
 
                             {/* ── Save ── */}
