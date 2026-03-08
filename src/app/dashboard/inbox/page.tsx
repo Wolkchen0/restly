@@ -13,46 +13,23 @@ interface Message {
     unread: boolean;
 }
 
-const MOCK_MESSAGES: Message[] = [
-    {
-        id: "m1", platform: "Instagram", sender: "Mia Wallace", handle: "@mia_foodie", avatar: "👩🏻",
-        preview: "Do you guys have vegan options for the tasting menu?",
-        fullMessage: "Hi there! I'm planning to book a table for my anniversary this Friday. Do you guys have vegan options for the tasting menu, or is it strictly as-is? Thanks!",
-        time: "10:42 AM", unread: true
-    },
-    {
-        id: "m2", platform: "TikTok", sender: "Foodie Bay Area", handle: "@bayareabites", avatar: "🤳",
-        preview: "Just posted a viral video about your lamb chops 🔥",
-        fullMessage: "Hey team! Just posted a video about your lamb chops and it's blowing up. Would love to collaborate on a giveaway if you're open to it?",
-        time: "Yesterday", unread: true
-    },
-    {
-        id: "m3", platform: "Facebook", sender: "David Chen", handle: "David Chen", avatar: "👨🏻‍🦱",
-        preview: "Is the outdoor patio dog friendly?",
-        fullMessage: "Hello, wanted to ask if the outdoor patio is dog friendly? We have a small poodle.",
-        time: "Tuesday", unread: false
-    },
-    {
-        id: "m4", platform: "Instagram", sender: "Elena Rodriguez", handle: "@elena_eats", avatar: "👩🏽",
-        preview: "What time does happy hour end?",
-        fullMessage: "Hi! Quick question, what time does your happy hour end on Thursdays and do we need a reservation for the bar area?",
-        time: "Monday", unread: false
-    }
-];
-
 export default function SocialInboxPage() {
-    const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [isDemo, setIsDemo] = useState(true);
+    const [isConnected, setIsConnected] = useState<boolean | null>(null); // null means loading
 
     useEffect(() => {
-        fetch("/api/locations")
+        fetch("/api/inbox")
             .then(r => r.json())
             .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                if (d.connected) {
+                    setIsConnected(true);
+                    setMessages(d.messages || []);
+                } else {
+                    setIsConnected(false);
+                }
             })
-            .catch(() => { });
+            .catch(() => setIsConnected(false));
     }, []);
 
     const selectedMsg = messages.find(m => m.id === selectedId);
@@ -72,7 +49,9 @@ export default function SocialInboxPage() {
             </div>
 
             <div className="page-content fade-in" style={{ height: "calc(100vh - 70px)", padding: 0, overflow: "hidden" }}>
-                {isDemo ? (
+                {isConnected === null ? (
+                    <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>Checking connection...</div>
+                ) : isConnected ? (
                     <div style={{ display: "flex", height: "100%", borderTop: "1px solid var(--border)" }}>
                         {/* Sidebar */}
                         <div style={{ width: 350, borderRight: "1px solid var(--border)", background: "var(--bg-card)", display: "flex", flexDirection: "column" }}>

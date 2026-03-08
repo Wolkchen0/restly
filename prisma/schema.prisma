@@ -59,6 +59,13 @@ model Location {
   opentableClientSecret String?
   opentableRestaurantId String?
 
+  // Social & Review Platforms (Real API Credentials)
+  instagramToken        String?
+  facebookToken         String?
+  tiktokToken           String?
+  googleBusinessToken   String?
+  yelpApiKey            String?
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

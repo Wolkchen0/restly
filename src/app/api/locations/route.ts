@@ -30,6 +30,11 @@ export async function GET() {
             isDefault: l.isDefault,
             isActive: l.isActive,
             posProvider: l.posProvider,
+            instagramToken: !!l.instagramToken, // We only send boolean to frontend so they know it's connected, don't leak tokens
+            facebookToken: !!l.facebookToken,
+            tiktokToken: !!l.tiktokToken,
+            googleBusinessToken: !!l.googleBusinessToken,
+            yelpApiKey: !!l.yelpApiKey,
         })),
     });
 }
@@ -68,7 +73,7 @@ export async function PATCH(req: Request) {
 
     if (!locationId) return NextResponse.json({ error: "locationId required" }, { status: 400 });
 
-    const allowed = ["name", "address", "city", "timezone", "posProvider", "posApiKey", "posSecretKey", "posLocationId", "opentableClientId", "opentableClientSecret", "opentableRestaurantId", "isDefault", "isActive", "primaryColor"];
+    const allowed = ["name", "address", "city", "timezone", "posProvider", "posApiKey", "posSecretKey", "posLocationId", "opentableClientId", "opentableClientSecret", "opentableRestaurantId", "isDefault", "isActive", "primaryColor", "instagramToken", "facebookToken", "tiktokToken", "googleBusinessToken", "yelpApiKey"];
     const data = Object.fromEntries(Object.entries(updates).filter(([k]) => allowed.includes(k)));
 
     const location = await prisma.location.update({

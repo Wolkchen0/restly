@@ -20,12 +20,18 @@ const TIMEZONES = [
 interface LocationData {
     id: string;
     name: string;
-    address: string | null;
-    city: string | null;
+    address?: string;
+    city?: string;
     timezone: string;
-    posProvider: string | null;
     isDefault: boolean;
     isActive: boolean;
+    posProvider?: string;
+    googleBusinessToken?: boolean;
+    yelpApiKey?: boolean;
+    opentableRestaurantId?: boolean;
+    instagramToken?: boolean;
+    facebookToken?: boolean;
+    tiktokToken?: boolean;
 }
 
 interface EditState {
@@ -64,33 +70,51 @@ export default function SettingsPage() {
 
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
 
-    const handleConnectApp = (appName: string, url: string) => {
+    const handleConnectApp = async (appName: string, keyName: string) => {
+        const token = prompt(`[Production Ready Mode]\nTo connect ${appName}, you must provide a valid API Access Token or API Key obtained from the ${appName} Developer Portal.\n\nEnter your ${appName} Token:`);
+
+        if (!token) {
+            alert("Connection cancelled. A valid token is required.");
+            return;
+        }
+
         setConnectingApp(appName);
-        // Open a real window to simulate OAuth redirect perfectly
-        const win = window.open(url, "_blank", "width=500,height=600,left=200,top=200");
-        const openTime = Date.now();
 
-        // Check when the user closes the window
-        const timer = setInterval(() => {
-            if (!win || win.closed) {
-                clearInterval(timer);
-                const timeSpent = Date.now() - openTime;
-                setConnectingApp(null);
+        try {
+            const res = await fetch("/api/locations", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    locationId: activeLocId,
+                    [keyName]: token
+                })
+            });
 
-                // If they closed the window quickly, they likely backed out without connecting
-                if (timeSpent < 4000) {
-                    alert(`Connection to ${appName} was cancelled or incomplete. Please complete the authorization to sync your profile.`);
-                } else {
-                    // They spent enough time, assume connecting success
-                    setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
-                }
+            if (res.ok) {
+                setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
             }
-        }, 500);
+        } catch (e) {
+            alert(`Failed to save ${appName} token. Verify database connection.`);
+        } finally {
+            setConnectingApp(null);
+        }
     };
 
-    const handleDisconnectApp = (appName: string) => {
-        if (confirm(`Are you sure you want to disconnect ${appName}? You will need to re-authenticate to sync data.`)) {
-            setConnectedApps(prev => prev.filter(app => app !== appName));
+    const handleDisconnectApp = async (appName: string, keyName: string) => {
+        if (confirm(`Are you sure you want to disconnect ${appName} and delete the API Token? You will need to re-authenticate to sync data.`)) {
+            try {
+                await fetch("/api/locations", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        locationId: activeLocId,
+                        [keyName]: null
+                    })
+                });
+                setConnectedApps(prev => prev.filter(app => app !== appName));
+            } catch (e) {
+                alert(`Failed to disconnect ${appName}.`);
+            }
         }
     };
 
@@ -116,6 +140,16 @@ export default function SettingsPage() {
         setActiveLocId(loc.id);
         setEditLoc({ id: loc.id, name: loc.name, address: loc.address || "", city: loc.city || "", timezone: loc.timezone });
         setSelectedPOS(loc.posProvider || "manual");
+
+        // Sync Connected Apps visually based on actual database boolean flags
+        const connected = [];
+        if (loc.googleBusinessToken) connected.push("Google Business");
+        if (loc.yelpApiKey) connected.push("Yelp");
+        if (loc.opentableRestaurantId) connected.push("OpenTable"); // Check any OpenTable field
+        if (loc.instagramToken) connected.push("Instagram");
+        if (loc.facebookToken) connected.push("Facebook");
+        if (loc.tiktokToken) connected.push("TikTok");
+        setConnectedApps(connected);
     };
 
     const handleSaveLocation = async () => {
@@ -347,62 +381,62 @@ export default function SettingsPage() {
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                                     {connectedApps.includes("Google Business") ? (
-                                        <button onClick={() => handleDisconnectApp("Google Business")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("Google Business", "googleBusinessToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Google Business" ? 0.5 : 1 }} onClick={() => handleConnectApp("Google Business", "https://accounts.google.com/signin")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🌐</span> {connectingApp === "Google Business" ? "Connecting..." : "Connect Google"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Google Business" ? 0.5 : 1 }} onClick={() => handleConnectApp("Google Business", "googleBusinessToken")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🌐</span> {connectingApp === "Google Business" ? "Connecting..." : "Add Google API Token"}
                                         </button>
                                     )}
 
                                     {connectedApps.includes("Yelp") ? (
-                                        <button onClick={() => handleDisconnectApp("Yelp")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("Yelp", "yelpApiKey")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Yelp" ? 0.5 : 1 }} onClick={() => handleConnectApp("Yelp", "https://biz.yelp.com/login")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🔴</span> {connectingApp === "Yelp" ? "Connecting..." : "Connect Yelp"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Yelp" ? 0.5 : 1 }} onClick={() => handleConnectApp("Yelp", "yelpApiKey")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🔴</span> {connectingApp === "Yelp" ? "Connecting..." : "Add Yelp API Key"}
                                         </button>
                                     )}
 
                                     {connectedApps.includes("OpenTable") ? (
-                                        <button onClick={() => handleDisconnectApp("OpenTable")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("OpenTable", "opentableRestaurantId")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, gridColumn: "1 / -1", cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "https://guestcenter.opentable.com/")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🍽️</span> {connectingApp === "OpenTable" ? "Connecting..." : "Connect OpenTable"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "opentableRestaurantId")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🍽️</span> {connectingApp === "OpenTable" ? "Connecting..." : "Add OpenTable API Token"}
                                         </button>
                                     )}
 
                                     {connectedApps.includes("Instagram") ? (
-                                        <button onClick={() => handleDisconnectApp("Instagram")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("Instagram", "instagramToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>📸</span> Instagram Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Instagram" ? 0.5 : 1 }} onClick={() => handleConnectApp("Instagram", "https://instagram.com/accounts/login/")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>📸</span> {connectingApp === "Instagram" ? "Connecting..." : "Connect Instagram"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Instagram" ? 0.5 : 1 }} onClick={() => handleConnectApp("Instagram", "instagramToken")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>📸</span> {connectingApp === "Instagram" ? "Connecting..." : "Add Instagram Access Token"}
                                         </button>
                                     )}
 
                                     {connectedApps.includes("Facebook") ? (
-                                        <button onClick={() => handleDisconnectApp("Facebook")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("Facebook", "facebookToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>📘</span> Facebook Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Facebook" ? 0.5 : 1 }} onClick={() => handleConnectApp("Facebook", "https://facebook.com/login/")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>📘</span> {connectingApp === "Facebook" ? "Connecting..." : "Connect Facebook"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Facebook" ? 0.5 : 1 }} onClick={() => handleConnectApp("Facebook", "facebookToken")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>📘</span> {connectingApp === "Facebook" ? "Connecting..." : "Add Facebook API Token"}
                                         </button>
                                     )}
 
                                     {connectedApps.includes("TikTok") ? (
-                                        <button onClick={() => handleDisconnectApp("TikTok")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                        <button onClick={() => handleDisconnectApp("TikTok", "tiktokToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
                                             <span style={{ fontSize: 18 }}>🎵</span> TikTok Connected
                                         </button>
                                     ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "TikTok" ? 0.5 : 1 }} onClick={() => handleConnectApp("TikTok", "https://tiktok.com/login/")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🎵</span> {connectingApp === "TikTok" ? "Connecting..." : "Connect TikTok"}
+                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "TikTok" ? 0.5 : 1 }} onClick={() => handleConnectApp("TikTok", "tiktokToken")} disabled={!!connectingApp}>
+                                            <span style={{ fontSize: 18 }}>🎵</span> {connectingApp === "TikTok" ? "Connecting..." : "Add TikTok Access Token"}
                                         </button>
                                     )}
                                 </div>

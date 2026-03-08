@@ -8,6 +8,9 @@ export default function GuestsPage() {
     const [consent, setConsent] = useState(false);
     const [isDemo, setIsDemo] = useState(true);
 
+    const [reviews, setReviews] = useState<any[]>([]);
+    const [reviewsConnected, setReviewsConnected] = useState<boolean>(false);
+
     useEffect(() => {
         fetch("/api/guests").then(r => r.json()).then(setData);
         // Check if consent was already given this session
@@ -20,14 +23,17 @@ export default function GuestsPage() {
                 setIsDemo(restName.toLowerCase() === "meyhouse");
             })
             .catch(() => { });
-    }, []);
 
-    const MOCK_REVIEWS = [
-        { id: "r1", platform: "Google", icon: "🌐", author: "Raj K.", rating: 5, date: "Today", text: "Amazing experience! The lamb chops were cooked to perfection. Waitstaff was extremely attentive." },
-        { id: "r2", platform: "Yelp", icon: "🔴", author: "Sarah M.", rating: 4, date: "Yesterday", text: "Great ambiance and good cocktails. It gets a little loud on Friday nights but overall a solid spot." },
-        { id: "r3", platform: "OpenTable", icon: "🍽️", author: "David Brooks", rating: 5, date: "Yesterday", text: "We celebrated our anniversary here and the team made it so special. Highly recommend the tasting menu." },
-        { id: "r4", platform: "Google", icon: "🌐", author: "Amanda G.", rating: 2, date: "2 days ago", text: "Food was okay but service was incredibly slow. We had to wait 20 minutes just to get our check." },
-    ];
+        fetch("/api/reviews")
+            .then(r => r.json())
+            .then(d => {
+                if (d.connected) {
+                    setReviewsConnected(true);
+                    setReviews(d.reviews || []);
+                }
+            })
+            .catch(() => { });
+    }, []);
 
     function giveConsent() {
         sessionStorage.setItem("guests_consent", "true");
@@ -303,33 +309,45 @@ export default function GuestsPage() {
                         <div className="card" style={{ marginTop: 24 }}>
                             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <span className="card-title">Daily Reviews & Sentiment Intelligence</span>
-                                <span style={{ fontSize: 13, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)", color: "var(--gold-light)", padding: "4px 10px", borderRadius: 12, fontWeight: 700 }}>
-                                    🧠 AI Sentiment: 85% Positive
-                                </span>
+                                {reviewsConnected && (
+                                    <span style={{ fontSize: 13, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)", color: "var(--gold-light)", padding: "4px 10px", borderRadius: 12, fontWeight: 700 }}>
+                                        🧠 AI Sentiment: 85% Positive
+                                    </span>
+                                )}
                             </div>
                             <div className="card-body">
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                                    {MOCK_REVIEWS.map(r => (
-                                        <div key={r.id} style={{ padding: 20, background: "var(--bg-secondary)", borderRadius: 12, border: "1px solid var(--border)" }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                                    <span style={{ fontSize: 20 }}>{r.icon}</span>
-                                                    <span style={{ fontWeight: 700, fontSize: 15 }}>{r.author}</span>
-                                                    <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--bg-card)", padding: "3px 8px", borderRadius: 8, border: "1px solid var(--border)" }}>via {r.platform}</span>
+                                {!reviewsConnected ? (
+                                    <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+                                        <div style={{ fontSize: 32, marginBottom: 12 }}>📱</div>
+                                        <p style={{ marginBottom: 16 }}>Review tracking is currently inactive. You need a valid Google Business, Yelp, or OpenTable API token to unlock sentiment analysis.</p>
+                                        <button className="btn-ghost" onClick={() => window.location.href = '/dashboard/settings'}>
+                                            Setup API Integrations
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                                        {reviews.map(r => (
+                                            <div key={r.id} style={{ padding: 20, background: "var(--bg-secondary)", borderRadius: 12, border: "1px solid var(--border)" }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                        <span style={{ fontSize: 20 }}>{r.icon}</span>
+                                                        <span style={{ fontWeight: 700, fontSize: 15 }}>{r.author}</span>
+                                                        <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--bg-card)", padding: "3px 8px", borderRadius: 8, border: "1px solid var(--border)" }}>via {r.platform}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.date}</div>
                                                 </div>
-                                                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{r.date}</div>
+                                                <div style={{ marginBottom: 12 }}>
+                                                    {Array.from({ length: 5 }).map((_, i) => (
+                                                        <span key={i} style={{ color: i < r.rating ? "#E8C96E" : "rgba(255,255,255,0.1)", fontSize: 16 }}>★</span>
+                                                    ))}
+                                                </div>
+                                                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
+                                                    &quot;{r.text}&quot;
+                                                </div>
                                             </div>
-                                            <div style={{ marginBottom: 12 }}>
-                                                {Array.from({ length: 5 }).map((_, i) => (
-                                                    <span key={i} style={{ color: i < r.rating ? "#E8C96E" : "rgba(255,255,255,0.1)", fontSize: 16 }}>★</span>
-                                                ))}
-                                            </div>
-                                            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
-                                                &quot;{r.text}&quot;
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
