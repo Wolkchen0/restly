@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const EQUIPMENT = [
+const INITIAL_EQUIPMENT = [
     { id: "EQ-1", name: "Walk-in Cooler (Main)", type: "Refrigeration", nextService: "2026-05-15", status: "OK", urgent: false },
     { id: "EQ-2", name: "Hobart Dishwasher", type: "Cleanup", nextService: "2026-03-10", status: "NEEDS_MAINTENANCE", urgent: true },
     { id: "EQ-3", name: "Pitco Fryer #2", type: "Cooking", nextService: "2026-03-08", status: "BROKEN", urgent: true },
@@ -11,6 +11,8 @@ const EQUIPMENT = [
 export default function MaintenancePage() {
     const [actioned, setActioned] = useState<string | null>(null);
     const [isDemo, setIsDemo] = useState(true);
+    const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
+    const [aiDispatched, setAiDispatched] = useState(false);
 
     useEffect(() => {
         fetch("/api/locations")
@@ -27,13 +29,27 @@ export default function MaintenancePage() {
         setTimeout(() => setActioned(null), 3000);
     };
 
+    const handleAddEquipment = () => {
+        const name = prompt("Enter new equipment name:");
+        if (!name) return;
+        const newEq = {
+            id: `EQ-${equipmentList.length + 1}`,
+            name,
+            type: "Custom",
+            nextService: "Not Set",
+            status: "OK",
+            urgent: false
+        };
+        setEquipmentList([...equipmentList, newEq]);
+    };
+
     return (
         <>
             <div className="topbar">
                 <div className="topbar-title">🔧 Equipment & Maintenance</div>
                 <div className="topbar-right">
-                    <button className="btn-primary">+ Add Equipment</button>
-                    <button className="btn-secondary">Service Providers</button>
+                    <button className="btn-primary" onClick={handleAddEquipment}>+ Add Equipment</button>
+                    <button className="btn-secondary" onClick={() => alert("Redirecting to contacts...")}>Service Providers</button>
                 </div>
             </div>
 
@@ -50,7 +66,13 @@ export default function MaintenancePage() {
                                     <strong>Pitco Fryer #2</strong> was marked broke by Charlie at 11:30 AM today. <strong>Hobart Dishwasher</strong> is past its scheduled maintenance date. Do you want to automatically dispatch emails to "Elite Tech Services"?
                                 </div>
                                 <div style={{ marginTop: 12 }}>
-                                    <button className="btn-primary" style={{ fontSize: 12, padding: "6px 16px" }}>Dispatch Technician via Email ↗</button>
+                                    <button
+                                        className="btn-primary"
+                                        style={{ fontSize: 12, padding: "6px 16px", background: aiDispatched ? "var(--green)" : "var(--purple)", borderColor: aiDispatched ? "var(--green)" : "var(--purple)" }}
+                                        onClick={() => setAiDispatched(true)}
+                                    >
+                                        {aiDispatched ? "✓ Emails Dispatched" : "Dispatch Technician via Email ↗"}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -72,7 +94,7 @@ export default function MaintenancePage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {EQUIPMENT.map(eq => (
+                                        {equipmentList.map(eq => (
                                             <tr key={eq.id}>
                                                 <td style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>{eq.id}</td>
                                                 <td style={{ fontWeight: 700, color: "#fff" }}>{eq.name}</td>
@@ -110,7 +132,7 @@ export default function MaintenancePage() {
                         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
                             Keep all your important contacts in one place. Add your electrician, plumber, or equipment details manually so everything is just one click away when an emergency happens.
                         </p>
-                        <button className="btn-primary" onClick={() => alert("Add Entry Modal coming soon...")}>
+                        <button className="btn-primary" onClick={handleAddEquipment}>
                             + Add Contact or Equipment
                         </button>
                     </div>

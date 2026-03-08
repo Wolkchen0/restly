@@ -19,6 +19,7 @@ export default function DashboardOverview() {
     const [currentTime, setCurrentTime] = useState("");
     const [reviewsData, setReviewsData] = useState<any>(null);
     const [isDemo, setIsDemo] = useState<boolean>(true);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     useEffect(() => {
         // Current time ticker
@@ -75,11 +76,14 @@ export default function DashboardOverview() {
                     </h1>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                    <button style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    <button onClick={() => alert("Downloading Dashboard_Report.csv...")} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         Export CSV
                     </button>
-                    <button style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                        Sync POS
+                    <button onClick={() => {
+                        setIsSyncing(true);
+                        setTimeout(() => setIsSyncing(false), 2000);
+                    }} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                        {isSyncing ? "Syncing..." : "Sync POS"}
                     </button>
                 </div>
             </div>

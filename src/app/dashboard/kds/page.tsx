@@ -10,7 +10,7 @@ const STATION_DATA = [
     { name: "Expo", avgTime: 4, load: 95 },
 ];
 
-const TICKETS = [
+const INITIAL_TICKETS = [
     { id: "T-8902", table: "14", server: "Lisa P.", items: ["2x Ribeye (M)", "1x Caesar", "1x Truffle Fries"], time: "28m", status: "LATE" },
     { id: "T-8903", table: "22", server: "Carlos R.", items: ["1x Salmon", "1x Vegan Bowl"], time: "18m", status: "WARNING" },
     { id: "T-8904", table: "8", server: "Marco T.", items: ["3x Burger", "1x Wings", "4x Coke"], time: "12m", status: "ON_TIME" },
@@ -19,6 +19,13 @@ const TICKETS = [
 
 export default function KDSPage() {
     const [isDemo, setIsDemo] = useState(true);
+    const [tickets, setTickets] = useState(INITIAL_TICKETS);
+    const [escalatedId, setEscalatedId] = useState<string | null>(null);
+
+    const handleEscalate = (id: string) => {
+        setEscalatedId(id);
+        alert(`Ticket ${id} has been escalated to the Kitchen Manager via SMS/Push.`);
+    };
 
     useEffect(() => {
         fetch("/api/locations")
@@ -107,8 +114,8 @@ export default function KDSPage() {
                                 <span className="card-title">Live Late/Warning Tickets</span>
                             </div>
                             <div className="card-body" style={{ padding: 0 }}>
-                                {TICKETS.map(t => (
-                                    <div key={t.id} style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                                {tickets.map(t => (
+                                    <div key={t.id} style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", background: escalatedId === t.id ? "rgba(220,38,38,0.05)" : "transparent" }}>
                                         <div>
                                             <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6 }}>
                                                 <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{t.id} (Table {t.table})</span>
@@ -122,7 +129,14 @@ export default function KDSPage() {
                                         </div>
                                         <div style={{ textAlign: "right", paddingLeft: 16 }}>
                                             <div style={{ fontSize: 24, fontWeight: 900, color: t.status === "LATE" ? "#ef4444" : t.status === "WARNING" ? "#eab308" : "#4ade80" }}>{t.time}</div>
-                                            <button className="btn-secondary" style={{ padding: "4px 8px", fontSize: 11, marginTop: 8 }}>Escalate ↗</button>
+                                            <button
+                                                className="btn-secondary"
+                                                style={{ padding: "4px 8px", fontSize: 11, marginTop: 8, opacity: escalatedId === t.id ? 0.5 : 1 }}
+                                                onClick={() => handleEscalate(t.id)}
+                                                disabled={escalatedId === t.id}
+                                            >
+                                                {escalatedId === t.id ? "Escalated ✓" : "Escalate ↗"}
+                                            </button>
                                         </div>
                                     </div>
                                 ))}

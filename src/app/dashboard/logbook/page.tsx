@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const LOGS = [
+const INITIAL_LOGS = [
     { id: 1, date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector dropped by, everything passed (98/100). Need to order more degreaser. Slow lunch, about $1400 total.", tags: ["Audit", "Slow"] },
     { id: 2, date: "2026-03-05", shift: "PM", manager: "Mark T.", notes: "Bar was slammed due to the game. Ran out of draft IPA by 9 PM. Fire alarm tripped for 1 minute because grill hood wasn't switched on high. Total sales: $8,500.", tags: ["Busy", "Inventory Incident"] },
     { id: 3, date: "2026-03-06", shift: "AM", manager: "Sarah J.", notes: "Produce delivery late by 2 hours. Tomatoes looked bad, sent back 2 cases. Refund requested.", tags: ["Vendor", "Quality Issue"] },
@@ -9,6 +9,22 @@ const LOGS = [
 
 export default function LogbookPage() {
     const [isDemo, setIsDemo] = useState(true);
+    const [logs, setLogs] = useState(INITIAL_LOGS);
+
+    const handleNewEntry = () => {
+        const notes = prompt("Enter shift notes:");
+        if (!notes) return;
+
+        const newLog = {
+            id: Date.now(),
+            date: new Date().toISOString().split('T')[0],
+            shift: new Date().getHours() < 16 ? "AM" : "PM",
+            manager: "Current User",
+            notes,
+            tags: ["Manual Entry"]
+        };
+        setLogs([newLog, ...logs]);
+    };
 
     useEffect(() => {
         fetch("/api/locations")
@@ -25,8 +41,8 @@ export default function LogbookPage() {
             <div className="topbar">
                 <div className="topbar-title">📓 Shift Logbook</div>
                 <div className="topbar-right">
-                    <button className="btn-primary">New Entry +</button>
-                    <button className="btn-secondary">Export Log</button>
+                    <button className="btn-primary" onClick={handleNewEntry}>New Entry +</button>
+                    <button className="btn-secondary" onClick={() => alert("Downloading PDF log...")}>Export Log</button>
                 </div>
             </div>
 
@@ -51,7 +67,7 @@ export default function LogbookPage() {
                                 <span className="card-title">Morning / Evening Handover Notes</span>
                             </div>
                             <div>
-                                {LOGS.map(log => (
+                                {logs.map(log => (
                                     <div key={log.id} style={{ padding: "24px 20px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", gap: 24 }}>
                                         <div style={{ minWidth: 120 }}>
                                             <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{log.date}</div>
