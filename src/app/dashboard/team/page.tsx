@@ -20,6 +20,7 @@ const DEMO_STAFF_YEAR = [
 export default function TeamPerformancePage() {
     const [period, setPeriod] = useState<"month" | "year">("month");
     const [isDemo, setIsDemo] = useState(true);
+    const [selectedStaff, setSelectedStaff] = useState<any>(null);
 
     useEffect(() => {
         fetch("/api/locations")
@@ -57,6 +58,54 @@ export default function TeamPerformancePage() {
             </div>
 
             <div className="page-content fade-in">
+                {selectedStaff && (
+                    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(5px)" }}>
+                        <div className="card" style={{ width: 500, padding: 32, position: "relative" }}>
+                            <button onClick={() => setSelectedStaff(null)} style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "var(--text-muted)", fontSize: 24, cursor: "pointer" }}>×</button>
+                            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+                                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--bg-secondary)", border: "2px solid #C9A84C", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 800, color: "#fff" }}>
+                                    {selectedStaff.name.split(" ").map((n: string) => n[0]).join("")}
+                                </div>
+                                <div>
+                                    <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{selectedStaff.name}</h2>
+                                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selectedStaff.role} • Rank #{selectedStaff.rank}</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Total Sales</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#E8C96E", marginTop: 4 }}>${selectedStaff.totalSales.toLocaleString()}</div>
+                                </div>
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Avg Tip %</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: selectedStaff.tipPct > 20 ? "var(--green)" : "#fff", marginTop: 4 }}>{selectedStaff.tipPct}%</div>
+                                </div>
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Check Avg</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 4 }}>${selectedStaff.checkAvg}</div>
+                                </div>
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Turn Time</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 4 }}>{selectedStaff.turnTime}m</div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.2)", padding: 16, borderRadius: 12, display: "flex", gap: 12 }}>
+                                <div style={{ fontSize: 20 }}>💡</div>
+                                <div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa", marginBottom: 2 }}>AI Recommendation</div>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+                                        {selectedStaff.checkAvg > 75
+                                            ? `${selectedStaff.name.split(' ')[0]} excels at upselling and premium check averages. Schedule them on high-volume weekend shifts for maximum revenue.`
+                                            : `${selectedStaff.name.split(' ')[0]} could benefit from wine pairing training to boost their ${selectedStaff.checkAvg}$ check average closer to the floor target.`}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {isDemo ? (
                     <>
                         {/* AI SUMMARY */}
@@ -117,11 +166,11 @@ export default function TeamPerformancePage() {
                                     </thead>
                                     <tbody>
                                         {data.map(staff => (
-                                            <tr key={staff.name}>
+                                            <tr key={staff.name} style={{ cursor: "pointer", transition: "background 0.15s" }} onClick={() => setSelectedStaff(staff)} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                                 <td style={{ fontWeight: 800, color: staff.rank === 1 ? "#E8C96E" : staff.rank === 2 ? "#C0C0C0" : staff.rank === 3 ? "#CD7F32" : "var(--text-muted)" }}>
                                                     #{staff.rank}
                                                 </td>
-                                                <td style={{ fontWeight: 600, color: "#fff" }}>{staff.name}</td>
+                                                <td style={{ fontWeight: 600, color: "#60a5fa", textDecoration: "underline", textUnderlineOffset: 3 }}>{staff.name}</td>
                                                 <td><span className={`badge ${staff.role === "Bartender" ? "badge-blue" : "badge-yellow"}`}>{staff.role}</span></td>
                                                 <td style={{ fontWeight: 600 }}>${staff.totalSales.toLocaleString()}</td>
                                                 <td>${staff.checkAvg}</td>

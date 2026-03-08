@@ -8,6 +8,13 @@ const STATUS_CLASS: Record<string, string> = {
     PENDING: "badge-yellow", APPROVED: "badge-green", DENIED: "badge-red",
 };
 
+const DEMO_REQUESTS = [
+    { id: "req1", employeeName: "Sarah Jenkins", employeeRole: "Server", startDate: "2026-03-12", endDate: "2026-03-14", reason: "Family event out of town", status: "PENDING", formSource: 2 },
+    { id: "req2", employeeName: "Marcus Torres", employeeRole: "Bartender", startDate: "2026-04-01", endDate: "2026-04-05", reason: "Vacation to Miami", status: "APPROVED", formSource: 2 },
+    { id: "req3", employeeName: "David Chen", employeeRole: "Line Cook", startDate: "2026-03-10", endDate: "2026-03-10", reason: "Doctor appointment", status: "DENIED", formSource: 2 },
+    { id: "req4", employeeName: "Lisa Park", employeeRole: "Hostess", startDate: "2026-03-08", endDate: "2026-03-08", reason: "Forgot to clock in yesterday morning shift", status: "PENDING", formSource: 1 },
+];
+
 export default function SchedulePage() {
     const [data, setData] = useState<any>(null);
     const [localRequests, setLocalRequests] = useState<any[]>([]);
@@ -25,14 +32,19 @@ export default function SchedulePage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                if (restName.toLowerCase() === "meyhouse") {
+                    setIsDemo(true);
+                    setData({ requests: DEMO_REQUESTS });
+                    setLocalRequests(DEMO_REQUESTS);
+                } else {
+                    setIsDemo(false);
+                    fetch("/api/timeoff").then(res => res.json()).then(tData => {
+                        setData(tData);
+                        setLocalRequests(tData.requests ?? []);
+                    });
+                }
             })
             .catch(() => { });
-
-        fetch("/api/timeoff").then(r => r.json()).then(d => {
-            setData(d);
-            setLocalRequests(d.requests ?? []);
-        });
     }, []);
 
     const handleStatusChange = (id: string, newStatus: string) => {
