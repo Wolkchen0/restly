@@ -13,6 +13,7 @@ const NAV = [
     { href: "/dashboard/maintenance", label: "Maintenance", icon: "🔧" },
     { href: "/dashboard/guests", label: "Guests & VIPs", icon: "👤" },
     { href: "/dashboard/schedule", label: "Schedule & Forms", icon: "📅" },
+    { href: "/dashboard/team", label: "Staff Performance", icon: "🏆" },
     { href: "/dashboard/logbook", label: "Shift Logbook", icon: "📓" },
     { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];
