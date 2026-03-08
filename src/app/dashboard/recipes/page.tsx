@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const RECIPES = [
+const INITIAL_RECIPES = [
     { id: 1, name: "Truffle Burger", cost: 3.45, price: 16.00, cogs: 21.5, type: "Main", ingredients: ["150g Beef Patty", "1x Brioche Bun", "15g Truffle Mayo", "1x Cheddar Slice"] },
     { id: 2, name: "Avocado Toast", cost: 1.80, price: 12.00, cogs: 15.0, type: "Breakfast", ingredients: ["2x Sourdough Slices", "1/2 Hass Avocado", "Chili Flakes", "Olive Oil"] },
     { id: 3, name: "Spicy Marg", cost: 1.10, price: 14.00, cogs: 7.8, type: "Drink", ingredients: ["2oz Tequila", "1oz Lime Juice", "0.5oz Agave", "Jalapeno Slices"] },
 ];
 
 export default function RecipesPage() {
+    const [recipes, setRecipes] = useState(INITIAL_RECIPES);
     const [uploading, setUploading] = useState(false);
     const [aiResult, setAiResult] = useState<any>(null);
     const [isDemo, setIsDemo] = useState(true);
@@ -37,6 +38,37 @@ export default function RecipesPage() {
         }, 2000);
     };
 
+    const handleNewRecipe = () => {
+        const name = prompt("Enter a name for the new recipe:");
+        if (!name) return;
+
+        const newRecipe = {
+            id: Date.now(),
+            name,
+            cost: 0.0,
+            price: 0.0,
+            cogs: 0.0,
+            type: "Custom",
+            ingredients: ["Tap to add ingredients..."]
+        };
+        setRecipes([...recipes, newRecipe]);
+    };
+
+    const saveAiRecipe = () => {
+        if (!aiResult) return;
+        const newRecipe = {
+            id: Date.now(),
+            name: aiResult.name,
+            cost: aiResult.totalCost,
+            price: aiResult.suggestedPrice,
+            cogs: aiResult.projectedCOGS,
+            type: "AI Import",
+            ingredients: aiResult.ingredients
+        };
+        setRecipes([newRecipe, ...recipes]);
+        setAiResult(null);
+    };
+
     return (
         <>
             <div className="topbar">
@@ -45,7 +77,7 @@ export default function RecipesPage() {
                     <button className="btn-primary" onClick={handlePhotoUpload} disabled={uploading}>
                         {uploading ? "Analyzing Recipe..." : "📸 AI Photo Import"}
                     </button>
-                    <button className="btn-secondary">New Recipe +</button>
+                    <button className="btn-secondary" onClick={handleNewRecipe}>New Recipe +</button>
                 </div>
             </div>
 
@@ -82,7 +114,7 @@ export default function RecipesPage() {
                             </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            <button className="btn-primary">Save to Menu</button>
+                            <button className="btn-primary" onClick={saveAiRecipe}>Save to Menu</button>
                             <button className="btn-secondary" onClick={() => setAiResult(null)}>Discard</button>
                         </div>
                     </div>
@@ -90,7 +122,7 @@ export default function RecipesPage() {
 
                 {isDemo ? (
                     <div className="grid-3">
-                        {RECIPES.map(recipe => (
+                        {recipes.map(recipe => (
                             <div key={recipe.id} className="card">
                                 <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
                                     <span className="badge badge-purple">{recipe.type}</span>
