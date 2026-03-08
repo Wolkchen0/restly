@@ -313,13 +313,22 @@ export default function SettingsPage() {
                                     Connect your profiles with a single click. AI securely uses these to fetch reviews, guest profiles, and analyze sentiment automatically. No complex API keys required.
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => alert("Redirecting to Google 1-Click Auth...")}>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => {
+                                        alert("Redirecting to Google 1-Click Auth... (OAuth Flow simulation)");
+                                        setTimeout(() => alert("Google Business successfully linked!"), 1500);
+                                    }}>
                                         <span style={{ fontSize: 18 }}>🌐</span> Connect Google Business
                                     </button>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => alert("Redirecting to Yelp 1-Click Auth...")}>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center" }} onClick={() => {
+                                        alert("Redirecting to Yelp 1-Click Auth... (OAuth Flow simulation)");
+                                        setTimeout(() => alert("Yelp successfully linked!"), 1500);
+                                    }}>
                                         <span style={{ fontSize: 18 }}>🔴</span> Connect Yelp
                                     </button>
-                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => alert("Redirecting to OpenTable 1-Click Auth...")}>
+                                    <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(201,168,76,0.05)", borderColor: "rgba(201,168,76,0.3)", color: "#E8C96E", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1" }} onClick={() => {
+                                        alert("Redirecting to OpenTable 1-Click Auth... (OAuth Flow simulation)");
+                                        setTimeout(() => alert("OpenTable successfully linked!"), 1500);
+                                    }}>
                                         <span style={{ fontSize: 18 }}>🍽️</span> Connect OpenTable (1-Click)
                                     </button>
                                 </div>
