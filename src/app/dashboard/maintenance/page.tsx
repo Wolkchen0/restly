@@ -14,6 +14,15 @@ export default function MaintenancePage() {
     const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
     const [aiDispatched, setAiDispatched] = useState(false);
 
+    const [eqModalOpen, setEqModalOpen] = useState(false);
+    const [newEqName, setNewEqName] = useState("");
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
     useEffect(() => {
         fetch("/api/locations")
             .then(r => r.json())
@@ -30,17 +39,23 @@ export default function MaintenancePage() {
     };
 
     const handleAddEquipment = () => {
-        const name = prompt("Enter new equipment name:");
-        if (!name) return;
+        setEqModalOpen(true);
+    };
+
+    const confirmAddEquipment = () => {
+        if (!newEqName.trim()) return;
         const newEq = {
             id: `EQ-${equipmentList.length + 1}`,
-            name,
+            name: newEqName,
             type: "Custom",
             nextService: "Not Set",
             status: "OK",
             urgent: false
         };
         setEquipmentList([...equipmentList, newEq]);
+        setNewEqName("");
+        setEqModalOpen(false);
+        showToast("Equipment added successfully.");
     };
 
     return (
@@ -49,9 +64,38 @@ export default function MaintenancePage() {
                 <div className="topbar-title">🔧 Equipment & Maintenance</div>
                 <div className="topbar-right">
                     <button className="btn-primary" onClick={handleAddEquipment}>+ Add Equipment</button>
-                    <button className="btn-secondary" onClick={() => alert("Redirecting to contacts...")}>Service Providers</button>
+                    <button className="btn-secondary" onClick={() => showToast("Contacts integration coming soon")}>Service Providers</button>
                 </div>
             </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
+
+            {/* CUSTOM MODAL */}
+            {eqModalOpen && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: 400, padding: 24 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Enter new equipment name:</h3>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={newEqName}
+                            onChange={e => setNewEqName(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") confirmAddEquipment(); }}
+                            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }}
+                            placeholder="e.g. Ovens"
+                        />
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button className="btn-secondary" onClick={() => setEqModalOpen(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={confirmAddEquipment}>Add</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="page-content fade-in">
 

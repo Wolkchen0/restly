@@ -11,19 +11,34 @@ export default function LogbookPage() {
     const [isDemo, setIsDemo] = useState(true);
     const [logs, setLogs] = useState(INITIAL_LOGS);
 
+    const [logModalOpen, setLogModalOpen] = useState(false);
+    const [newNote, setNewNote] = useState("");
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
     const handleNewEntry = () => {
-        const notes = prompt("Enter shift notes:");
-        if (!notes) return;
+        setLogModalOpen(true);
+    };
+
+    const confirmNewEntry = () => {
+        if (!newNote.trim()) return;
 
         const newLog = {
             id: Date.now(),
             date: new Date().toISOString().split('T')[0],
             shift: new Date().getHours() < 16 ? "AM" : "PM",
             manager: "Current User",
-            notes,
+            notes: newNote,
             tags: ["Manual Entry"]
         };
         setLogs([newLog, ...logs]);
+        setNewNote("");
+        setLogModalOpen(false);
+        showToast("Shift note added successfully.");
     };
 
     useEffect(() => {
@@ -42,9 +57,36 @@ export default function LogbookPage() {
                 <div className="topbar-title">📓 Shift Logbook</div>
                 <div className="topbar-right">
                     <button className="btn-primary" onClick={handleNewEntry}>New Entry +</button>
-                    <button className="btn-secondary" onClick={() => alert("Downloading PDF log...")}>Export Log</button>
+                    <button className="btn-secondary" onClick={() => showToast("Downloading PDF log...")}>Export Log</button>
                 </div>
             </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
+
+            {/* CUSTOM MODAL */}
+            {logModalOpen && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: 400, padding: 24 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Enter shift notes:</h3>
+                        <textarea
+                            autoFocus
+                            value={newNote}
+                            onChange={e => setNewNote(e.target.value)}
+                            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20, minHeight: 120, resize: "none" }}
+                            placeholder="e.g. Lunch rush was slow, printer jammed twice..."
+                        />
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button className="btn-secondary" onClick={() => setLogModalOpen(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={confirmNewEntry}>Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="page-content fade-in">
 

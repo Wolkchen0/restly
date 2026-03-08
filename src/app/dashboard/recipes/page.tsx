@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 
 const INITIAL_RECIPES = [
-    { id: 1, name: "Truffle Burger", cost: 3.45, price: 16.00, cogs: 21.5, type: "Main", ingredients: ["150g Beef Patty", "1x Brioche Bun", "15g Truffle Mayo", "1x Cheddar Slice"] },
-    { id: 2, name: "Avocado Toast", cost: 1.80, price: 12.00, cogs: 15.0, type: "Breakfast", ingredients: ["2x Sourdough Slices", "1/2 Hass Avocado", "Chili Flakes", "Olive Oil"] },
-    { id: 3, name: "Spicy Marg", cost: 1.10, price: 14.00, cogs: 7.8, type: "Drink", ingredients: ["2oz Tequila", "1oz Lime Juice", "0.5oz Agave", "Jalapeno Slices"] },
+    { id: 1, name: "Truffle Burger", cost: 3.45, price: 16.00, cogs: 21.5, type: "Main", category: "Food", ingredients: ["150g Beef Patty", "1x Brioche Bun", "15g Truffle Mayo", "1x Cheddar Slice"] },
+    { id: 2, name: "Avocado Toast", cost: 1.80, price: 12.00, cogs: 15.0, type: "Breakfast", category: "Food", ingredients: ["2x Sourdough Slices", "1/2 Hass Avocado", "Chili Flakes", "Olive Oil"] },
+    { id: 3, name: "Spicy Marg", cost: 1.10, price: 14.00, cogs: 7.8, type: "Drink", category: "Drink", ingredients: ["2oz Tequila", "1oz Lime Juice", "0.5oz Agave", "Jalapeno Slices"] },
 ];
 
 export default function RecipesPage() {
@@ -13,6 +13,16 @@ export default function RecipesPage() {
     const [aiResult, setAiResult] = useState<any>(null);
     const [isDemo, setIsDemo] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [activeTab, setActiveTab] = useState<"All" | "Food" | "Drink">("All");
+    const [recipeModalOpen, setRecipeModalOpen] = useState(false);
+    const [newRecipeName, setNewRecipeName] = useState("");
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     useEffect(() => {
         fetch("/api/locations")
@@ -54,14 +64,15 @@ export default function RecipesPage() {
                         ingredients: data.ingredients,
                         totalCost: data.totalCost,
                         suggestedPrice: data.suggestedPrice,
-                        projectedCOGS: data.projectedCOGS
+                        projectedCOGS: data.projectedCOGS,
+                        category: activeTab === "Drink" ? "Drink" : "Food"
                     });
                 } else {
-                    alert("Failed to analyze image. Please try again.");
+                    showToast("Failed to analyze image. Please try again.");
                 }
             } catch (err) {
                 console.error("AI Analysis error:", err);
-                alert("Failed to connect to the AI engine.");
+                showToast("Failed to connect to the AI engine.");
             } finally {
                 setUploading(false);
                 if (fileInputRef.current) fileInputRef.current.value = "";
@@ -71,19 +82,26 @@ export default function RecipesPage() {
     };
 
     const handleNewRecipe = () => {
-        const name = prompt("Enter a name for the new recipe:");
-        if (!name) return;
+        setRecipeModalOpen(true);
+    };
+
+    const confirmNewRecipe = () => {
+        if (!newRecipeName.trim()) return;
 
         const newRecipe = {
             id: Date.now(),
-            name,
+            name: newRecipeName,
             cost: 0.0,
             price: 0.0,
             cogs: 0.0,
             type: "Custom",
+            category: activeTab === "Drink" ? "Drink" : "Food",
             ingredients: ["Tap to add ingredients..."]
         };
         setRecipes([...recipes, newRecipe]);
+        setNewRecipeName("");
+        setRecipeModalOpen(false);
+        showToast("Recipe added successfully.");
     };
 
     const saveAiRecipe = () => {
@@ -95,6 +113,7 @@ export default function RecipesPage() {
             price: aiResult.suggestedPrice,
             cogs: aiResult.projectedCOGS,
             type: "AI Import",
+            category: aiResult.category || "Food",
             ingredients: aiResult.ingredients
         };
         setRecipes([newRecipe, ...recipes]);
@@ -119,6 +138,55 @@ export default function RecipesPage() {
                     <button className="btn-secondary" onClick={handleNewRecipe}>New Recipe +</button>
                 </div>
             </div>
+
+            {/* TAB SELECTOR: Food vs Drink */}
+            <div style={{ padding: "0 28px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}>
+                <div style={{ display: "flex", gap: 24, maxWidth: 1200, margin: "0 auto" }}>
+                    {(["All", "Food", "Drink"] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setActiveTab(t)}
+                            style={{
+                                background: "none", border: "none", padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                                color: activeTab === t ? "#E8C96E" : "rgba(255,255,255,0.4)",
+                                borderBottom: activeTab === t ? "2px solid #C9A84C" : "2px solid transparent",
+                                transition: "all 0.2s"
+                            }}
+                        >
+                            {t === "All" ? "📦 All Recipes" : t === "Food" ? "🍽️ Food" : "🍹 Drink"}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
+
+            {/* CUSTOM MODAL */}
+            {recipeModalOpen && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: 400, padding: 24 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Enter a name for the new {activeTab === "Drink" ? "Drink" : "Recipe"}:</h3>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={newRecipeName}
+                            onChange={e => setNewRecipeName(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") confirmNewRecipe(); }}
+                            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }}
+                            placeholder="e.g. Lobster Bisque"
+                        />
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button className="btn-secondary" onClick={() => setRecipeModalOpen(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={confirmNewRecipe}>Create</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="page-content fade-in">
 
@@ -161,7 +229,7 @@ export default function RecipesPage() {
 
                 {isDemo ? (
                     <div className="grid-3">
-                        {recipes.map(recipe => (
+                        {recipes.filter(r => activeTab === "All" || r.category === activeTab).map(recipe => (
                             <div key={recipe.id} className="card">
                                 <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
                                     <span className="badge badge-purple">{recipe.type}</span>

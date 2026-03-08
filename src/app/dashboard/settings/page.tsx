@@ -67,17 +67,35 @@ export default function SettingsPage() {
     const [newLocCity, setNewLocCity] = useState("");
     const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
-
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
 
-    const handleConnectApp = async (appName: string, keyName: string) => {
-        const token = prompt(`[Production Ready Mode]\nTo connect ${appName}, you must provide a valid API Access Token or API Key obtained from the ${appName} Developer Portal.\n\nEnter your ${appName} Token:`);
+    const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
+    const [connectToken, setConnectToken] = useState("");
+    const [disconnectModalApp, setDisconnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
+    const [toastMsg, setToastMsg] = useState<{ text: string, type: "success" | "error" } | null>(null);
 
-        if (!token) {
-            alert("Connection cancelled. A valid token is required.");
+    const showToast = (text: string, type: "success" | "error" = "success") => {
+        setToastMsg({ text, type });
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    const handleConnectApp = (appName: string, keyName: string) => {
+        setConnectToken("");
+        setConnectModalApp({ name: appName, keyName });
+    };
+
+    const confirmConnectApp = async () => {
+        if (!connectModalApp) return;
+        const appName = connectModalApp.name;
+        const keyName = connectModalApp.keyName;
+
+        if (!connectToken.trim()) {
+            showToast("Connection cancelled. A valid token is required.", "error");
+            setConnectModalApp(null);
             return;
         }
 
+        setConnectModalApp(null);
         setConnectingApp(appName);
 
         try {
@@ -86,37 +104,55 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     locationId: activeLocId,
-                    [keyName]: token
+                    [keyName]: connectToken
                 })
             });
 
             if (res.ok) {
                 setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
+                showToast(`${appName} connected successfully!`);
+            } else {
+                showToast(`Failed to connect ${appName}.`, "error");
             }
         } catch (e) {
-            alert(`Failed to save ${appName} token. Verify database connection.`);
+            showToast(`Failed to save ${appName} token. Verify database connection.`, "error");
         } finally {
             setConnectingApp(null);
         }
     };
 
-    const handleDisconnectApp = async (appName: string, keyName: string) => {
-        if (confirm(`Are you sure you want to disconnect ${appName} and delete the API Token? You will need to re-authenticate to sync data.`)) {
-            try {
-                await fetch("/api/locations", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        locationId: activeLocId,
-                        [keyName]: null
-                    })
-                });
+    const handleDisconnectApp = (appName: string, keyName: string) => {
+        setDisconnectModalApp({ name: appName, keyName });
+    };
+
+    const confirmDisconnectApp = async () => {
+        if (!disconnectModalApp) return;
+        const appName = disconnectModalApp.name;
+        const keyName = disconnectModalApp.keyName;
+
+        setDisconnectModalApp(null);
+
+        try {
+            const res = await fetch("/api/locations", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    locationId: activeLocId,
+                    [keyName]: null
+                })
+            });
+            if (res.ok) {
                 setConnectedApps(prev => prev.filter(app => app !== appName));
-            } catch (e) {
-                alert(`Failed to disconnect ${appName}.`);
+                showToast(`${appName} disconnected successfully.`);
+            } else {
+                showToast(`Failed to disconnect ${appName}.`, "error");
             }
+        } catch (e) {
+            showToast(`Failed to disconnect ${appName}.`, "error");
         }
     };
+
+
 
     useEffect(() => {
         fetch("/api/locations")
@@ -133,7 +169,7 @@ export default function SettingsPage() {
                 }
             })
             .catch(() => { });
-         
+
     }, []);
 
     const selectLocation = (loc: LocationData) => {
@@ -223,6 +259,51 @@ export default function SettingsPage() {
         @media(max-width:700px){ .loc-edit-grid{ grid-template-columns:1fr !important; } .pos-grid{ grid-template-columns:1fr 1fr !important; } }
       `}</style>
 
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: `1px solid ${toastMsg.type === "error" ? "#ef4444" : "#4ade80"}`, color: toastMsg.type === "error" ? "#ef4444" : "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    {toastMsg.type === "error" ? "⚠" : "✓"} {toastMsg.text}
+                </div>
+            )}
+
+            {connectModalApp && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: 450, padding: 24 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Connect {connectModalApp.name}</h3>
+                        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
+                            [Production Ready Mode]<br />To connect {connectModalApp.name}, you must provide a valid API Access Token or API Key obtained from the {connectModalApp.name} Developer Portal.
+                        </p>
+                        <input
+                            autoFocus
+                            type="text"
+                            value={connectToken}
+                            onChange={e => setConnectToken(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") confirmConnectApp(); }}
+                            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }}
+                            placeholder={`Enter your ${connectModalApp.name} Token`}
+                        />
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button className="btn-secondary" onClick={() => setConnectModalApp(null)}>Cancel</button>
+                            <button className="btn-primary" onClick={confirmConnectApp}>Connect</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {disconnectModalApp && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+                    <div className="card" style={{ width: 400, padding: 24 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#ef4444" }}>Disconnect {disconnectModalApp.name}?</h3>
+                        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20, lineHeight: 1.5 }}>
+                            Are you sure you want to disconnect {disconnectModalApp.name} and delete the API Token? You will need to re-authenticate to sync data.
+                        </p>
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                            <button className="btn-secondary" onClick={() => setDisconnectModalApp(null)}>Cancel</button>
+                            <button className="btn-primary" style={{ background: "var(--red)", border: "1px solid var(--red)" }} onClick={confirmDisconnectApp}>Disconnect</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── PAGE HEADER ── */}
             <div style={{ marginBottom: 24 }}>
                 <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 4 }}>Settings</h1>
@@ -243,270 +324,276 @@ export default function SettingsPage() {
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* TAB: LOCATIONS                          */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            {tab === "locations" && (
-                <div className="loc-edit-grid" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20 }}>
+            {
+                tab === "locations" && (
+                    <div className="loc-edit-grid" style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 20 }}>
 
-                    {/* Left: location list */}
-                    <div className="s-card" style={{ padding: 14, height: "fit-content" }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 }}>
-                            Your Locations
-                        </div>
+                        {/* Left: location list */}
+                        <div className="s-card" style={{ padding: 14, height: "fit-content" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 }}>
+                                Your Locations
+                            </div>
 
-                        {locations.map(loc => {
-                            const n = loc.name.replace(`${info.restaurantName} — `, "").replace(`${info.restaurantName} - `, "");
-                            return (
-                                <div
-                                    key={loc.id}
-                                    className={`loc-row${loc.id === activeLocId ? " active" : ""}`}
-                                    onClick={() => selectLocation(loc)}
-                                >
-                                    <div>
-                                        <div style={{ fontSize: 13, fontWeight: 700, color: loc.id === activeLocId ? "#E8C96E" : "#fff", lineHeight: 1.2 }}>{n}</div>
-                                        {loc.city && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loc.city}</div>}
-                                        {loc.posProvider && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{loc.posProvider}</div>}
+                            {locations.map(loc => {
+                                const n = loc.name.replace(`${info.restaurantName} — `, "").replace(`${info.restaurantName} - `, "");
+                                return (
+                                    <div
+                                        key={loc.id}
+                                        className={`loc-row${loc.id === activeLocId ? " active" : ""}`}
+                                        onClick={() => selectLocation(loc)}
+                                    >
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 700, color: loc.id === activeLocId ? "#E8C96E" : "#fff", lineHeight: 1.2 }}>{n}</div>
+                                            {loc.city && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{loc.city}</div>}
+                                            {loc.posProvider && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{loc.posProvider}</div>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Add location form */}
+                            {addingLoc ? (
+                                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
+                                    <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="Location name *" value={newLocName} onChange={e => setNewLocName(e.target.value)} autoFocus />
+                                    <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="City" value={newLocCity} onChange={e => setNewLocCity(e.target.value)} />
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                        <button className="btn-gold" style={{ flex: 1, fontSize: 12, padding: "8px" }} onClick={handleAddLocation}>Add</button>
+                                        <button className="btn-ghost" style={{ fontSize: 12, padding: "8px" }} onClick={() => setAddingLoc(false)}>✕</button>
                                     </div>
                                 </div>
-                            );
-                        })}
+                            ) : (
+                                <button className="btn-ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => setAddingLoc(true)}>
+                                    + Add Location
+                                </button>
+                            )}
+                        </div>
 
-                        {/* Add location form */}
-                        {addingLoc ? (
-                            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
-                                <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="Location name *" value={newLocName} onChange={e => setNewLocName(e.target.value)} autoFocus />
-                                <input className="s-input" style={{ fontSize: 12, padding: "8px 10px" }} placeholder="City" value={newLocCity} onChange={e => setNewLocCity(e.target.value)} />
-                                <div style={{ display: "flex", gap: 6 }}>
-                                    <button className="btn-gold" style={{ flex: 1, fontSize: 12, padding: "8px" }} onClick={handleAddLocation}>Add</button>
-                                    <button className="btn-ghost" style={{ fontSize: 12, padding: "8px" }} onClick={() => setAddingLoc(false)}>✕</button>
+                        {/* Right: edit panel */}
+                        {activeLoc ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+                                {/* ── Location Details ── */}
+                                <div className="s-card">
+                                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 18 }}>📍 Location Details</h2>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                        <div>
+                                            <div className="f-label">Location Name</div>
+                                            <input className="s-input" value={editLoc.name || ""} onChange={e => setEditLoc(p => ({ ...p, name: e.target.value }))} />
+                                        </div>
+                                        <div>
+                                            <div className="f-label">City</div>
+                                            <input className="s-input" placeholder="e.g. Los Angeles, CA" value={editLoc.city || ""} onChange={e => setEditLoc(p => ({ ...p, city: e.target.value }))} />
+                                        </div>
+                                        <div style={{ gridColumn: "1/-1" }}>
+                                            <div className="f-label">Address</div>
+                                            <input className="s-input" placeholder="Full street address" value={editLoc.address || ""} onChange={e => setEditLoc(p => ({ ...p, address: e.target.value }))} />
+                                        </div>
+                                        <div>
+                                            <div className="f-label">Timezone</div>
+                                            <select className="s-input" value={editLoc.timezone || "America/Los_Angeles"} onChange={e => setEditLoc(p => ({ ...p, timezone: e.target.value }))}>
+                                                {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── POS Integration ── */}
+                                <div className="s-card">
+                                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🔗 POS Integration</h2>
+                                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
+                                        Connect your Point of Sale for real-time inventory sync and COGS tracking.
+                                        <span style={{ color: "#E8C96E", fontWeight: 600 }}> Need help? Click the 🤖 AI button and ask "How do I connect Clover?"</span>
+                                    </p>
+
+                                    {/* POS picker */}
+                                    <div className="pos-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
+                                        {POS_OPTIONS.map(pos => {
+                                            const sel = selectedPOS === pos.id;
+                                            return (
+                                                <div
+                                                    key={pos.id}
+                                                    className="pos-opt"
+                                                    onClick={() => setSelectedPOS(pos.id)}
+                                                    style={{ borderColor: sel ? pos.color : "rgba(255,255,255,0.08)", background: sel ? `${pos.color}14` : "rgba(255,255,255,0.02)" }}
+                                                >
+                                                    <span style={{ fontSize: 22, flexShrink: 0 }}>{pos.emoji}</span>
+                                                    <div>
+                                                        <div style={{ fontSize: 13, fontWeight: 700, color: sel ? pos.color : "rgba(255,255,255,0.8)", lineHeight: 1.2 }}>{pos.name}</div>
+                                                        {sel && <div style={{ fontSize: 10, color: pos.color, fontWeight: 800, marginTop: 2 }}>Selected ✓</div>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Credential fields for selected POS */}
+                                    {posInfo && posInfo.fields.length > 0 ? (
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: posInfo.color }}>
+                                                <span>{posInfo.emoji}</span> {posInfo.name} Credentials
+                                            </div>
+                                            {posInfo.fields.map(field => (
+                                                <div key={field.key}>
+                                                    <div className="f-label">{field.label}</div>
+                                                    <input
+                                                        className="s-input"
+                                                        type={field.key.includes("Secret") || field.key === "posApiKey" ? "password" : "text"}
+                                                        placeholder={field.placeholder}
+                                                        value={(editLoc as Record<string, string>)[field.key] || ""}
+                                                        onChange={e => setEditLoc(p => ({ ...p, [field.key]: e.target.value }))}
+                                                    />
+                                                </div>
+                                            ))}
+                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                                🔒 Credentials encrypted at rest · Only used for data sync · Never shared
+                                            </div>
+                                        </div>
+                                    ) : posInfo?.id === "manual" ? (
+                                        <div style={{ padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+                                            📋 Manual mode — enter inventory manually or import via CSV. No API connection.
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                {/* ── Online Profiles & Social Media ── */}
+                                <div className="s-card">
+                                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📱 Online Profiles & Reviews</h2>
+                                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
+                                        Connect your profiles to allow AI to securely fetch reviews, guest profiles, and analyze sentiment automatically.
+                                        <span style={{ color: "var(--gold-light)", fontWeight: 600, display: "block", marginTop: 4 }}> 🤖 Don't know how to get an API Token? Just ask the Restly AI assistant in the chat!</span>
+                                    </p>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                        {connectedApps.includes("Google Business") ? (
+                                            <button onClick={() => handleDisconnectApp("Google Business", "googleBusinessToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Google Business" ? 0.5 : 1 }} onClick={() => handleConnectApp("Google Business", "googleBusinessToken")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>🌐</span> {connectingApp === "Google Business" ? "Connecting..." : "Add Google API Token"}
+                                            </button>
+                                        )}
+
+                                        {connectedApps.includes("Yelp") ? (
+                                            <button onClick={() => handleDisconnectApp("Yelp", "yelpApiKey")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Yelp" ? 0.5 : 1 }} onClick={() => handleConnectApp("Yelp", "yelpApiKey")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>🔴</span> {connectingApp === "Yelp" ? "Connecting..." : "Add Yelp API Key"}
+                                            </button>
+                                        )}
+
+                                        {connectedApps.includes("OpenTable") ? (
+                                            <button onClick={() => handleDisconnectApp("OpenTable", "opentableRestaurantId")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, gridColumn: "1 / -1", cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "opentableRestaurantId")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>🍽️</span> {connectingApp === "OpenTable" ? "Connecting..." : "Add OpenTable API Token"}
+                                            </button>
+                                        )}
+
+                                        {connectedApps.includes("Instagram") ? (
+                                            <button onClick={() => handleDisconnectApp("Instagram", "instagramToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>📸</span> Instagram Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Instagram" ? 0.5 : 1 }} onClick={() => handleConnectApp("Instagram", "instagramToken")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>📸</span> {connectingApp === "Instagram" ? "Connecting..." : "Add Instagram Access Token"}
+                                            </button>
+                                        )}
+
+                                        {connectedApps.includes("Facebook") ? (
+                                            <button onClick={() => handleDisconnectApp("Facebook", "facebookToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>📘</span> Facebook Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Facebook" ? 0.5 : 1 }} onClick={() => handleConnectApp("Facebook", "facebookToken")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>📘</span> {connectingApp === "Facebook" ? "Connecting..." : "Add Facebook API Token"}
+                                            </button>
+                                        )}
+
+                                        {connectedApps.includes("TikTok") ? (
+                                            <button onClick={() => handleDisconnectApp("TikTok", "tiktokToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
+                                                <span style={{ fontSize: 18 }}>🎵</span> TikTok Connected
+                                            </button>
+                                        ) : (
+                                            <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "TikTok" ? 0.5 : 1 }} onClick={() => handleConnectApp("TikTok", "tiktokToken")} disabled={!!connectingApp}>
+                                                <span style={{ fontSize: 18 }}>🎵</span> {connectingApp === "TikTok" ? "Connecting..." : "Add TikTok Access Token"}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* ── Save ── */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 20 }}>
+                                    <button className="btn-gold" onClick={handleSaveLocation} disabled={saving}>
+                                        {saving ? "Saving…" : "✓ Save Location Settings"}
+                                    </button>
+                                    {saved && (
+                                        <span style={{ color: "#4ade80", fontSize: 14, fontWeight: 700, animation: "fadeIn 0.3s ease" }}>
+                                            ✓ Saved successfully!
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         ) : (
-                            <button className="btn-ghost" style={{ width: "100%", marginTop: 10, fontSize: 12 }} onClick={() => setAddingLoc(true)}>
-                                + Add Location
-                            </button>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 14, padding: 60 }}>
+                                Select a location to edit
+                            </div>
                         )}
                     </div>
-
-                    {/* Right: edit panel */}
-                    {activeLoc ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-
-                            {/* ── Location Details ── */}
-                            <div className="s-card">
-                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 18 }}>📍 Location Details</h2>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                                    <div>
-                                        <div className="f-label">Location Name</div>
-                                        <input className="s-input" value={editLoc.name || ""} onChange={e => setEditLoc(p => ({ ...p, name: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <div className="f-label">City</div>
-                                        <input className="s-input" placeholder="e.g. Los Angeles, CA" value={editLoc.city || ""} onChange={e => setEditLoc(p => ({ ...p, city: e.target.value }))} />
-                                    </div>
-                                    <div style={{ gridColumn: "1/-1" }}>
-                                        <div className="f-label">Address</div>
-                                        <input className="s-input" placeholder="Full street address" value={editLoc.address || ""} onChange={e => setEditLoc(p => ({ ...p, address: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <div className="f-label">Timezone</div>
-                                        <select className="s-input" value={editLoc.timezone || "America/Los_Angeles"} onChange={e => setEditLoc(p => ({ ...p, timezone: e.target.value }))}>
-                                            {TIMEZONES.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* ── POS Integration ── */}
-                            <div className="s-card">
-                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🔗 POS Integration</h2>
-                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
-                                    Connect your Point of Sale for real-time inventory sync and COGS tracking.
-                                    <span style={{ color: "#E8C96E", fontWeight: 600 }}> Need help? Click the 🤖 AI button and ask "How do I connect Clover?"</span>
-                                </p>
-
-                                {/* POS picker */}
-                                <div className="pos-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 20 }}>
-                                    {POS_OPTIONS.map(pos => {
-                                        const sel = selectedPOS === pos.id;
-                                        return (
-                                            <div
-                                                key={pos.id}
-                                                className="pos-opt"
-                                                onClick={() => setSelectedPOS(pos.id)}
-                                                style={{ borderColor: sel ? pos.color : "rgba(255,255,255,0.08)", background: sel ? `${pos.color}14` : "rgba(255,255,255,0.02)" }}
-                                            >
-                                                <span style={{ fontSize: 22, flexShrink: 0 }}>{pos.emoji}</span>
-                                                <div>
-                                                    <div style={{ fontSize: 13, fontWeight: 700, color: sel ? pos.color : "rgba(255,255,255,0.8)", lineHeight: 1.2 }}>{pos.name}</div>
-                                                    {sel && <div style={{ fontSize: 10, color: pos.color, fontWeight: 800, marginTop: 2 }}>Selected ✓</div>}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* Credential fields for selected POS */}
-                                {posInfo && posInfo.fields.length > 0 ? (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: posInfo.color }}>
-                                            <span>{posInfo.emoji}</span> {posInfo.name} Credentials
-                                        </div>
-                                        {posInfo.fields.map(field => (
-                                            <div key={field.key}>
-                                                <div className="f-label">{field.label}</div>
-                                                <input
-                                                    className="s-input"
-                                                    type={field.key.includes("Secret") || field.key === "posApiKey" ? "password" : "text"}
-                                                    placeholder={field.placeholder}
-                                                    value={(editLoc as Record<string, string>)[field.key] || ""}
-                                                    onChange={e => setEditLoc(p => ({ ...p, [field.key]: e.target.value }))}
-                                                />
-                                            </div>
-                                        ))}
-                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
-                                            🔒 Credentials encrypted at rest · Only used for data sync · Never shared
-                                        </div>
-                                    </div>
-                                ) : posInfo?.id === "manual" ? (
-                                    <div style={{ padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-                                        📋 Manual mode — enter inventory manually or import via CSV. No API connection.
-                                    </div>
-                                ) : null}
-                            </div>
-
-                            {/* ── Online Profiles & Social Media ── */}
-                            <div className="s-card">
-                                <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📱 Online Profiles & Reviews</h2>
-                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
-                                    Connect your profiles to allow AI to securely fetch reviews, guest profiles, and analyze sentiment automatically.
-                                    <span style={{ color: "var(--gold-light)", fontWeight: 600, display: "block", marginTop: 4 }}> 🤖 Don't know how to get an API Token? Just ask the Restly AI assistant in the chat!</span>
-                                </p>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                                    {connectedApps.includes("Google Business") ? (
-                                        <button onClick={() => handleDisconnectApp("Google Business", "googleBusinessToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>🌐</span> Google Business Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Google Business" ? 0.5 : 1 }} onClick={() => handleConnectApp("Google Business", "googleBusinessToken")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🌐</span> {connectingApp === "Google Business" ? "Connecting..." : "Add Google API Token"}
-                                        </button>
-                                    )}
-
-                                    {connectedApps.includes("Yelp") ? (
-                                        <button onClick={() => handleDisconnectApp("Yelp", "yelpApiKey")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>🔴</span> Yelp Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Yelp" ? 0.5 : 1 }} onClick={() => handleConnectApp("Yelp", "yelpApiKey")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🔴</span> {connectingApp === "Yelp" ? "Connecting..." : "Add Yelp API Key"}
-                                        </button>
-                                    )}
-
-                                    {connectedApps.includes("OpenTable") ? (
-                                        <button onClick={() => handleDisconnectApp("OpenTable", "opentableRestaurantId")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, gridColumn: "1 / -1", cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>🍽️</span> OpenTable Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", gridColumn: "1 / -1", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "opentableRestaurantId")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🍽️</span> {connectingApp === "OpenTable" ? "Connecting..." : "Add OpenTable API Token"}
-                                        </button>
-                                    )}
-
-                                    {connectedApps.includes("Instagram") ? (
-                                        <button onClick={() => handleDisconnectApp("Instagram", "instagramToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>📸</span> Instagram Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Instagram" ? 0.5 : 1 }} onClick={() => handleConnectApp("Instagram", "instagramToken")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>📸</span> {connectingApp === "Instagram" ? "Connecting..." : "Add Instagram Access Token"}
-                                        </button>
-                                    )}
-
-                                    {connectedApps.includes("Facebook") ? (
-                                        <button onClick={() => handleDisconnectApp("Facebook", "facebookToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>📘</span> Facebook Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "Facebook" ? 0.5 : 1 }} onClick={() => handleConnectApp("Facebook", "facebookToken")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>📘</span> {connectingApp === "Facebook" ? "Connecting..." : "Add Facebook API Token"}
-                                        </button>
-                                    )}
-
-                                    {connectedApps.includes("TikTok") ? (
-                                        <button onClick={() => handleDisconnectApp("TikTok", "tiktokToken")} style={{ padding: "14px", background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 10, display: "flex", gap: "8px", alignItems: "center", justifyContent: "center", color: "#4ade80", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}>
-                                            <span style={{ fontSize: 18 }}>🎵</span> TikTok Connected
-                                        </button>
-                                    ) : (
-                                        <button className="btn-ghost" style={{ padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "TikTok" ? 0.5 : 1 }} onClick={() => handleConnectApp("TikTok", "tiktokToken")} disabled={!!connectingApp}>
-                                            <span style={{ fontSize: 18 }}>🎵</span> {connectingApp === "TikTok" ? "Connecting..." : "Add TikTok Access Token"}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* ── Save ── */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 20 }}>
-                                <button className="btn-gold" onClick={handleSaveLocation} disabled={saving}>
-                                    {saving ? "Saving…" : "✓ Save Location Settings"}
-                                </button>
-                                {saved && (
-                                    <span style={{ color: "#4ade80", fontSize: 14, fontWeight: 700, animation: "fadeIn 0.3s ease" }}>
-                                        ✓ Saved successfully!
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    ) : (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 14, padding: 60 }}>
-                            Select a location to edit
-                        </div>
-                    )}
-                </div>
-            )}
+                )
+            }
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* TAB: BRAND                              */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            {tab === "brand" && (
-                <div className="s-card">
-                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>🏠 Brand Settings</h2>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                        <div>
-                            <div className="f-label">Brand Name</div>
-                            <input className="s-input" defaultValue={info.restaurantName} />
+            {
+                tab === "brand" && (
+                    <div className="s-card">
+                        <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>🏠 Brand Settings</h2>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                            <div>
+                                <div className="f-label">Brand Name</div>
+                                <input className="s-input" defaultValue={info.restaurantName} />
+                            </div>
+                            <div>
+                                <div className="f-label">Brand Color</div>
+                                <input className="s-input" type="color" defaultValue="#C9A84C" style={{ height: 44, padding: "4px 8px", cursor: "pointer" }} />
+                            </div>
                         </div>
-                        <div>
-                            <div className="f-label">Brand Color</div>
-                            <input className="s-input" type="color" defaultValue="#C9A84C" style={{ height: 44, padding: "4px 8px", cursor: "pointer" }} />
-                        </div>
+                        <button className="btn-gold" style={{ marginTop: 20 }}>Save Brand Settings</button>
                     </div>
-                    <button className="btn-gold" style={{ marginTop: 20 }}>Save Brand Settings</button>
-                </div>
-            )}
+                )
+            }
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* TAB: PLAN                               */}
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            {tab === "plan" && (
-                <div className="s-card" style={{ textAlign: "center", padding: "56px 32px" }}>
-                    <div style={{ fontSize: 52, marginBottom: 16 }}>💳</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 8 }}>
-                        Current Plan:{" "}
-                        <span style={{ color: planColor, textTransform: "capitalize" }}>{info.plan}</span>
+            {
+                tab === "plan" && (
+                    <div className="s-card" style={{ textAlign: "center", padding: "56px 32px" }}>
+                        <div style={{ fontSize: 52, marginBottom: 16 }}>💳</div>
+                        <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 8 }}>
+                            Current Plan:{" "}
+                            <span style={{ color: planColor, textTransform: "capitalize" }}>{info.plan}</span>
+                        </div>
+                        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32, maxWidth: 400, margin: "0 auto 32px" }}>
+                            {info.plan === "trial"
+                                ? "Your 14-day trial includes all Pro features. Upgrade before it expires to keep access."
+                                : `You're on the ${info.plan} plan. Manage your subscription below.`}
+                        </p>
+                        <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
+                            <button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>Upgrade Plan</button>
+                            <button className="btn-ghost" style={{ fontSize: 15, padding: "14px 28px" }}>View Invoices</button>
+                        </div>
+                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 20 }}>
+                            Cancel anytime · No hidden fees · AI included in all plans
+                        </p>
                     </div>
-                    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32, maxWidth: 400, margin: "0 auto 32px" }}>
-                        {info.plan === "trial"
-                            ? "Your 14-day trial includes all Pro features. Upgrade before it expires to keep access."
-                            : `You're on the ${info.plan} plan. Manage your subscription below.`}
-                    </p>
-                    <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>
-                        <button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>Upgrade Plan</button>
-                        <button className="btn-ghost" style={{ fontSize: 15, padding: "14px 28px" }}>View Invoices</button>
-                    </div>
-                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 20 }}>
-                        Cancel anytime · No hidden fees · AI included in all plans
-                    </p>
-                </div>
-            )}
-        </main>
+                )
+            }
+        </main >
     );
 }

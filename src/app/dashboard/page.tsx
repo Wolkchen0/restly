@@ -20,6 +20,12 @@ export default function DashboardOverview() {
     const [reviewsData, setReviewsData] = useState<any>(null);
     const [isDemo, setIsDemo] = useState<boolean>(true);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     useEffect(() => {
         // Current time ticker
@@ -65,6 +71,13 @@ export default function DashboardOverview() {
         @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(201,168,76,0.4)} 70%{box-shadow:0 0 0 10px rgba(201,168,76,0)} 100%{box-shadow:0 0 0 0 rgba(201,168,76,0)} }
       `}</style>
 
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
+
             {/* ── HEADER ── */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
                 <div>
@@ -76,7 +89,7 @@ export default function DashboardOverview() {
                     </h1>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                    <button onClick={() => alert("Downloading Dashboard_Report.csv...")} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    <button onClick={() => showToast("Downloading Dashboard_Report.csv...")} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         Export CSV
                     </button>
                     <button onClick={() => {

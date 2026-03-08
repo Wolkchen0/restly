@@ -21,10 +21,16 @@ export default function KDSPage() {
     const [isDemo, setIsDemo] = useState(true);
     const [tickets, setTickets] = useState(INITIAL_TICKETS);
     const [escalatedId, setEscalatedId] = useState<string | null>(null);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     const handleEscalate = (id: string) => {
         setEscalatedId(id);
-        alert(`Ticket ${id} has been escalated to the Kitchen Manager via SMS/Push.`);
+        showToast(`Ticket ${id} has been escalated to the Kitchen Manager via SMS/Push.`);
     };
 
     useEffect(() => {
@@ -48,6 +54,13 @@ export default function KDSPage() {
                     </span>
                 </div>
             </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
 
             <div className="page-content fade-in">
 
