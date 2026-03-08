@@ -377,7 +377,8 @@ export default function SettingsPage() {
                             <div className="s-card">
                                 <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📱 Online Profiles & Reviews</h2>
                                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.5 }}>
-                                    Connect your profiles with a single click. AI securely uses these to fetch reviews, guest profiles, and analyze sentiment automatically. No complex API keys required.
+                                    Connect your profiles to allow AI to securely fetch reviews, guest profiles, and analyze sentiment automatically.
+                                    <span style={{ color: "var(--gold-light)", fontWeight: 600, display: "block", marginTop: 4 }}> 🤖 Don't know how to get an API Token? Just ask the Restly AI assistant in the chat!</span>
                                 </p>
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                                     {connectedApps.includes("Google Business") ? (
