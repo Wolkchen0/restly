@@ -16,7 +16,8 @@ export default function RecipesPage() {
 
     const [activeTab, setActiveTab] = useState<"All" | "Food" | "Drink">("All");
     const [recipeModalOpen, setRecipeModalOpen] = useState(false);
-    const [newRecipeName, setNewRecipeName] = useState("");
+    const [editingRecipe, setEditingRecipe] = useState<any>(null);
+    const [newIngredient, setNewIngredient] = useState("");
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
     const showToast = (msg: string) => {
@@ -82,26 +83,50 @@ export default function RecipesPage() {
     };
 
     const handleNewRecipe = () => {
+        setEditingRecipe({ id: Date.now(), name: "", cost: 0.0, price: 0.0, cogs: 0.0, type: "Custom", category: "", ingredients: [] });
         setRecipeModalOpen(true);
     };
 
-    const confirmNewRecipe = () => {
-        if (!newRecipeName.trim()) return;
+    const handleEditRecipe = (recipe: any) => {
+        setEditingRecipe({ ...recipe });
+        setRecipeModalOpen(true);
+    };
 
-        const newRecipe = {
-            id: Date.now(),
-            name: newRecipeName,
-            cost: 0.0,
-            price: 0.0,
-            cogs: 0.0,
-            type: "Custom",
-            category: activeTab === "Drink" ? "Drink" : "Food",
-            ingredients: ["Tap to add ingredients..."]
-        };
-        setRecipes([...recipes, newRecipe]);
-        setNewRecipeName("");
+    const confirmRecipe = () => {
+        if (!editingRecipe.name.trim()) {
+            showToast("⚠️ Recipe name is required.");
+            return;
+        }
+        if (!editingRecipe.category) {
+            showToast("⚠️ Please select if this is Food or Drink.");
+            return;
+        }
+
+        if (recipes.some(r => r.id === editingRecipe.id)) {
+            setRecipes(recipes.map(r => r.id === editingRecipe.id ? editingRecipe : r));
+            showToast("Recipe updated successfully.");
+        } else {
+            setRecipes([...recipes, editingRecipe]);
+            showToast("Recipe created successfully.");
+        }
         setRecipeModalOpen(false);
-        showToast("Recipe added successfully.");
+        setEditingRecipe(null);
+        setNewIngredient("");
+    };
+
+    const handleAddIngredient = () => {
+        if (!newIngredient.trim()) return;
+        setEditingRecipe({
+            ...editingRecipe,
+            ingredients: [...editingRecipe.ingredients, newIngredient.trim()]
+        });
+        setNewIngredient("");
+    };
+
+    const handleRemoveIngredient = (index: number) => {
+        const updated = [...editingRecipe.ingredients];
+        updated.splice(index, 1);
+        setEditingRecipe({ ...editingRecipe, ingredients: updated });
     };
 
     const saveAiRecipe = () => {
@@ -166,23 +191,72 @@ export default function RecipesPage() {
                 </div>
             )}
 
-            {/* CUSTOM MODAL */}
-            {recipeModalOpen && (
+            {/* CUSTOM MODAL FOR NEW / EDIT RECIPE */}
+            {recipeModalOpen && editingRecipe && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
-                    <div className="card" style={{ width: 400, padding: 24 }}>
-                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>Enter a name for the new {activeTab === "Drink" ? "Drink" : "Recipe"}:</h3>
-                        <input
-                            autoFocus
-                            type="text"
-                            value={newRecipeName}
-                            onChange={e => setNewRecipeName(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") confirmNewRecipe(); }}
-                            style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }}
-                            placeholder="e.g. Lobster Bisque"
-                        />
-                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                    <div className="card" style={{ width: 440, padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>
+                            {recipes.some(r => r.id === editingRecipe.id) ? "Edit Recipe" : "Create New Recipe"}
+                        </h3>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>Recipe Name *</label>
+                            <input
+                                autoFocus
+                                type="text"
+                                value={editingRecipe.name}
+                                onChange={e => setEditingRecipe({ ...editingRecipe, name: e.target.value })}
+                                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none" }}
+                                placeholder="e.g. Lobster Bisque"
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>Category (Food/Drink) *</label>
+                            <div style={{ display: "flex", gap: 10 }}>
+                                <button
+                                    onClick={() => setEditingRecipe({ ...editingRecipe, category: "Food" })}
+                                    style={{ flex: 1, padding: "10px", borderRadius: 8, border: editingRecipe.category === "Food" ? "1px solid #E8C96E" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Food" ? "rgba(201,168,76,0.1)" : "transparent", color: editingRecipe.category === "Food" ? "#E8C96E" : "rgba(255,255,255,0.5)", cursor: "pointer" }}>
+                                    🍽️ Food
+                                </button>
+                                <button
+                                    onClick={() => setEditingRecipe({ ...editingRecipe, category: "Drink" })}
+                                    style={{ flex: 1, padding: "10px", borderRadius: 8, border: editingRecipe.category === "Drink" ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Drink" ? "rgba(74,222,128,0.1)" : "transparent", color: editingRecipe.category === "Drink" ? "#4ade80" : "rgba(255,255,255,0.5)", cursor: "pointer" }}>
+                                    🍹 Drink
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>BOM / Ingredients</label>
+                            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                                <input
+                                    type="text"
+                                    value={newIngredient}
+                                    onChange={e => setNewIngredient(e.target.value)}
+                                    onKeyDown={e => { if (e.key === "Enter") handleAddIngredient(); }}
+                                    style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, outline: "none" }}
+                                    placeholder="e.g. 150g Beef Patty"
+                                />
+                                <button onClick={handleAddIngredient} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", padding: "0 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Add</button>
+                            </div>
+
+                            <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 150, overflowY: "auto", border: editingRecipe.ingredients.length > 0 ? "1px solid rgba(255,255,255,0.05)" : "none", borderRadius: 8 }}>
+                                {editingRecipe.ingredients.map((ing: string, i: number) => (
+                                    <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
+                                        <span style={{ color: "rgba(255,255,255,0.8)" }}>{ing}</span>
+                                        <button onClick={() => handleRemoveIngredient(i)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 12 }}>Remove</button>
+                                    </li>
+                                ))}
+                                {editingRecipe.ingredients.length === 0 && (
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "12px 0" }}>No ingredients added yet.</div>
+                                )}
+                            </ul>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24 }}>
                             <button className="btn-secondary" onClick={() => setRecipeModalOpen(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={confirmNewRecipe}>Create</button>
+                            <button className="btn-primary" onClick={confirmRecipe}>Save Recipe</button>
                         </div>
                     </div>
                 </div>
@@ -233,7 +307,7 @@ export default function RecipesPage() {
                             <div key={recipe.id} className="card">
                                 <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
                                     <span className="badge badge-purple">{recipe.type}</span>
-                                    <span style={{ fontSize: 18 }}>⋮</span>
+                                    <button onClick={() => handleEditRecipe(recipe)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "0 8px" }} title="Edit Recipe">⋮</button>
                                 </div>
                                 <div className="card-body">
                                     <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 10, marginBottom: 16 }}>{recipe.name}</h3>
@@ -255,12 +329,16 @@ export default function RecipesPage() {
 
                                     <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>BOM (Bill of Materials)</div>
                                     <ul style={{ listStyleType: "none", padding: 0, margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-                                        {recipe.ingredients.map((ing, i) => (
+                                        {recipe.ingredients.length > 0 ? recipe.ingredients.map((ing: string, i: number) => (
                                             <li key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
                                                 <span>{ing}</span>
-                                                <span style={{ color: "#4ade80" }}>Linked ✓</span>
+                                                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>Linked ✓</span>
                                             </li>
-                                        ))}
+                                        )) : (
+                                            <li style={{ padding: "6px 0", cursor: "pointer", color: "rgba(201,168,76,0.8)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 6 }} onClick={() => handleEditRecipe(recipe)}>
+                                                <span>+</span> Tap to add ingredients to BOM
+                                            </li>
+                                        )}
                                     </ul>
                                 </div>
                             </div>
