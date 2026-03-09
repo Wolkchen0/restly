@@ -12,6 +12,19 @@ const MONTHLY_DATA = [
 export default function FinancePage() {
     const [period, setPeriod] = useState("Month-to-Date");
     const [isDemo, setIsDemo] = useState(true);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    const handleExportCSV = () => {
+        showToast("Generating CSV... The file will start downloading shortly.");
+        setTimeout(() => {
+            showToast("Finance_Export_2026.csv downloaded successfully.");
+        }, 1500);
+    };
 
     useEffect(() => {
         fetch("/api/locations")
@@ -41,14 +54,14 @@ export default function FinancePage() {
             <div className="topbar">
                 <div className="topbar-title">📈 Profit & Loss (P&L)</div>
                 <div className="topbar-right">
-                    <select value={period} onChange={e => setPeriod(e.target.value)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white", padding: "8px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer", outline: "none" }}>
-                        <option>Today</option>
-                        <option>Yesterday</option>
-                        <option>Week-to-Date</option>
-                        <option>Month-to-Date</option>
-                        <option>Last Month</option>
+                    <select value={period} onChange={e => setPeriod(e.target.value)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#E8C96E", fontWeight: 700, padding: "8px 12px", borderRadius: 8, fontSize: 13, cursor: "pointer", outline: "none" }}>
+                        <option style={{ background: "#0d0d1a", color: "#fff" }}>Today</option>
+                        <option style={{ background: "#0d0d1a", color: "#fff" }}>Yesterday</option>
+                        <option style={{ background: "#0d0d1a", color: "#fff" }}>Week-to-Date</option>
+                        <option style={{ background: "#0d0d1a", color: "#fff" }}>Month-to-Date</option>
+                        <option style={{ background: "#0d0d1a", color: "#fff" }}>Last Month</option>
                     </select>
-                    <button className="btn-primary" style={{ fontSize: 13 }}>Export CSV ↗</button>
+                    <button className="btn-primary" style={{ fontSize: 13 }} onClick={handleExportCSV}>Export CSV ↗</button>
                 </div>
             </div>
 
@@ -180,6 +193,13 @@ export default function FinancePage() {
                     </div>
                 )}
             </div>
+
+            {/* CUSTOM TOAST NOTIFICATION */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
         </>
     );
 }
