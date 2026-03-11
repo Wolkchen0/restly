@@ -165,7 +165,7 @@ export default function Sidebar({ restaurantName, plan }: Props) {
                                     {restaurantName}
                                 </div>
                                 <div style={{ fontSize: 13, color: "#fff", fontWeight: 700, lineHeight: 1.2 }}>
-                                    {active ? active.name.replace(`${restaurantName} — `, "") : "Loading…"}
+                                    {active ? active.name.replace(`${restaurantName} — `, "") : "—"}
                                 </div>
                                 {active?.city && (
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{active.city}</div>

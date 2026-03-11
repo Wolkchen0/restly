@@ -142,10 +142,10 @@ export default function RecipesPage() {
                 onChange={handleFileChange}
             />
             <div className="topbar">
-                <div className="topbar-title">🍽️ Chef & Recipe Management</div>
+                <div className="topbar-title">Chef & Recipe Management</div>
                 <div className="topbar-right">
                     <button className="btn-primary" onClick={handlePhotoUpload} disabled={uploading}>
-                        {uploading ? "Analyzing Recipe..." : "📸 AI Photo Import"}
+                        {uploading ? "Analyzing..." : "AI Photo Import"}
                     </button>
                     <button className="btn-secondary" onClick={handleNewRecipe}>New Recipe +</button>
                 </div>
@@ -165,7 +165,7 @@ export default function RecipesPage() {
                                 transition: "all 0.2s"
                             }}
                         >
-                            {t === "All" ? "📦 All Recipes" : t === "Food" ? "🍽️ Food" : "🍹 Drink"}
+                            {t === "All" ? "All Recipes" : t}
                         </button>
                     ))}
                 </div>
@@ -204,12 +204,12 @@ export default function RecipesPage() {
                                 <button
                                     onClick={() => setEditingRecipe({ ...editingRecipe, category: "Food" })}
                                     style={{ flex: 1, padding: "12px", borderRadius: 10, border: editingRecipe.category === "Food" ? "1px solid #E8C96E" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Food" ? "rgba(201,168,76,0.1)" : "transparent", color: editingRecipe.category === "Food" ? "#E8C96E" : "rgba(255,255,255,0.5)", cursor: "pointer", fontWeight: 700 }}>
-                                    🍽️ Food
+                                    Food
                                 </button>
                                 <button
                                     onClick={() => setEditingRecipe({ ...editingRecipe, category: "Drink" })}
                                     style={{ flex: 1, padding: "12px", borderRadius: 10, border: editingRecipe.category === "Drink" ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Drink" ? "rgba(74,222,128,0.1)" : "transparent", color: editingRecipe.category === "Drink" ? "#4ade80" : "rgba(255,255,255,0.5)", cursor: "pointer", fontWeight: 700 }}>
-                                    🍹 Drink
+                                    Drink
                                 </button>
                             </div>
                         </div>
@@ -297,8 +297,8 @@ export default function RecipesPage() {
                         <div className="grid-3">
                             {recipes.filter(r => activeTab === "All" || r.category === activeTab).map(recipe => (
                                 <div key={recipe.id} className="card" style={{ padding: "0", overflow: "hidden", display: "flex", flexDirection: "column", border: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
-                                    <div style={{ height: 160, background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                                        <div style={{ fontSize: 48 }}>{recipe.category === "Food" ? "🍽️" : "🍹"}</div>
+                                    <div style={{ height: 100, background: "linear-gradient(180deg, rgba(201,168,76,0.06) 0%, transparent 100%)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1 }}>{recipe.category} — {recipe.type}</div>
                                         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, zIndex: 10 }}>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setEditingRecipe({ ...recipe }); setRecipeModalOpen(true); }}
@@ -308,10 +308,8 @@ export default function RecipesPage() {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (confirm(`Delete ${recipe.name}?`)) {
-                                                        setRecipes(recipes.filter(r => r.id !== recipe.id));
-                                                        showToast("Recipe deleted successfully.");
-                                                    }
+                                                    setRecipes(recipes.filter(r => r.id !== recipe.id));
+                                                    showToast(`${recipe.name} deleted.`);
                                                 }}
                                                 style={{ background: "rgba(239,68,68,0.3)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", padding: "6px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700, backdropFilter: "blur(4px)" }}>
                                                 Delete
