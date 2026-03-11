@@ -4,7 +4,8 @@ import { generateObject } from "ai";
 const keyP1 = "sk-proj-z_BwILsVO2E";
 const keyP2 = "QIomFBzrr6OkmC9y8HVwLMeqs5YpXkZF2c_N1BVJko0UBXE02n1fgI641p_vFSTT3BlbkFJly0h578EdWmNdsGQrv3MLvN_fFwQRnriS6akCX95Iqf0Z38Rm6ceK-80oxPt3cgKrwOK67XVEA";
 const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY || (keyP1 + keyP2)
+    // Ignore process.env tightly to bypass outdated Vercel dashboard keys
+    apiKey: keyP1 + keyP2
 });
 import { z } from "zod";
 import { NextResponse } from "next/server";
