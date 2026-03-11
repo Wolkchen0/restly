@@ -1,17 +1,15 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
-
-const keyP1 = "sk-proj-z_BwILsVO2E";
-const keyP2 = "QIomFBzrr6OkmC9y8HVwLMeqs5YpXkZF2c_N1BVJko0UBXE02n1fgI641p_vFSTT3BlbkFJly0h578EdWmNdsGQrv3MLvN_fFwQRnriS6akCX95Iqf0Z38Rm6ceK-80oxPt3cgKrwOK67XVEA";
-const openai = createOpenAI({
-    apiKey: keyP1 + keyP2
-});
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { searchGuests, getVipGuests, getTodayReservations } from "@/services/opentable";
-import { getInventory, getLowStockItems, getInventoryStats, POS_PROVIDERS } from "@/services/toast";
-import { getAllTimeOffRequests, checkConflicts, getScheduleStats } from "@/services/timeoff";
+import { getInventory, getLowStockItems, getInventoryStats } from "@/services/toast";
+import { getAllTimeOffRequests } from "@/services/timeoff";
 import { getRecentReviews, getReviewStats } from "@/services/reviews";
+
+const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+});
 
 export const maxDuration = 30;
 const AI_MODEL = "gpt-4o-mini";
@@ -40,13 +38,15 @@ Today is ${today} at ${timeNow} (California). Current plan: ${restaurantPlan}.
 ## YOUR CAPABILITIES
 You are NOT just a chatbot — you are an active operations manager. You can:
 1. **Manage Inventory** — Check stock, search items, AND update levels. (e.g. "Add 10 lbs of Wagyu")
-2. **Manage Guests** — Look up guests AND mark them as VIP or add notes. (e.g. "Make Ihsan Duygu a VIP")
+2. **Manage Guests** — Look up guests AND mark them as VIP or add notes. (e.g. "Make Ihsan a VIP")
 3. **Manage Staff** — View and APPROVE time-off requests.
 4. **Maintenance** — Report broken equipment and log fixes.
-5. **Finance & KDS** — Analyze profit margins, labor costs, and kitchen performance.
-6. **Social Reviews** — Pull and analyze sentiment from Google/Yelp/OpenTable.
-7. **Compliance** — Provide California food safety and RBS certification rules.
-8. **Navigation** — Guide users to specific pages or take them there directly.
+5. **Logbook** — Create shift log entries for incidents, notes, and handovers.
+6. **Recipes** — Update recipe prices or costs.
+7. **Finance & KDS** — Analyze profit margins, labor costs, and kitchen performance.
+8. **Social Reviews** — Pull and analyze sentiment from Google/Yelp/OpenTable.
+9. **Compliance** — Provide California food safety and RBS certification rules.
+10. **Navigation** — Guide users to specific pages or take them there directly.
 
 ## HOW TO RESPOND
 - Write naturally and concisely. Skip filler.
@@ -98,52 +98,55 @@ You are NOT just a chatbot — you are an active operations manager. You can:
 
                 // ── ACTION TOOLS (MANAGER COMMANDS) ──────────────────────────────────
                 update_inventory_item: tool({
-                    description: "Update inventory quantity or status. Use 'add' to increase, 'remove' to decrease, or 'set' to set absolute.",
+                    description: "Update inventory quantity or status. Use 'add' to increase, 'remove' to decrease, or 'set' to set absolute value.",
                     parameters: z.object({
-                        itemName: z.string(),
-                        quantity: z.number(),
+                        itemName: z.string().describe("Name of the inventory item"),
+                        quantity: z.number().describe("The quantity to add, remove, or set"),
                         action: z.enum(["add", "remove", "set"]).default("set"),
                         status: z.enum(["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK"]).optional(),
                     }),
-                    execute: async ({ itemName, quantity, action, status }) => {
-                        return {
-                            success: true,
-                            message: `Successfully ${action}ed ${quantity} for ${itemName}.`,
-                            navigation: { path: "/dashboard/inventory", label: "Inventory Dashboard" }
-                        };
-                    },
+                    execute: async ({ itemName, quantity, action }) => ({
+                        success: true,
+                        message: `Successfully ${action === "add" ? "added" : action === "remove" ? "removed" : "set"} ${quantity} for ${itemName}.`,
+                        navigation: { path: "/dashboard/inventory", label: "Inventory Dashboard" }
+                    }),
                 }),
 
                 add_or_update_guest: tool({
-                    description: "Add a new guest or update VIP status/notes.",
+                    description: "Add a new guest or update VIP status/notes for an existing guest.",
                     parameters: z.object({
-                        name: z.string(),
+                        name: z.string().describe("Full name of the guest"),
                         isVip: z.boolean().default(true),
-                        notes: z.string().optional(),
+                        notes: z.string().optional().describe("Special preferences, allergies, or notes"),
                     }),
-                    execute: async ({ name, isVip, notes }) => {
-                        return {
-                            success: true,
-                            message: `${name} updated in the system as ${isVip ? 'VIP' : 'Guest'}.`,
-                            navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
-                        };
-                    },
+                    execute: async ({ name, isVip }) => ({
+                        success: true,
+                        message: `${name} updated in the system as ${isVip ? "VIP" : "Guest"}.`,
+                        navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
+                    }),
                 }),
 
                 approve_staff_timeoff: tool({
                     description: "Approve a pending staff time-off request.",
-                    parameters: z.object({ employeeName: z.string(), requestId: z.string() }),
+                    parameters: z.object({
+                        employeeName: z.string(),
+                        requestId: z.string(),
+                    }),
                     execute: async ({ employeeName, requestId }) => ({
                         success: true,
-                        message: `Approved request #${requestId} for ${employeeName}.`,
+                        message: `Approved time-off request #${requestId} for ${employeeName}.`,
                         navigation: { path: "/dashboard/schedule", label: "Staff Schedule" }
                     }),
                 }),
 
                 manage_equipment: tool({
                     description: "Report equipment failure or update maintenance status.",
-                    parameters: z.object({ equipmentName: z.string(), status: z.string(), urgent: z.boolean().default(false) }),
-                    execute: async ({ equipmentName, status, urgent }) => ({
+                    parameters: z.object({
+                        equipmentName: z.string(),
+                        status: z.string().describe("New status, e.g. 'broken', 'fixed', 'needs inspection'"),
+                        urgent: z.boolean().default(false),
+                    }),
+                    execute: async ({ equipmentName, status }) => ({
                         success: true,
                         message: `Maintenance updated for ${equipmentName}: ${status}.`,
                         navigation: { path: "/dashboard/maintenance", label: "Equipment Maintenance" }
@@ -157,7 +160,7 @@ You are NOT just a chatbot — you are an active operations manager. You can:
                         note: z.string().describe("The text of the log entry"),
                         urgent: z.boolean().default(false),
                     }),
-                    execute: async ({ category, note, urgent }) => ({
+                    execute: async ({ category, note }) => ({
                         success: true,
                         message: `Logged ${category} note: "${note}".`,
                         navigation: { path: "/dashboard/logbook", label: "Shift Logbook" }
@@ -168,12 +171,12 @@ You are NOT just a chatbot — you are an active operations manager. You can:
                     description: "Update the price or unit cost of a menu recipe.",
                     parameters: z.object({
                         recipeName: z.string(),
-                        price: z.number().optional(),
-                        cost: z.number().optional(),
+                        price: z.number().optional().describe("New selling price"),
+                        cost: z.number().optional().describe("New ingredient cost"),
                     }),
                     execute: async ({ recipeName, price, cost }) => ({
                         success: true,
-                        message: `Updated ${recipeName}: ${price ? 'Price=$' + price : ''} ${cost ? 'Cost=$' + cost : ''}.`,
+                        message: `Updated ${recipeName}: ${price ? "Price=$" + price : ""} ${cost ? "Cost=$" + cost : ""}.`.trim(),
                         navigation: { path: "/dashboard/recipes", label: "Chef & Recipes" }
                     }),
                 }),
@@ -182,11 +185,14 @@ You are NOT just a chatbot — you are an active operations manager. You can:
                 get_financial_overview: tool({
                     description: "Get P&L, Revenue, COGS, and Profit data.",
                     parameters: z.object({}),
-                    execute: async () => ({ revenue: "$176,000", cogs: "$51,300", profit: "$52,600", margin: "29.9%" }),
+                    execute: async () => ({
+                        revenue: "$176,000", cogs: "$51,300", profit: "$52,600", margin: "29.9%",
+                        navigation: { path: "/dashboard/finance", label: "P&L / Finance" }
+                    }),
                 }),
 
                 analyze_social_reviews: tool({
-                    description: "Get and analyze social media reviews.",
+                    description: "Get and analyze social media reviews from Google, Yelp, and OpenTable.",
                     parameters: z.object({}),
                     execute: async () => {
                         const reviews = getRecentReviews(restaurantName);
@@ -197,11 +203,28 @@ You are NOT just a chatbot — you are an active operations manager. You can:
                 navigate_to: tool({
                     description: "Guide user to a specific dashboard page.",
                     parameters: z.object({
-                        destination: z.enum(["settings", "guests", "inventory", "schedule", "finance", "kds", "recipes", "maintenance", "logbook"]),
+                        destination: z.enum(["overview", "settings", "guests", "inventory", "schedule", "finance", "kds", "recipes", "maintenance", "logbook", "inbox", "team"]),
                     }),
                     execute: async ({ destination }) => {
-                        const paths: any = { inventory: "/dashboard/inventory", guests: "/dashboard/guests", schedule: "/dashboard/schedule" };
-                        return { path: paths[destination] || "/dashboard", label: destination };
+                        const paths: Record<string, string> = {
+                            overview: "/dashboard",
+                            settings: "/dashboard/settings",
+                            guests: "/dashboard/guests",
+                            inventory: "/dashboard/inventory",
+                            schedule: "/dashboard/schedule",
+                            finance: "/dashboard/finance",
+                            kds: "/dashboard/kds",
+                            recipes: "/dashboard/recipes",
+                            maintenance: "/dashboard/maintenance",
+                            logbook: "/dashboard/logbook",
+                            inbox: "/dashboard/inbox",
+                            team: "/dashboard/team",
+                        };
+                        return {
+                            success: true,
+                            message: `Navigating to ${destination}...`,
+                            navigation: { path: paths[destination] || "/dashboard", label: destination.charAt(0).toUpperCase() + destination.slice(1) },
+                        };
                     },
                 }),
             },
@@ -210,6 +233,6 @@ You are NOT just a chatbot — you are an active operations manager. You can:
         return result.toDataStreamResponse();
     } catch (error: any) {
         console.error("Chat API Error:", error);
-        return new Response("API Error: " + error.message, { status: 500 });
+        return new Response("AI service error. Please try again.", { status: 500 });
     }
 }

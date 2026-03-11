@@ -4,18 +4,35 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const SUGGESTED_PROMPTS = [
-    { icon: "📋", text: "Who has reservations tonight?", category: "guests" },
-    { icon: "⚠️", text: "What's running low in the kitchen?", category: "inventory" },
-    { icon: "⭐", text: "Show me my VIP guests", category: "guests" },
-    { icon: "📅", text: "Any pending time-off requests?", category: "schedule" },
-    { icon: "🔗", text: "How do I connect Clover?", category: "setup" },
-    { icon: "🔗", text: "How do I connect Toast POS?", category: "setup" },
+    { icon: "📋", text: "Who has reservations tonight?" },
+    { icon: "⚠️", text: "What's running low in the kitchen?" },
+    { icon: "⭐", text: "Show me my VIP guests" },
+    { icon: "📅", text: "Any pending time-off requests?" },
+    { icon: "📦", text: "Add 10 lbs of Wagyu to inventory" },
+    { icon: "👤", text: "Make John Smith a VIP guest" },
 ];
 
 function ToolResultCard({ toolName, result }: { toolName: string; result: any }) {
     const router = useRouter();
 
-    if (toolName === "navigate_to" && result.actionRequired) {
+    // ── Manager Action confirmation card (all tools with success + navigation) ──
+    if (result?.success && result?.navigation) {
+        return (
+            <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 360 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Action Complete</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 12, lineHeight: 1.5 }}>{result.message}</div>
+                <button
+                    onClick={() => router.push(result.navigation.path)}
+                    style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%" }}
+                >
+                    View in {result.navigation.label} →
+                </button>
+            </div>
+        );
+    }
+
+    // ── Navigate card ──
+    if (toolName === "navigate_to" && result?.actionRequired) {
         return (
             <div style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 340 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>📍 Navigate</div>
@@ -30,43 +47,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result: any })
         );
     }
 
-    if (toolName === "get_pos_setup_guide") {
-        return (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 380 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 10 }}>{result.icon} {result.posName} Setup Guide</div>
-                <ol style={{ paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-                    {result.stepsToGetCredentials.map((step: string, i: number) => (
-                        <li key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, paddingLeft: 4 }}>{step}</li>
-                    ))}
-                </ol>
-                <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(201,168,76,0.1)", borderRadius: 8, fontSize: 12, color: "#E8C96E", lineHeight: 1.5 }}>
-                    ✓ {result.nextStep}
-                </div>
-                <button
-                    onClick={() => router.push("/dashboard/settings")}
-                    style={{ marginTop: 10, background: "rgba(255,255,255,0.06)", color: "#fff", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%" }}
-                >
-                    Open Settings →
-                </button>
-            </div>
-        );
-    }
-
-    if (result.success && result.navigation) {
-        return (
-            <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 360 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Action Verified</div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 12, lineHeight: 1.5 }}>{result.message}</div>
-                <button
-                    onClick={() => router.push(result.navigation.path)}
-                    style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%" }}
-                >
-                    View in {result.navigation.label} →
-                </button>
-            </div>
-        );
-    }
-
+    // ── Low stock alert card ──
     if (toolName === "get_low_stock_alerts") {
         const { outOfStock = [], lowStock = [], urgency } = result;
         return (
@@ -86,7 +67,37 @@ function ToolResultCard({ toolName, result }: { toolName: string; result: any })
         );
     }
 
-    return null; // Other tools don't need special cards — AI text handles them
+    // ── Financial overview card ──
+    if (toolName === "get_financial_overview" && result?.revenue) {
+        return (
+            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 12, padding: "14px 16px", marginTop: 8, maxWidth: 360 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 10, textTransform: "uppercase" }}>📊 Financial Summary</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {[
+                        { label: "Revenue", val: result.revenue, color: "#4ade80" },
+                        { label: "COGS", val: result.cogs, color: "#f87171" },
+                        { label: "Profit", val: result.profit, color: "#4ade80" },
+                        { label: "Margin", val: result.margin, color: "#E8C96E" },
+                    ].map(f => (
+                        <div key={f.label} style={{ padding: 8, background: "rgba(255,255,255,0.03)", borderRadius: 8, textAlign: "center" }}>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{f.label}</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: f.color }}>{f.val}</div>
+                        </div>
+                    ))}
+                </div>
+                {result.navigation && (
+                    <button
+                        onClick={() => router.push(result.navigation.path)}
+                        style={{ marginTop: 10, width: "100%", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", color: "#E8C96E", borderRadius: 8, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                        View Full Report →
+                    </button>
+                )}
+            </div>
+        );
+    }
+
+    return null; // Other tools — AI text handles them
 }
 
 export default function ChatBot() {
