@@ -34,17 +34,17 @@ export default function LogbookPage() {
             });
 
             const csvContent = rows.join("\n");
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.setAttribute("href", url);
-            link.setAttribute("download", `Restly_Shift_Logbook_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute("download", `Restly_Shift_Logbook_${new Date().toISOString().split('T')[0]}.xls`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            showToast("Logbook export downloaded successfully.");
+            showToast("Logbook export downloaded successfully as Excel.");
         }, 1200);
     };
 

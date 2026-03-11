@@ -43,31 +43,30 @@ export default function FinancePage() {
     const profitMargin = ((netProfit / stats.totalRevenue) * 100).toFixed(1);
 
     const handleExportCSV = () => {
-        showToast("Generating CSV... The file will start downloading shortly.");
+        showToast("Generating Excel file...");
         setTimeout(() => {
-            // Generate real CSV content
             const headers = ["Period", "Gross Revenue", "COGS", "Labor", "Operating Expenses", "Net Profit"];
             const rows = [
                 headers.join(","),
                 [`Current (${period})`, stats.totalRevenue, stats.cogs, stats.labor, stats.operatingEx, netProfit].join(",")
             ];
 
-            // Add historical weeks from the mock data
             MONTHLY_DATA.forEach(d => {
                 rows.push([d.name, d.revenue, d.cogs, d.labor, "N/A", d.profit].join(","));
             });
 
-            // Trigger actual browser download
-            const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-            const encodedUri = encodeURI(csvContent);
+            const csvContent = rows.join("\n");
+            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Restly_Finance_Export_${new Date().getFullYear()}.csv`);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Restly_Finance_Export_${new Date().getFullYear()}.xls`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
 
-            showToast(`Restly_Finance_Export_${new Date().getFullYear()}.csv downloaded successfully.`);
+            showToast(`Restly_Finance_Export_${new Date().getFullYear()}.xls downloaded successfully.`);
         }, 1000);
     };
 
