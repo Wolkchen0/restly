@@ -33,14 +33,16 @@ export default function LogbookPage() {
                 rows.push([l.id, l.date, l.shift, l.manager, safeTags, safeNotes].join(","));
             });
 
-            const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-            const encodedUri = encodeURI(csvContent);
+            const csvContent = rows.join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", url);
             link.setAttribute("download", `Restly_Shift_Logbook_${new Date().toISOString().split('T')[0]}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
 
             showToast("Logbook export downloaded successfully.");
         }, 1200);
