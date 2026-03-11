@@ -19,13 +19,6 @@ export default function FinancePage() {
         setTimeout(() => setToastMsg(null), 3000);
     };
 
-    const handleExportCSV = () => {
-        showToast("Generating CSV... The file will start downloading shortly.");
-        setTimeout(() => {
-            showToast("Finance_Export_2026.csv downloaded successfully.");
-        }, 1500);
-    };
-
     useEffect(() => {
         fetch("/api/locations")
             .then(r => r.json())
@@ -48,6 +41,35 @@ export default function FinancePage() {
 
     const netProfit = stats.totalRevenue - stats.cogs - stats.labor - stats.operatingEx;
     const profitMargin = ((netProfit / stats.totalRevenue) * 100).toFixed(1);
+
+    const handleExportCSV = () => {
+        showToast("Generating CSV... The file will start downloading shortly.");
+        setTimeout(() => {
+            // Generate real CSV content
+            const headers = ["Period", "Gross Revenue", "COGS", "Labor", "Operating Expenses", "Net Profit"];
+            const rows = [
+                headers.join(","),
+                [`Current (${period})`, stats.totalRevenue, stats.cogs, stats.labor, stats.operatingEx, netProfit].join(",")
+            ];
+
+            // Add historical weeks from the mock data
+            MONTHLY_DATA.forEach(d => {
+                rows.push([d.name, d.revenue, d.cogs, d.labor, "N/A", d.profit].join(","));
+            });
+
+            // Trigger actual browser download
+            const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Restly_Finance_Export_${new Date().getFullYear()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast(`Restly_Finance_Export_${new Date().getFullYear()}.csv downloaded successfully.`);
+        }, 1000);
+    };
 
     return (
         <>
