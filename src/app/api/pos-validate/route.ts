@@ -66,37 +66,61 @@ const POS_VALIDATORS: Record<string, (fields: Record<string, string>) => Promise
         }
     },
 
-    // ── TOAST ── (Requires OAuth — we validate format only, real connection needs partner approval)
+    // ── TOAST ── (Standard API Access: clientId + clientSecret → bearer token)
     toast: async (fields) => {
-        const apiKey = fields.posApiKey;
+        const clientId = fields.posApiKey;
+        const clientSecret = fields.posSecretKey;
         const guid = fields.posLocationId;
 
-        if (!apiKey || !guid) return { ok: false, message: "API Key and Restaurant GUID are required." };
-
-        // Toast uses OAuth2 — partner program required
-        // Validate key format at minimum
-        if (apiKey.length < 20) return { ok: false, message: "API Key seems too short. Toast keys are typically 32+ characters." };
+        if (!clientId || !clientSecret) return { ok: false, message: "Client ID and Client Secret are required. Get them from Toast Web → Integrations → Toast API access → Manage credentials." };
+        if (!guid) return { ok: false, message: "Restaurant GUID is required. Find it in Toast Web → Admin → Restaurant Info." };
         if (guid.length < 10) return { ok: false, message: "Restaurant GUID seems too short. Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" };
 
-        // Try Toast API (requires partner credentials)
         try {
-            const res = await fetch(`https://ws-api.toasttab.com/restaurants/v1/restaurants/${guid}`, {
+            // Step 1: Get authentication token
+            const authRes = await fetch("https://ws-api.toasttab.com/authentication/v1/authentication/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ clientId, clientSecret, userScope: "API" })
+            });
+
+            if (!authRes.ok) {
+                if (authRes.status === 401 || authRes.status === 403) {
+                    return { ok: false, message: "Invalid Client ID or Client Secret. Verify your credentials in Toast Web → Integrations → Toast API access." };
+                }
+                if (authRes.status === 429) {
+                    return { ok: false, message: "Too many authentication attempts. Wait a moment and try again." };
+                }
+                return { ok: false, message: `Toast authentication failed (HTTP ${authRes.status}). Check credentials.` };
+            }
+
+            const authData = await authRes.json();
+            const token = authData?.token?.accessToken;
+
+            if (!token) {
+                return { ok: false, message: "Received response but no access token. Verify your Client ID and Client Secret." };
+            }
+
+            // Step 2: Verify restaurant GUID
+            const restRes = await fetch(`https://ws-api.toasttab.com/restaurants/v1/restaurants/${guid}`, {
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization": `Bearer ${token}`,
                     "Toast-Restaurant-External-ID": guid,
-                    "Content-Type": "application/json"
                 }
             });
 
-            if (res.ok) {
-                return { ok: true, message: "Toast connection verified successfully." };
+            if (restRes.ok) {
+                return { ok: true, message: `Toast POS connected and verified! Restaurant GUID confirmed.` };
             }
-            if (res.status === 401 || res.status === 403) {
-                return { ok: false, message: "Authentication failed. Toast requires Partner Program approval. Apply at doc.toasttab.com." };
+
+            if (restRes.status === 404) {
+                return { ok: false, message: `Authentication successful but Restaurant GUID not found. Check the GUID in Toast Web → Admin.` };
             }
-            return { ok: false, message: `Toast returned ${res.status}. Ensure you have Partner Program access.` };
+
+            // Auth worked but restaurant lookup failed — still a partial success
+            return { ok: true, message: `Toast authentication verified! Note: Restaurant lookup returned ${restRes.status} — GUID may need verification.` };
         } catch (e: any) {
-            return { ok: false, message: "Could not reach Toast API. This POS requires Partner Program enrollment." };
+            return { ok: false, message: `Could not reach Toast API: ${e.message}. Check your internet connection.` };
         }
     },
 
