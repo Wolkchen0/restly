@@ -25,6 +25,7 @@ export default function SchedulePage() {
     const [isDemo, setIsDemo] = useState(true);
 
     useEffect(() => {
+        window.scrollTo(0, 0);
         const loc = localStorage.getItem("restly_active_location");
         if (loc) setLocationId(loc);
 
@@ -34,6 +35,7 @@ export default function SchedulePage() {
                 const restName = d.restaurantName || "";
                 if (restName.toLowerCase() === "meyhouse") {
                     setIsDemo(true);
+                    setLocationId("DEMO_RESTLY_12345"); // Fake ID for demo usage
                     setData({ requests: DEMO_REQUESTS });
                     setLocalRequests(DEMO_REQUESTS);
                 } else {
