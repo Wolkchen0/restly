@@ -7,16 +7,21 @@ import { getInventory, getLowStockItems, getInventoryStats } from "@/services/to
 import { getAllTimeOffRequests } from "@/services/timeoff";
 import { getRecentReviews, getReviewStats } from "@/services/reviews";
 
-const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY!,
-});
-
 export const maxDuration = 30;
 const AI_MODEL = "gpt-4o-mini";
 
 export async function POST(req: Request) {
     const session = await auth();
     if (!session) return new Response("Unauthorized", { status: 401 });
+
+    // Read API key at request time (critical for Vercel serverless)
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+        console.error("OPENAI_API_KEY is not set in environment variables");
+        return new Response("AI configuration error. OPENAI_API_KEY missing.", { status: 500 });
+    }
+
+    const openai = createOpenAI({ apiKey });
 
     const restaurantName = session.user?.name || "your restaurant";
     const restaurantPlan = (session.user as any)?.plan || "trial";
@@ -232,7 +237,12 @@ You are NOT just a chatbot — you are an active operations manager. You can:
 
         return result.toDataStreamResponse();
     } catch (error: any) {
-        console.error("Chat API Error:", error);
-        return new Response("AI service error. Please try again.", { status: 500 });
+        console.error("Chat API Error:", error?.message || error);
+        console.error("Error type:", error?.constructor?.name);
+        if (error?.status) console.error("API status:", error.status);
+        const msg = error?.message?.includes("API key")
+            ? "AI configuration error. Please check API key."
+            : "AI service error. Please try again.";
+        return new Response(msg, { status: 500 });
     }
 }
