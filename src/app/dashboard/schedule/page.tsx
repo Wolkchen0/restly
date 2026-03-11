@@ -33,12 +33,28 @@ export default function SchedulePage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                // Universal demo/sample mode for all brands
                 setIsDemo(!!restName);
                 if (!!restName) {
                     setLocationId("DEMO_RESTLY_12345");
-                    setData({ requests: DEMO_REQUESTS });
-                    setLocalRequests(DEMO_REQUESTS);
+                    // Fetch real DB entries and merge with demo data
+                    fetch("/api/timeoff?locId=DEMO_RESTLY_12345")
+                        .then(res => res.json())
+                        .then(tData => {
+                            const dbRequests = (tData.requests ?? []).map((r: any) => ({
+                                ...r,
+                                formSource: r.type === "TIMEOFF" ? 2 : 1,
+                            }));
+                            // Merge: demo + real DB entries (avoid duplicates by id)
+                            const demoIds = new Set(DEMO_REQUESTS.map(r => r.id));
+                            const newFromDB = dbRequests.filter((r: any) => !demoIds.has(r.id));
+                            const merged = [...newFromDB, ...DEMO_REQUESTS];
+                            setData({ requests: merged });
+                            setLocalRequests(merged);
+                        })
+                        .catch(() => {
+                            setData({ requests: DEMO_REQUESTS });
+                            setLocalRequests(DEMO_REQUESTS);
+                        });
                 } else {
                     fetch("/api/timeoff").then(res => res.json()).then(tData => {
                         setData(tData);

@@ -2,20 +2,55 @@
 import { useState, useEffect } from "react";
 
 const DEMO_STAFF_MONTH = [
-    { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 21, totalSales: 18500, checkAvg: 85, turnTime: 45, tipPct: 22.4, trend: "up" },
-    { rank: 2, name: "Marcus Torres", role: "Server", daysWorked: 18, totalSales: 16200, checkAvg: 72, turnTime: 42, tipPct: 19.8, trend: "up" },
-    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 20, totalSales: 14800, checkAvg: 95, turnTime: 30, tipPct: 24.1, trend: "flat" },
-    { rank: 4, name: "David Chen", role: "Server", daysWorked: 15, totalSales: 12100, checkAvg: 68, turnTime: 48, tipPct: 18.5, trend: "down" },
-    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 14, totalSales: 9400, checkAvg: 65, turnTime: 50, tipPct: 17.2, trend: "flat" },
+    { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 21, totalSales: 18500, foodSales: 12400, drinkSales: 6100, checkAvg: 85, turnTime: 45, tipPct: 22.4, trend: "up", topItems: ["Truffle Burger", "Lobster Risotto"], upsellRate: 68 },
+    { rank: 2, name: "Marcus Torres", role: "Server", daysWorked: 18, totalSales: 16200, foodSales: 11800, drinkSales: 4400, checkAvg: 72, turnTime: 42, tipPct: 19.8, trend: "up", topItems: ["NY Strip", "Caesar Salad"], upsellRate: 52 },
+    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 20, totalSales: 14800, foodSales: 3200, drinkSales: 11600, checkAvg: 95, turnTime: 30, tipPct: 24.1, trend: "flat", topItems: ["Spicy Marg", "Old Fashioned"], upsellRate: 74 },
+    { rank: 4, name: "David Chen", role: "Server", daysWorked: 15, totalSales: 12100, foodSales: 9200, drinkSales: 2900, checkAvg: 68, turnTime: 48, tipPct: 18.5, trend: "down", topItems: ["Avocado Toast", "House Salad"], upsellRate: 31 },
+    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 14, totalSales: 9400, foodSales: 6800, drinkSales: 2600, checkAvg: 65, turnTime: 50, tipPct: 17.2, trend: "flat", topItems: ["Club Sandwich", "Soup of Day"], upsellRate: 28 },
 ];
 
 const DEMO_STAFF_YEAR = [
-    { rank: 1, name: "Marcus Torres", role: "Server", daysWorked: 214, totalSales: 212000, checkAvg: 68, turnTime: 44, tipPct: 19.2, trend: "up" },
-    { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 210, totalSales: 208500, checkAvg: 82, turnTime: 46, tipPct: 21.8, trend: "up" },
-    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 220, totalSales: 185000, checkAvg: 92, turnTime: 32, tipPct: 23.5, trend: "up" },
-    { rank: 4, name: "David Chen", role: "Server", daysWorked: 185, totalSales: 145000, checkAvg: 65, turnTime: 47, tipPct: 18.2, trend: "flat" },
-    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 160, totalSales: 110000, checkAvg: 62, turnTime: 49, tipPct: 16.8, trend: "down" },
+    { rank: 1, name: "Marcus Torres", role: "Server", daysWorked: 214, totalSales: 212000, foodSales: 152400, drinkSales: 59600, checkAvg: 68, turnTime: 44, tipPct: 19.2, trend: "up", topItems: ["NY Strip", "Pan-Seared Duck"], upsellRate: 55 },
+    { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 210, totalSales: 208500, foodSales: 139700, drinkSales: 68800, checkAvg: 82, turnTime: 46, tipPct: 21.8, trend: "up", topItems: ["Truffle Burger", "Wine Flights"], upsellRate: 70 },
+    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 220, totalSales: 185000, foodSales: 37000, drinkSales: 148000, checkAvg: 92, turnTime: 32, tipPct: 23.5, trend: "up", topItems: ["Craft Cocktails", "Premium Wines"], upsellRate: 76 },
+    { rank: 4, name: "David Chen", role: "Server", daysWorked: 185, totalSales: 145000, foodSales: 113100, drinkSales: 31900, checkAvg: 65, turnTime: 47, tipPct: 18.2, trend: "flat", topItems: ["Avocado Toast", "Grilled Chicken"], upsellRate: 33 },
+    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 160, totalSales: 110000, foodSales: 82500, drinkSales: 27500, checkAvg: 62, turnTime: 49, tipPct: 16.8, trend: "down", topItems: ["Club Sandwich", "House Wine"], upsellRate: 26 },
 ];
+
+function getAIRecommendation(staff: any, allStaff: any[]) {
+    const firstName = staff.name.split(" ")[0];
+    const avgSales = allStaff.reduce((a: number, s: any) => a + s.totalSales, 0) / allStaff.length;
+    const avgCheck = allStaff.reduce((a: number, s: any) => a + s.checkAvg, 0) / allStaff.length;
+    const avgTip = allStaff.reduce((a: number, s: any) => a + s.tipPct, 0) / allStaff.length;
+    const drinkPct = Math.round((staff.drinkSales / staff.totalSales) * 100);
+    const foodPct = 100 - drinkPct;
+
+    // Role-based analysis
+    if (staff.role === "Bartender") {
+        if (staff.tipPct > avgTip + 2) {
+            return `${firstName} leads in tip percentage at ${staff.tipPct}% (floor avg: ${avgTip.toFixed(1)}%). Drink sales are ${drinkPct}% of total revenue ($${staff.drinkSales.toLocaleString()}). Top sellers: ${staff.topItems.join(", ")}. Recommend scheduling ${firstName} on Fri/Sat nights for max cocktail revenue.`;
+        }
+        return `${firstName}'s drink-to-food ratio is ${drinkPct}/${foodPct}. Consider cross-training on food upsells — current upsell rate is ${staff.upsellRate}%. Adding appetizer pairings with cocktails could lift check avg from $${staff.checkAvg} toward $${Math.round(staff.checkAvg * 1.15)}.`;
+    }
+
+    // High performer
+    if (staff.totalSales > avgSales * 1.1 && staff.upsellRate > 50) {
+        return `${firstName} is outperforming the floor average by ${Math.round(((staff.totalSales - avgSales) / avgSales) * 100)}%. Food sales: $${staff.foodSales.toLocaleString()} (${foodPct}%), Drink sales: $${staff.drinkSales.toLocaleString()} (${drinkPct}%). Upsell rate: ${staff.upsellRate}%. Top items sold: ${staff.topItems.join(", ")}. Schedule on high-cover nights.`;
+    }
+
+    // Declining trend
+    if (staff.trend === "down") {
+        return `${firstName}'s performance is trending downward. Check avg ($${staff.checkAvg}) is ${Math.round(avgCheck - staff.checkAvg)} below floor average. Drink sales only $${staff.drinkSales.toLocaleString()} (${drinkPct}% of total). Upsell rate: ${staff.upsellRate}%. Recommend wine/cocktail pairing training and a shadow shift with a top performer.`;
+    }
+
+    // Low upsell
+    if (staff.upsellRate < 35) {
+        return `${firstName} has a ${staff.upsellRate}% upsell rate — well below the team target of 50%. Mostly selling ${staff.topItems.join(" and ")}. Drink contribution is only ${drinkPct}% ($${staff.drinkSales.toLocaleString()}). Training on beverage pairings could increase check avg from $${staff.checkAvg} to ~$${Math.round(staff.checkAvg * 1.2)}.`;
+    }
+
+    // Default
+    return `${firstName} is performing at floor average. Food: $${staff.foodSales.toLocaleString()} (${foodPct}%), Drinks: $${staff.drinkSales.toLocaleString()} (${drinkPct}%). Turn time: ${staff.turnTime}min. Focus on increasing drink attachment rate from ${staff.upsellRate}% to 50%+.`;
+}
 
 export default function TeamPerformancePage() {
     const [period, setPeriod] = useState<"month" | "year">("month");
@@ -131,14 +166,32 @@ export default function TeamPerformancePage() {
                                 </div>
                             </div>
 
+                            {/* Sales Breakdown */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                                <div style={{ background: "rgba(232,201,110,0.06)", padding: 12, borderRadius: 10, border: "1px solid rgba(232,201,110,0.1)" }}>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 4 }}>Food Sales</div>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: "#E8C96E" }}>${selectedStaff.foodSales?.toLocaleString() || "—"}</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{selectedStaff.foodSales ? Math.round((selectedStaff.foodSales / selectedStaff.totalSales) * 100) : 0}% of total</div>
+                                </div>
+                                <div style={{ background: "rgba(96,165,250,0.06)", padding: 12, borderRadius: 10, border: "1px solid rgba(96,165,250,0.1)" }}>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 4 }}>Drink Sales</div>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: "#60a5fa" }}>${selectedStaff.drinkSales?.toLocaleString() || "—"}</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{selectedStaff.drinkSales ? Math.round((selectedStaff.drinkSales / selectedStaff.totalSales) * 100) : 0}% of total</div>
+                                </div>
+                            </div>
+                            {selectedStaff.topItems && (
+                                <div style={{ marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                                    <span style={{ fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontSize: 10 }}>Top Sellers: </span>
+                                    {selectedStaff.topItems.join(", ")} • <span style={{ color: "#E8C96E" }}>Upsell Rate: {selectedStaff.upsellRate}%</span>
+                                </div>
+                            )}
+
                             <div style={{ background: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.2)", padding: 16, borderRadius: 12, display: "flex", gap: 12 }}>
                                 <div style={{ fontSize: 20 }}>💡</div>
                                 <div>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa", marginBottom: 2 }}>AI Recommendation</div>
-                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
-                                        {selectedStaff.checkAvg > 75
-                                            ? `${selectedStaff.name.split(' ')[0]} excels at upselling and premium check averages. Schedule them on high-volume weekend shifts for maximum revenue.`
-                                            : `${selectedStaff.name.split(' ')[0]} could benefit from wine pairing training to boost their ${selectedStaff.checkAvg}$ check average closer to the floor target.`}
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#60a5fa", marginBottom: 4 }}>AI Recommendation</div>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
+                                        {getAIRecommendation(selectedStaff, data)}
                                     </div>
                                 </div>
                             </div>
@@ -153,10 +206,10 @@ export default function TeamPerformancePage() {
                             <div style={{ fontSize: 24 }}>🧠</div>
                             <div>
                                 <div style={{ fontSize: 14, fontWeight: 700, color: "#E8C96E", marginBottom: 4 }}>Restly AI Performance Insights</div>
-                                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
-                                    <strong>{topServer.name}</strong> is leading {period === "month" ? "this month" : "this year"} with <strong>${topServer.totalSales.toLocaleString()}</strong> in sales. <br />
-                                    <strong>Insight:</strong> Sarah has an exceptional check average (${period === "month" ? 85 : 82}) compared to the floor average (~$75). She effectively up-sells premium wines and appetizers. <br />
-                                    <strong>Actionable Tip:</strong> Consider pairing under-performing servers with Sarah for a weekend shadow shift to improve their up-sell techniques.
+                                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.6 }}>
+                                    <strong>{topServer.name}</strong> leads {period === "month" ? "this month" : "this year"} with <strong>${topServer.totalSales.toLocaleString()}</strong> in total sales — Food: ${topServer.foodSales?.toLocaleString()} ({Math.round((topServer.foodSales / topServer.totalSales) * 100)}%), Drinks: ${topServer.drinkSales?.toLocaleString()} ({Math.round((topServer.drinkSales / topServer.totalSales) * 100)}%). <br />
+                                    <strong>Analysis:</strong> {topServer.name.split(' ')[0]}'s top items are {topServer.topItems?.join(' and ')} with a {topServer.upsellRate}% upsell rate and ${topServer.checkAvg} avg check (floor avg: ${Math.round(data.reduce((a: number, s: any) => a + s.checkAvg, 0) / data.length)}). <br />
+                                    <strong>Action:</strong> {data[data.length - 1].name.split(' ')[0]} ({data[data.length - 1].upsellRate}% upsell, ${data[data.length - 1].checkAvg} check avg) should shadow {topServer.name.split(' ')[0]} on a weekend shift to learn drink pairing techniques.
                                 </div>
                             </div>
                         </div>
