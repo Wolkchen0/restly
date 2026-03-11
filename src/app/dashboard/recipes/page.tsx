@@ -10,7 +10,6 @@ const INITIAL_RECIPES = [
 export default function RecipesPage() {
     const [recipes, setRecipes] = useState(INITIAL_RECIPES);
     const [uploading, setUploading] = useState(false);
-    const [aiResult, setAiResult] = useState<any>(null);
     const [isDemo, setIsDemo] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,14 +59,18 @@ export default function RecipesPage() {
 
                 if (res.ok) {
                     const data = await res.json();
-                    setAiResult({
-                        name: "AI Generated: " + data.name,
-                        ingredients: data.ingredients,
-                        totalCost: data.totalCost,
-                        suggestedPrice: data.suggestedPrice,
-                        projectedCOGS: data.projectedCOGS,
-                        category: activeTab === "Drink" ? "Drink" : "Food"
+                    setEditingRecipe({
+                        id: Date.now(),
+                        name: data.name || "",
+                        cost: data.totalCost || 0,
+                        price: data.suggestedPrice || 0,
+                        cogs: data.projectedCOGS || 0,
+                        type: "AI Import",
+                        category: activeTab === "Drink" ? "Drink" : "Food",
+                        ingredients: data.ingredients || []
                     });
+                    setRecipeModalOpen(true);
+                    showToast("✨ AI extraction complete! Review and edit if necessary.");
                 } else {
                     showToast("Failed to analyze image. Please try again.");
                 }
@@ -127,22 +130,6 @@ export default function RecipesPage() {
         const updated = [...editingRecipe.ingredients];
         updated.splice(index, 1);
         setEditingRecipe({ ...editingRecipe, ingredients: updated });
-    };
-
-    const saveAiRecipe = () => {
-        if (!aiResult) return;
-        const newRecipe = {
-            id: Date.now(),
-            name: aiResult.name,
-            cost: aiResult.totalCost,
-            price: aiResult.suggestedPrice,
-            cogs: aiResult.projectedCOGS,
-            type: "AI Import",
-            category: aiResult.category || "Food",
-            ingredients: aiResult.ingredients
-        };
-        setRecipes([newRecipe, ...recipes]);
-        setAiResult(null);
     };
 
     return (
@@ -263,43 +250,6 @@ export default function RecipesPage() {
             )}
 
             <div className="page-content fade-in">
-
-                {/* AI RESULT BANNER */}
-                {aiResult && (
-                    <div style={{ background: "rgba(201,168,76, 0.1)", border: "1px solid rgba(201,168,76, 0.3)", borderRadius: 16, padding: "24px", marginBottom: 24, display: "flex", gap: 20 }}>
-                        <div style={{ fontSize: 40 }}>✨</div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: "#E8C96E", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 6 }}>AI Recipe Extracted</div>
-                            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 12 }}>{aiResult.name}</div>
-
-                            <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
-                                <div>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Live Plate Cost</div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--red)" }}>${aiResult.totalCost.toFixed(2)}</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Suggested Price</div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--green)" }}>${aiResult.suggestedPrice.toFixed(2)}</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Projected COGS</div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)" }}>{aiResult.projectedCOGS}%</div>
-                                </div>
-                            </div>
-
-                            <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "12px 16px" }}>
-                                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>MAPPED INGREDIENTS FROM INVENTORY</div>
-                                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                                    {aiResult.ingredients.map((ing: string, i: number) => <li key={i}>{ing}</li>)}
-                                </ul>
-                            </div>
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            <button className="btn-primary" onClick={saveAiRecipe}>Save to Menu</button>
-                            <button className="btn-secondary" onClick={() => setAiResult(null)}>Discard</button>
-                        </div>
-                    </div>
-                )}
 
                 {isDemo ? (
                     <div className="grid-3">
