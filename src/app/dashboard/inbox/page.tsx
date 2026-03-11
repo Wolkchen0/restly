@@ -14,7 +14,7 @@ interface Message {
 }
 
 const DEMO_MESSAGES: Message[] = [
-    { id: "msg1", platform: "Instagram", sender: "FoodieGal", handle: "@foodie.gal_ny", avatar: "👩🏻‍", preview: "Hi! Do you have vegan options for a party of 5?", fullMessage: "Hi Meyhouse team! I'm planning my birthday dinner for next Friday and we have a party of 5. Two of us are strict vegans. I checked the menu but wanted to ask if the chef can prepare something special? Love your aesthetic! ✨", time: "10m ago", unread: true },
+    { id: "msg1", platform: "Instagram", sender: "FoodieGal", handle: "@foodie.gal_ny", avatar: "👩🏻‍", preview: "Hi! Do you have vegan options for a party of 5?", fullMessage: "Hi! I'm planning my birthday dinner for next Friday and we have a party of 5. Two of us are strict vegans. I checked the menu but wanted to ask if the chef can prepare something special? Love your aesthetic! ✨", time: "10m ago", unread: true },
     { id: "msg2", platform: "Facebook", sender: "John D.", handle: "JohnDoe", avatar: "🧔🏼‍♂️", preview: "What are your holiday hours?", fullMessage: "Hello, I was wondering if you guys are going to be open on Christmas Eve? And if so, do we need to make reservations weeks in advance?", time: "2h ago", unread: true },
     { id: "msg3", platform: "TikTok", sender: "Eats by Sam", handle: "@eatsbysam", avatar: "👨🏻", preview: "Loved the lamb chops video! 🥩", fullMessage: "That lamb chop video you just posted is INSANE!! Definitely coming by this weekend. Do you guys do collaborations? I have 50k followers and would love to review your spot.", time: "4h ago", unread: false },
     { id: "msg4", platform: "Instagram", sender: "Catering Solutions", handle: "@catering_nyc", avatar: "🏢", preview: "Corporate booking inquiry", fullMessage: "Hello, we are looking to book a venue for our company's end-of-year dinner. Roughly 40 people. Do you offer set menus for large groups?", time: "1d ago", unread: false },
@@ -31,7 +31,8 @@ export default function SocialInboxPage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                if (restName.toLowerCase() === "meyhouse") {
+                // Show sample data for any logged-in demo/test brand
+                if (!!restName) {
                     setIsDemo(true);
                     setIsConnected(true);
                     setMessages(DEMO_MESSAGES);

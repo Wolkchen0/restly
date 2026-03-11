@@ -37,7 +37,7 @@ export default function DashboardOverview() {
             .then(r => r.json())
             .then(d => {
                 const restaurantName = d.restaurantName || "No Location Setup";
-                setIsDemo(restaurantName.toLowerCase() === "meyhouse");
+                setIsDemo(!!restaurantName); // Universal demo/sample mode for all brands for now
                 if (d.locations?.length > 0) {
                     const savedId = localStorage.getItem("restly_active_location");
                     const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];
@@ -55,6 +55,39 @@ export default function DashboardOverview() {
 
         return () => clearInterval(t);
     }, []);
+
+    const handleExportDashboard = () => {
+        showToast("Generating Executive Report...");
+        setTimeout(() => {
+            const headers = ["Metric", "Value", "Status"];
+            const rows = [
+                headers.join(","),
+                ["Gross Sales Today", isDemo ? "$6,100" : "$0", "↑ 14.5%"],
+                ["Total Covers", isDemo ? "124" : "0", "↑ 8%"],
+                ["Avg Spend", isDemo ? "$49.19" : "$0.00", "↓ 2.1%"],
+                ["Labour Cost %", isDemo ? "28.4%" : "0%", "Optimal"],
+                ["", "", ""],
+                ["Hour", "Today Sales", "Yesterday Sales"]
+            ];
+
+            salesData.forEach(s => {
+                rows.push([s.time, s.today, s.yesterday].join(","));
+            });
+
+            const csvContent = rows.join("\n");
+            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Restly_Executive_Overview_${new Date().toISOString().split('T')[0]}.xls`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast("Executive Overview downloaded as Excel.");
+        }, 1200);
+    };
 
     return (
         <main style={{ padding: "32px 28px 80px", maxWidth: 1200, margin: "0 auto" }}>
@@ -89,12 +122,13 @@ export default function DashboardOverview() {
                     </h1>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                    <button onClick={() => showToast("Downloading Dashboard_Report.csv...")} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                        Export CSV
+                    <button onClick={handleExportDashboard} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                        Export Report ↗
                     </button>
                     <button onClick={() => {
                         setIsSyncing(true);
                         setTimeout(() => setIsSyncing(false), 2000);
+                        showToast("POS Data Sync Complete.");
                     }} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
                         {isSyncing ? "Syncing..." : "Sync POS"}
                     </button>

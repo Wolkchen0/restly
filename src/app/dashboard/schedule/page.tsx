@@ -33,13 +33,13 @@ export default function SchedulePage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                if (restName.toLowerCase() === "meyhouse") {
-                    setIsDemo(true);
-                    setLocationId("DEMO_RESTLY_12345"); // Fake ID for demo usage
+                // Universal demo/sample mode for all brands
+                setIsDemo(!!restName);
+                if (!!restName) {
+                    setLocationId("DEMO_RESTLY_12345");
                     setData({ requests: DEMO_REQUESTS });
                     setLocalRequests(DEMO_REQUESTS);
                 } else {
-                    setIsDemo(false);
                     fetch("/api/timeoff").then(res => res.json()).then(tData => {
                         setData(tData);
                         setLocalRequests(tData.requests ?? []);

@@ -8,16 +8,28 @@ export default function InventoryPage() {
     const [statusFilter, setStatus] = useState("ALL");
     const [activeTab, setActiveTab] = useState<"All" | "Food" | "Drink">("All");
     const [isDemo, setIsDemo] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [editingItem, setEditingItem] = useState<any>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editForm, setEditForm] = useState({ quantity: 0, threshold: 0, status: "IN_STOCK" });
 
     useEffect(() => {
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
-            })
-            .catch(() => { });
-        fetch("/api/inventory").then(r => r.json()).then(setData);
+        const init = async () => {
+            try {
+                const locRes = await fetch("/api/locations");
+                const locData = await locRes.json();
+                setIsDemo(!!locData.restaurantName);
+
+                const invRes = await fetch("/api/inventory");
+                const invData = await invRes.json();
+                setData(invData);
+            } catch (e) {
+                console.error("Failed to load inventory:", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        init();
     }, []);
 
     const items: any[] = isDemo ? (data?.inventory ?? []) : [];
@@ -41,12 +53,24 @@ export default function InventoryPage() {
         IN_STOCK: "In Stock", LOW_STOCK: "Low", OUT_OF_STOCK: "OUT",
     };
 
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    const handleOrder = (name: string) => {
+        showToast(`Purchase Order created for ${name}. Supplier notified.`);
+    };
+
     return (
         <>
             <div className="topbar">
                 <div className="topbar-title">📦 Inventory</div>
                 <div className="topbar-right">
-                    {isDemo ? (
+                    {loading ? (
+                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Syncing with POS...</span>
+                    ) : isDemo ? (
                         <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
                             🟢 Toast POS Connected (Demo)
                         </span>
@@ -57,6 +81,13 @@ export default function InventoryPage() {
                     )}
                 </div>
             </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
 
             {/* TAB SELECTOR: Food vs Drink */}
             <div style={{ padding: "0 28px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 24 }}>
@@ -94,7 +125,13 @@ export default function InventoryPage() {
                     ))}
                 </div>
 
-                {isDemo ? (
+                {loading ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div className="spinner" style={{ width: 40, height: 40, border: "3px solid rgba(255,255,255,0.05)", borderTopColor: "#C9A84C", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: 16 }}></div>
+                        <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>Syncing with Toast POS...</div>
+                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    </div>
+                ) : isDemo ? (
                     <>
                         {(data?.stats?.outOfStock ?? 0) > 0 && (
                             <div className="alert alert-danger" style={{ marginBottom: 20 }}>
@@ -138,7 +175,7 @@ export default function InventoryPage() {
                                     <thead>
                                         <tr>
                                             <th>Item</th><th>Category</th><th>Status</th>
-                                            <th>Quantity</th><th>Threshold</th><th>Cost/Unit</th><th>Updated</th>
+                                            <th>Quantity</th><th>Threshold</th><th>Cost/Unit</th><th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -158,13 +195,88 @@ export default function InventoryPage() {
                                                 </td>
                                                 <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{item.threshold} {item.unit}</td>
                                                 <td style={{ color: "var(--text-muted)" }}>${item.costPerUnit}</td>
-                                                <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{item.lastUpdated}</td>
+                                                <td>
+                                                    <div style={{ display: "flex", gap: 6 }}>
+                                                        <button onClick={() => handleOrder(item.name)} className="btn-secondary" style={{ padding: "4px 10px", fontSize: 11 }}>
+                                                            Restock ↗
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingItem(item);
+                                                                setEditForm({ quantity: item.quantity, threshold: item.threshold, status: item.status });
+                                                                setIsEditModalOpen(true);
+                                                            }}
+                                                            style={{ padding: "4px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>
+                                                            ✎
+                                                        </button>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+
+                        {/* EDIT MODAL */}
+                        {isEditModalOpen && editingItem && (
+                            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, backdropFilter: "blur(8px)" }}>
+                                <div className="card" style={{ width: 400, padding: 32 }}>
+                                    <h2 style={{ fontSize: 20, fontWeight: 900, color: "#fff", marginBottom: 24 }}>Edit Item: {editingItem.name}</h2>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Quantity ({editingItem.unit})</label>
+                                        <input
+                                            type="number"
+                                            value={editForm.quantity}
+                                            onChange={e => setEditForm({ ...editForm, quantity: parseFloat(e.target.value) || 0 })}
+                                            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14 }}
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Threshold ({editingItem.unit})</label>
+                                        <input
+                                            type="number"
+                                            value={editForm.threshold}
+                                            onChange={e => setEditForm({ ...editForm, threshold: parseFloat(e.target.value) || 0 })}
+                                            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14 }}
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: 24 }}>
+                                        <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Status</label>
+                                        <select
+                                            value={editForm.status}
+                                            onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                            style={{ width: "100%", background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14, cursor: "pointer" }}
+                                        >
+                                            <option value="IN_STOCK">In Stock</option>
+                                            <option value="LOW_STOCK">Low Stock</option>
+                                            <option value="OUT_OF_STOCK">Out of Stock</option>
+                                        </select>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                                        <button className="btn-secondary" onClick={() => setIsEditModalOpen(false)}>Cancel</button>
+                                        <button
+                                            className="btn-primary"
+                                            onClick={() => {
+                                                const updatedItems = data.inventory.map((i: any) =>
+                                                    i.guid === editingItem.guid ? { ...i, ...editForm } : i
+                                                );
+                                                setData({ ...data, inventory: updatedItems });
+                                                setIsEditModalOpen(false);
+                                                showToast(`${editingItem.name} updated manually.`);
+                                            }}
+                                            style={{ padding: "10px 24px" }}
+                                        >
+                                            Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>

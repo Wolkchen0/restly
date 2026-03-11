@@ -18,7 +18,7 @@ function LoginForm() {
     // Auto-fill if demo=true param present
     useEffect(() => {
         if (isDemo) {
-            setEmail("demo@meyhouse.com");
+            setEmail("demo@restly.com");
             setPassword("demo1234");
             setDemoHint(true);
         }
@@ -42,12 +42,12 @@ function LoginForm() {
     }
 
     async function handleDemoLogin() {
-        setEmail("demo@meyhouse.com");
+        setEmail("demo@restly.com");
         setPassword("demo1234");
         setLoading(true);
         setError("");
         const result = await signIn("credentials", {
-            email: "demo@meyhouse.com",
+            email: "demo@restly.com",
             password: "demo1234",
             redirect: false,
         });
@@ -70,7 +70,7 @@ function LoginForm() {
                 {isDemo ? (
                     <>
                         <div className="auth-title">Live Demo</div>
-                        <div className="auth-sub">You're about to enter the Meyhouse demo account</div>
+                        <div className="auth-sub">Explore all Restly enterprise features in a live environment</div>
                     </>
                 ) : (
                     <>
@@ -93,7 +93,7 @@ function LoginForm() {
                             {loading ? "Entering demo…" : "Enter Live Demo →"}
                         </button>
                         <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-                            demo@meyhouse.com · Meyhouse (3 locations)
+                            demo@restly.com · Sample Restaurant Group (3 locations)
                         </div>
                     </div>
                 )}
@@ -148,7 +148,7 @@ function LoginForm() {
                             disabled={loading}
                             style={{ width: "100%", background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", color: "#E8C96E", fontWeight: 700, fontSize: 12, borderRadius: 8, padding: "10px", cursor: "pointer", fontFamily: "inherit" }}
                         >
-                            Try Demo Account (Meyhouse) →
+                            Try Global Demo Account →
                         </button>
                     </div>
                 )}

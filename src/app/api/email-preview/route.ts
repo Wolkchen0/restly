@@ -3,8 +3,8 @@ import { WelcomeEmail } from "@/emails/welcome";
 // GET /api/email-preview — view the welcome email in browser (dev only)
 export async function GET() {
     const html = WelcomeEmail({
-        restaurantName: "Meyhouse",
-        email: "demo@meyhouse.com",
+        restaurantName: "Sample Restaurant",
+        email: "demo@restly.com",
         loginUrl: "http://localhost:3001/login",
     });
 

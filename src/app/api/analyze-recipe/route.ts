@@ -38,7 +38,7 @@ export async function POST(req: Request) {
                     role: "user",
                     content: [
                         { type: "text", text: "Analyze this image of a handwritten or printed recipe card. Extract the recipe name, list the ingredients, and estimate the plate cost, a suggested menu selling price, and the projected COGS percentage. Be very specific." },
-                        { type: "image", image: new URL(imageBase64) }
+                        { type: "image", image: imageBase64 }
                     ]
                 }
             ]

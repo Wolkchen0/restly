@@ -17,7 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (!credentials?.email || !credentials?.password) return null;
 
                 // --- SANDBOX DEMO INTERCEPTION ---
-                if (credentials.email === "demo@meyhouse.com" && credentials.password === "demo1234") {
+                if (credentials.email === "demo@restly.com" && credentials.password === "demo1234") {
                     // 1. Asynchronously clean up old sandboxes (> 24 hours old)
                     prisma.restaurant.deleteMany({
                         where: {
@@ -30,8 +30,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     const hash = await bcrypt.hash("demo1234", 10);
                     const sandbox = await prisma.restaurant.create({
                         data: {
-                            name: "Meyhouse",
-                            email: `demo+${Date.now()}_${Math.random().toString(36).substring(2, 7)}@meyhouse.com`,
+                            name: "Sample Restaurant",
+                            email: `demo+${Date.now()}_${Math.random().toString(36).substring(2, 7)}@restly.com`,
                             passwordHash: hash,
                             plan: "pro",
                             primaryColor: "#C9A84C",
@@ -39,34 +39,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             locations: {
                                 create: [
                                     {
-                                        name: "Meyhouse — Hollywood",
-                                        address: "1234 Hollywood Blvd",
-                                        city: "Los Angeles, CA",
+                                        name: "Sample Rest. — Downtown",
+                                        address: "1234 Market St",
+                                        city: "San Francisco, CA",
                                         timezone: "America/Los_Angeles",
                                         isDefault: true,
                                         posProvider: "toast",
-                                        posApiKey: "demo-toast-key-hollywood",
+                                        posApiKey: "demo-toast-key-downtown",
                                         posLocationId: "demo-guid-001",
                                         opentableRestaurantId: "12345",
                                     },
                                     {
-                                        name: "Meyhouse — Beverly Hills",
-                                        address: "9876 Wilshire Blvd",
-                                        city: "Beverly Hills, CA",
+                                        name: "Sample Rest. — Westside",
+                                        address: "9876 Sunset Blvd",
+                                        city: "Los Angeles, CA",
                                         timezone: "America/Los_Angeles",
                                         isDefault: false,
                                         posProvider: "clover",
-                                        posApiKey: "demo-clover-key-bh",
+                                        posApiKey: "demo-clover-key-ws",
                                         posLocationId: "demo-merchant-002",
                                     },
                                     {
-                                        name: "Meyhouse — Santa Monica",
-                                        address: "200 3rd Street Promenade",
-                                        city: "Santa Monica, CA",
-                                        timezone: "America/Los_Angeles",
+                                        name: "Sample Rest. — Waterfront",
+                                        address: "200 Beach St",
+                                        city: "Miami, FL",
+                                        timezone: "America/New_York",
                                         isDefault: false,
                                         posProvider: "square",
-                                        posApiKey: "demo-square-key-sm",
+                                        posApiKey: "demo-square-key-wf",
                                         posLocationId: "demo-location-003",
                                     },
                                 ],

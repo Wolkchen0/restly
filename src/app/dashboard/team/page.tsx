@@ -27,10 +27,42 @@ export default function TeamPerformancePage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                setIsDemo(!!restName);
             })
             .catch(() => { });
     }, []);
+
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    const handleExportStaff = () => {
+        showToast("Generating Staff Performance Report...");
+        setTimeout(() => {
+            const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
+            const headers = ["Rank", "Name", "Role", "Shifts", "Total Sales", "Check Avg", "Turn Time", "Tip %"];
+            const rows = [headers.join(",")];
+
+            data.forEach(s => {
+                rows.push([s.rank, s.name, s.role, s.daysWorked, `$${s.totalSales.toLocaleString()}`, `$${s.checkAvg}`, `${s.turnTime}m`, `${s.tipPct}%`].join(","));
+            });
+
+            const csvContent = rows.join("\n");
+            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Restly_Staff_Leaderboard_${period}_${new Date().toISOString().split('T')[0]}.xls`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast("Leaderboard report downloaded.");
+        }, 1200);
+    };
 
     const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
     const topServer = data[0];
@@ -40,6 +72,7 @@ export default function TeamPerformancePage() {
             <div className="topbar">
                 <div className="topbar-title">🏆 Staff Performance & Sales</div>
                 <div className="topbar-right">
+                    <button className="btn-secondary" onClick={handleExportStaff} style={{ fontSize: 13 }}>Export Leaderboard ↗</button>
                     <div style={{ display: "flex", background: "var(--bg-card)", borderRadius: "8px", padding: "4px" }}>
                         <button
                             onClick={() => setPeriod("month")}
@@ -56,6 +89,13 @@ export default function TeamPerformancePage() {
                     </div>
                 </div>
             </div>
+
+            {/* CUSTOM TOAST */}
+            {toastMsg && (
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    ✓ {toastMsg}
+                </div>
+            )}
 
             <div className="page-content fade-in">
                 {selectedStaff && (

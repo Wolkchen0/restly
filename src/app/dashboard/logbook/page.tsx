@@ -5,6 +5,7 @@ const INITIAL_LOGS = [
     { id: 1, date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector dropped by, everything passed (98/100). Need to order more degreaser. Slow lunch, about $1400 total.", tags: ["Audit", "Slow"] },
     { id: 2, date: "2026-03-05", shift: "PM", manager: "Mark T.", notes: "Bar was slammed due to the game. Ran out of draft IPA by 9 PM. Fire alarm tripped for 1 minute because grill hood wasn't switched on high. Total sales: $8,500.", tags: ["Busy", "Inventory Incident"] },
     { id: 3, date: "2026-03-06", shift: "AM", manager: "Sarah J.", notes: "Produce delivery late by 2 hours. Tomatoes looked bad, sent back 2 cases. Refund requested.", tags: ["Vendor", "Quality Issue"] },
+    { id: 4, date: "2026-03-11", shift: "AM", manager: "Sarah J.", notes: "The Hobart Dishwasher is acting up again, it's making a loud noise and not draining. Might be broken.", tags: ["Maintenance", "Urgent"] },
 ];
 
 export default function LogbookPage() {
@@ -74,7 +75,7 @@ export default function LogbookPage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                setIsDemo(!!restName);
             })
             .catch(() => { });
     }, []);

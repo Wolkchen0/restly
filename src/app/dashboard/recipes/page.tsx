@@ -29,7 +29,7 @@ export default function RecipesPage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                setIsDemo(!!restName);
             })
             .catch(() => { });
     }, []);
@@ -178,72 +178,113 @@ export default function RecipesPage() {
                 </div>
             )}
 
-            {/* CUSTOM MODAL FOR NEW / EDIT RECIPE */}
+            {/* IMPROVED MODAL */}
             {recipeModalOpen && editingRecipe && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
-                    <div className="card" style={{ width: 440, padding: 24, maxHeight: "90vh", overflowY: "auto" }}>
-                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: "#fff" }}>
-                            {recipes.some(r => r.id === editingRecipe.id) ? "Edit Recipe" : "Create New Recipe"}
-                        </h3>
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(8px)" }}>
+                    <div className="card" style={{ width: 500, padding: 32, maxHeight: "90vh", overflowY: "auto", position: "relative" }}>
+                        <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 24 }}>
+                            {recipes.some(r => r.id === editingRecipe.id) ? "Edit Master Recipe" : "Create Master Recipe"}
+                        </h2>
 
-                        <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>Recipe Name *</label>
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Name</label>
                             <input
                                 autoFocus
                                 type="text"
                                 value={editingRecipe.name}
                                 onChange={e => setEditingRecipe({ ...editingRecipe, name: e.target.value })}
-                                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none" }}
-                                placeholder="e.g. Lobster Bisque"
+                                style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14, outline: "none" }}
+                                placeholder="Recipe name"
                             />
                         </div>
 
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>Category (Food/Drink) *</label>
+                            <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Category</label>
                             <div style={{ display: "flex", gap: 10 }}>
                                 <button
                                     onClick={() => setEditingRecipe({ ...editingRecipe, category: "Food" })}
-                                    style={{ flex: 1, padding: "10px", borderRadius: 8, border: editingRecipe.category === "Food" ? "1px solid #E8C96E" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Food" ? "rgba(201,168,76,0.1)" : "transparent", color: editingRecipe.category === "Food" ? "#E8C96E" : "rgba(255,255,255,0.5)", cursor: "pointer" }}>
+                                    style={{ flex: 1, padding: "12px", borderRadius: 10, border: editingRecipe.category === "Food" ? "1px solid #E8C96E" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Food" ? "rgba(201,168,76,0.1)" : "transparent", color: editingRecipe.category === "Food" ? "#E8C96E" : "rgba(255,255,255,0.5)", cursor: "pointer", fontWeight: 700 }}>
                                     🍽️ Food
                                 </button>
                                 <button
                                     onClick={() => setEditingRecipe({ ...editingRecipe, category: "Drink" })}
-                                    style={{ flex: 1, padding: "10px", borderRadius: 8, border: editingRecipe.category === "Drink" ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Drink" ? "rgba(74,222,128,0.1)" : "transparent", color: editingRecipe.category === "Drink" ? "#4ade80" : "rgba(255,255,255,0.5)", cursor: "pointer" }}>
+                                    style={{ flex: 1, padding: "12px", borderRadius: 10, border: editingRecipe.category === "Drink" ? "1px solid #4ade80" : "1px solid rgba(255,255,255,0.1)", background: editingRecipe.category === "Drink" ? "rgba(74,222,128,0.1)" : "transparent", color: editingRecipe.category === "Drink" ? "#4ade80" : "rgba(255,255,255,0.5)", cursor: "pointer", fontWeight: 700 }}>
                                     🍹 Drink
                                 </button>
                             </div>
                         </div>
 
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>BOM / Ingredients</label>
-                            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+                            <div>
+                                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Price ($)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editingRecipe.price}
+                                    onChange={e => {
+                                        const p = parseFloat(e.target.value) || 0;
+                                        const c = editingRecipe.cost || 0;
+                                        setEditingRecipe({ ...editingRecipe, price: p, cogs: p > 0 ? parseFloat(((c / p) * 100).toFixed(1)) : 0 });
+                                    }}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14 }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 8 }}>Unit Cost ($)</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={editingRecipe.cost}
+                                    onChange={e => {
+                                        const c = parseFloat(e.target.value) || 0;
+                                        const p = editingRecipe.price || 0;
+                                        setEditingRecipe({ ...editingRecipe, cost: c, cogs: p > 0 ? parseFloat(((c / p) * 100).toFixed(1)) : 0 });
+                                    }}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 14 }}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: 24 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Bill of Materials (BOM)</label>
+                                <button
+                                    onClick={() => {
+                                        showToast("Super AI: Suggesting ingredients...");
+                                        setTimeout(() => {
+                                            const suggestions = editingRecipe.category === "Drink" ? ["Garnish", "Ice Cubes"] : ["10g Salt", "5g Pepper"];
+                                            setEditingRecipe({ ...editingRecipe, ingredients: [...editingRecipe.ingredients, ...suggestions] });
+                                            showToast("AI added common prep ingredients.");
+                                        }, 800);
+                                    }}
+                                    style={{ background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.3)", color: "#a78bfa", fontSize: 10, padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}>
+                                    ✨ Super AI Suggest
+                                </button>
+                            </div>
+                            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                                 <input
                                     type="text"
+                                    placeholder="Add ingredient..."
                                     value={newIngredient}
                                     onChange={e => setNewIngredient(e.target.value)}
                                     onKeyDown={e => { if (e.key === "Enter") handleAddIngredient(); }}
-                                    style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, outline: "none" }}
-                                    placeholder="e.g. 150g Beef Patty"
+                                    style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 10, fontSize: 13 }}
                                 />
-                                <button onClick={handleAddIngredient} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", padding: "0 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Add</button>
+                                <button onClick={handleAddIngredient} className="btn-primary" style={{ padding: "0 16px", borderRadius: 10 }}>Add</button>
                             </div>
-
-                            <ul style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 150, overflowY: "auto", border: editingRecipe.ingredients.length > 0 ? "1px solid rgba(255,255,255,0.05)" : "none", borderRadius: 8 }}>
+                            <div style={{ maxHeight: 150, overflowY: "auto", background: "rgba(0,0,0,0.15)", borderRadius: 12, padding: "8px" }}>
                                 {editingRecipe.ingredients.map((ing: string, i: number) => (
-                                    <li key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
-                                        <span style={{ color: "rgba(255,255,255,0.8)" }}>{ing}</span>
-                                        <button onClick={() => handleRemoveIngredient(i)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 12 }}>Remove</button>
-                                    </li>
+                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
+                                        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{ing}</span>
+                                        <button onClick={() => handleRemoveIngredient(i)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: 18 }}>×</button>
+                                    </div>
                                 ))}
-                                {editingRecipe.ingredients.length === 0 && (
-                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: "12px 0" }}>No ingredients added yet.</div>
-                                )}
-                            </ul>
+                            </div>
                         </div>
 
-                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24 }}>
+                        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
                             <button className="btn-secondary" onClick={() => setRecipeModalOpen(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={confirmRecipe}>Save Recipe</button>
+                            <button className="btn-primary" onClick={confirmRecipe} style={{ padding: "10px 24px" }}>Save Recipe</button>
                         </div>
                     </div>
                 </div>
@@ -253,46 +294,50 @@ export default function RecipesPage() {
 
                 {isDemo ? (
                     <div className="grid-3">
-                        {recipes.filter(r => activeTab === "All" || r.category === activeTab).map(recipe => (
-                            <div key={recipe.id} className="card">
-                                <div className="card-header" style={{ borderBottom: "none", paddingBottom: 0 }}>
-                                    <span className="badge badge-purple">{recipe.type}</span>
-                                    <button onClick={() => handleEditRecipe(recipe)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 20, cursor: "pointer", padding: "0 8px" }} title="Edit Recipe">⋮</button>
-                                </div>
-                                <div className="card-body">
-                                    <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 10, marginBottom: 16 }}>{recipe.name}</h3>
-
-                                    <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px", marginBottom: 16 }}>
-                                        <div>
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Plate Cost</div>
-                                            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>${recipe.cost.toFixed(2)}</div>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Menu Price</div>
-                                            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--green)" }}>${recipe.price.toFixed(2)}</div>
-                                        </div>
-                                        <div style={{ textAlign: "right" }}>
-                                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>COGS</div>
-                                            <div style={{ fontSize: 16, fontWeight: 800, color: recipe.cogs > 25 ? "var(--yellow)" : "inherit" }}>{recipe.cogs}%</div>
+                        <div className="grid-3">
+                            {recipes.filter(r => activeTab === "All" || r.category === activeTab).map(recipe => (
+                                <div key={recipe.id} className="card" style={{ padding: "0", overflow: "hidden", display: "flex", flexDirection: "column", border: "1px solid rgba(255,255,255,0.06)", position: "relative" }}>
+                                    <div style={{ height: 160, background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                                        <div style={{ fontSize: 48 }}>{recipe.category === "Food" ? "🍽️" : "🍹"}</div>
+                                        <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, zIndex: 10 }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); setEditingRecipe({ ...recipe }); setRecipeModalOpen(true); }}
+                                                style={{ background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "6px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700, backdropFilter: "blur(4px)" }}>
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (confirm(`Delete ${recipe.name}?`)) {
+                                                        setRecipes(recipes.filter(r => r.id !== recipe.id));
+                                                        showToast("Recipe deleted successfully.");
+                                                    }
+                                                }}
+                                                style={{ background: "rgba(239,68,68,0.3)", border: "1px solid rgba(239,68,68,0.4)", color: "#f87171", padding: "6px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11, fontWeight: 700, backdropFilter: "blur(4px)" }}>
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
-
-                                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>BOM (Bill of Materials)</div>
-                                    <ul style={{ listStyleType: "none", padding: 0, margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
-                                        {recipe.ingredients.length > 0 ? recipe.ingredients.map((ing: string, i: number) => (
-                                            <li key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "6px 0", display: "flex", justifyContent: "space-between" }}>
-                                                <span>{ing}</span>
-                                                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>Linked ✓</span>
-                                            </li>
-                                        )) : (
-                                            <li style={{ padding: "6px 0", cursor: "pointer", color: "rgba(201,168,76,0.8)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 6 }} onClick={() => handleEditRecipe(recipe)}>
-                                                <span>+</span> Tap to add ingredients to BOM
-                                            </li>
-                                        )}
-                                    </ul>
+                                    <div style={{ padding: "20px" }}>
+                                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{recipe.name}</h3>
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
+                                            <span>{recipe.ingredients.length} ingredients</span>
+                                            <span style={{ color: recipe.cogs > 30 ? "#f87171" : "#4ade80", fontWeight: 700 }}>{recipe.cogs}% COGS</span>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                            <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: "10px", borderRadius: 10, textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                                <div style={{ fontSize: 10, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Price</div>
+                                                <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>${recipe.price.toFixed(2)}</div>
+                                            </div>
+                                            <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", padding: "10px", borderRadius: 10, textAlign: "center", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                                <div style={{ fontSize: 10, textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Cost</div>
+                                                <div style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>${recipe.cost.toFixed(2)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>

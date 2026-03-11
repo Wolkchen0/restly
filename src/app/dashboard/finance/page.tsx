@@ -24,7 +24,7 @@ export default function FinancePage() {
             .then(r => r.json())
             .then(d => {
                 const restName = d.restaurantName || "";
-                setIsDemo(restName.toLowerCase() === "meyhouse");
+                setIsDemo(!!restName);
             })
             .catch(() => { });
     }, []);
