@@ -69,6 +69,7 @@ export default function SettingsPage() {
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
     const [posStatus, setPosStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
+    const [posMessage, setPosMessage] = useState("");
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [connectToken, setConnectToken] = useState("");
@@ -473,48 +474,75 @@ export default function SettingsPage() {
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 12 }}>
                                                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
                                                     <div style={{ flex: 1 }}>
-                                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{posInfo.name} Connected Successfully</div>
-                                                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Real-time data sync is active</div>
+                                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{posInfo.name} Connected</div>
+                                                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>{posMessage || "Real-time data sync is active"}</div>
                                                     </div>
-                                                    <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px" }} onClick={() => setPosStatus("idle")}>Reconnect</button>
+                                                    <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px" }} onClick={() => { setPosStatus("idle"); setPosMessage(""); }}>Reconnect</button>
                                                 </div>
                                             ) : posStatus === "error" ? (
-                                                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12 }}>
-                                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>Connection Failed</div>
-                                                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Please verify your API credentials and try again</div>
+                                                <div style={{ padding: "14px 18px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12 }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: posMessage ? 8 : 0 }}>
+                                                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
+                                                        <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#f87171" }}>Connection Failed</div>
+                                                        <button
+                                                            className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px", color: "#f87171", borderColor: "rgba(239,68,68,0.3)" }}
+                                                            onClick={async () => {
+                                                                setPosStatus("connecting");
+                                                                setPosMessage("");
+                                                                try {
+                                                                    const fields: Record<string, string> = {};
+                                                                    posInfo.fields.forEach(f => { fields[f.key] = (editLoc as any)[f.key] || ""; });
+                                                                    const res = await fetch("/api/pos-validate", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({ posProvider: selectedPOS, fields })
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    setPosStatus(data.ok ? "connected" : "error");
+                                                                    setPosMessage(data.message || "");
+                                                                    showToast(data.message, data.ok ? "success" : "error");
+                                                                } catch {
+                                                                    setPosStatus("error");
+                                                                    setPosMessage("Network error. Check your connection.");
+                                                                    showToast("Network error.", "error");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Retry
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px", color: "#f87171", borderColor: "rgba(239,68,68,0.3)" }}
-                                                        onClick={() => {
-                                                            setPosStatus("connecting");
-                                                            setTimeout(() => {
-                                                                const allFilled = posInfo.fields.every(f => (editLoc as any)[f.key]?.trim());
-                                                                setPosStatus(allFilled ? "connected" : "error");
-                                                                showToast(allFilled ? `${posInfo.name} connected!` : `Connection failed. Check credentials.`, allFilled ? "success" : "error");
-                                                            }, 2000);
-                                                        }}
-                                                    >
-                                                        Retry
-                                                    </button>
+                                                    {posMessage && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, paddingLeft: 20 }}>{posMessage}</div>}
                                                 </div>
                                             ) : (
                                                 <button
                                                     className="btn-gold"
                                                     disabled={posStatus === "connecting"}
                                                     style={{ width: "100%", padding: "14px", fontSize: 14, opacity: posStatus === "connecting" ? 0.7 : 1 }}
-                                                    onClick={() => {
+                                                    onClick={async () => {
                                                         const allFilled = posInfo.fields.every(f => (editLoc as any)[f.key]?.trim());
                                                         if (!allFilled) {
                                                             showToast("Please fill in all credential fields before connecting.", "error");
                                                             return;
                                                         }
                                                         setPosStatus("connecting");
-                                                        setTimeout(() => {
-                                                            setPosStatus("connected");
-                                                            showToast(`${posInfo.name} connected successfully!`);
-                                                        }, 2500);
+                                                        setPosMessage("");
+                                                        try {
+                                                            const fields: Record<string, string> = {};
+                                                            posInfo.fields.forEach(f => { fields[f.key] = (editLoc as any)[f.key] || ""; });
+                                                            const res = await fetch("/api/pos-validate", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ posProvider: selectedPOS, fields })
+                                                            });
+                                                            const data = await res.json();
+                                                            setPosStatus(data.ok ? "connected" : "error");
+                                                            setPosMessage(data.message || "");
+                                                            showToast(data.message, data.ok ? "success" : "error");
+                                                        } catch {
+                                                            setPosStatus("error");
+                                                            setPosMessage("Network error. Check your connection.");
+                                                            showToast("Network error.", "error");
+                                                        }
                                                     }}
                                                 >
                                                     {posStatus === "connecting" ? "Verifying Connection..." : `Connect ${posInfo.name}`}
