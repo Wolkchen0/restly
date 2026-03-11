@@ -2,19 +2,19 @@
 import { useState, useEffect } from "react";
 
 const DEMO_STAFF_MONTH = [
-    { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", totalSales: 18500, checkAvg: 85, turnTime: 45, tipPct: 22.4, trend: "up" },
-    { rank: 2, name: "Marcus Torres", role: "Server", totalSales: 16200, checkAvg: 72, turnTime: 42, tipPct: 19.8, trend: "up" },
-    { rank: 3, name: "Lisa Park", role: "Bartender", totalSales: 14800, checkAvg: 95, turnTime: 30, tipPct: 24.1, trend: "flat" },
-    { rank: 4, name: "David Chen", role: "Server", totalSales: 12100, checkAvg: 68, turnTime: 48, tipPct: 18.5, trend: "down" },
-    { rank: 5, name: "Emily Watson", role: "Server", totalSales: 9400, checkAvg: 65, turnTime: 50, tipPct: 17.2, trend: "flat" },
+    { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 21, totalSales: 18500, checkAvg: 85, turnTime: 45, tipPct: 22.4, trend: "up" },
+    { rank: 2, name: "Marcus Torres", role: "Server", daysWorked: 18, totalSales: 16200, checkAvg: 72, turnTime: 42, tipPct: 19.8, trend: "up" },
+    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 20, totalSales: 14800, checkAvg: 95, turnTime: 30, tipPct: 24.1, trend: "flat" },
+    { rank: 4, name: "David Chen", role: "Server", daysWorked: 15, totalSales: 12100, checkAvg: 68, turnTime: 48, tipPct: 18.5, trend: "down" },
+    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 14, totalSales: 9400, checkAvg: 65, turnTime: 50, tipPct: 17.2, trend: "flat" },
 ];
 
 const DEMO_STAFF_YEAR = [
-    { rank: 1, name: "Marcus Torres", role: "Server", totalSales: 212000, checkAvg: 68, turnTime: 44, tipPct: 19.2, trend: "up" },
-    { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", totalSales: 208500, checkAvg: 82, turnTime: 46, tipPct: 21.8, trend: "up" },
-    { rank: 3, name: "Lisa Park", role: "Bartender", totalSales: 185000, checkAvg: 92, turnTime: 32, tipPct: 23.5, trend: "up" },
-    { rank: 4, name: "David Chen", role: "Server", totalSales: 145000, checkAvg: 65, turnTime: 47, tipPct: 18.2, trend: "flat" },
-    { rank: 5, name: "Emily Watson", role: "Server", totalSales: 110000, checkAvg: 62, turnTime: 49, tipPct: 16.8, trend: "down" },
+    { rank: 1, name: "Marcus Torres", role: "Server", daysWorked: 214, totalSales: 212000, checkAvg: 68, turnTime: 44, tipPct: 19.2, trend: "up" },
+    { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 210, totalSales: 208500, checkAvg: 82, turnTime: 46, tipPct: 21.8, trend: "up" },
+    { rank: 3, name: "Lisa Park", role: "Bartender", daysWorked: 220, totalSales: 185000, checkAvg: 92, turnTime: 32, tipPct: 23.5, trend: "up" },
+    { rank: 4, name: "David Chen", role: "Server", daysWorked: 185, totalSales: 145000, checkAvg: 65, turnTime: 47, tipPct: 18.2, trend: "flat" },
+    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 160, totalSales: 110000, checkAvg: 62, turnTime: 49, tipPct: 16.8, trend: "down" },
 ];
 
 export default function TeamPerformancePage() {
@@ -78,16 +78,16 @@ export default function TeamPerformancePage() {
                                     <div style={{ fontSize: 24, fontWeight: 700, color: "#E8C96E", marginTop: 4 }}>${selectedStaff.totalSales.toLocaleString()}</div>
                                 </div>
                                 <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Days Worked</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 4 }}>{selectedStaff.daysWorked} Shifts</div>
+                                </div>
+                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
                                     <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Avg Tip %</div>
                                     <div style={{ fontSize: 24, fontWeight: 700, color: selectedStaff.tipPct > 20 ? "var(--green)" : "#fff", marginTop: 4 }}>{selectedStaff.tipPct}%</div>
                                 </div>
                                 <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Check Avg</div>
-                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 4 }}>${selectedStaff.checkAvg}</div>
-                                </div>
-                                <div style={{ background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
-                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Turn Time</div>
-                                    <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 4 }}>{selectedStaff.turnTime}m</div>
+                                    <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Turn Time & Check Avg</div>
+                                    <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginTop: 4 }}>{selectedStaff.turnTime}m / ${selectedStaff.checkAvg}</div>
                                 </div>
                             </div>
 
@@ -157,6 +157,7 @@ export default function TeamPerformancePage() {
                                             <th>Rank</th>
                                             <th>Staff Name</th>
                                             <th>Role</th>
+                                            <th>Shifts</th>
                                             <th>Total Sales</th>
                                             <th>Check Avg</th>
                                             <th>Turn Time</th>
@@ -172,6 +173,7 @@ export default function TeamPerformancePage() {
                                                 </td>
                                                 <td style={{ fontWeight: 600, color: "#60a5fa", textDecoration: "underline", textUnderlineOffset: 3 }}>{staff.name}</td>
                                                 <td><span className={`badge ${staff.role === "Bartender" ? "badge-blue" : "badge-yellow"}`}>{staff.role}</span></td>
+                                                <td>{staff.daysWorked}d</td>
                                                 <td style={{ fontWeight: 600 }}>${staff.totalSales.toLocaleString()}</td>
                                                 <td>${staff.checkAvg}</td>
                                                 <td>{staff.turnTime}m</td>
