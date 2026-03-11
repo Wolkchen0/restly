@@ -177,7 +177,7 @@ export default function LandingPage() {
                         ✦ Restly
                     </Link>
                     <div className="desktop-only" style={{ display: "flex", gap: 4, marginLeft: 8 }}>
-                        {["Features", "Integrations", "Pricing", "How it works"].map(item => (
+                        {["Features", "Integrations", "How it works"].map(item => (
                             <a key={item} href={`#${item.toLowerCase().replace(/ /g, "-")}`}
                                 style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: 14, fontWeight: 500, padding: "8px 14px", borderRadius: 8, transition: "color 0.15s" }}
                                 onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
@@ -225,7 +225,7 @@ export default function LandingPage() {
                             { val: "2 min", label: "Setup time" },
                             { val: "6+", label: "POS integrations" },
                             { val: "40%", label: "Less admin work" },
-                            { val: "14 days", label: "Free trial" },
+                            { val: "24/7", label: "AI Support" },
                         ].map((s, i) => (
                             <div key={i} style={{ padding: "20px 16px", textAlign: "center", background: "rgba(255,255,255,0.02)" }}>
                                 <div style={{ fontSize: 24, fontWeight: 900, color: "#E8C96E", letterSpacing: "-1px" }}>{s.val}</div>
@@ -313,56 +313,7 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ── PRICING ── */}
-            <section id="pricing" style={{ padding: "60px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                    <div style={{ textAlign: "center", marginBottom: 48 }}>
-                        <h2 style={{ fontSize: "clamp(26px,4vw,42px)", fontWeight: 900, color: "#fff", letterSpacing: "-1px", marginBottom: 12 }}>
-                            Simple, transparent pricing
-                        </h2>
-                        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", maxWidth: 480, margin: "0 auto" }}>
-                            14-day free trial on all plans. No credit card. Cancel any time.
-                        </p>
-                    </div>
-                    <div className="pricing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, alignItems: "start" }}>
-                        {PRICING.map((plan, i) => (
-                            <div key={i} style={{
-                                background: plan.highlight ? "linear-gradient(160deg,rgba(201,168,76,0.08),rgba(201,168,76,0.02))" : "rgba(255,255,255,0.02)",
-                                border: `1px solid ${plan.highlight ? "rgba(201,168,76,0.35)" : "rgba(255,255,255,0.07)"}`,
-                                borderRadius: 24, padding: "32px 28px", position: "relative",
-                                boxShadow: plan.highlight ? "0 0 60px rgba(201,168,76,0.08)" : "none",
-                            }}>
-                                {plan.highlight && (
-                                    <div style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#C9A84C,#E8C96E)", color: "#1a1000", fontSize: 12, fontWeight: 800, padding: "5px 18px", borderRadius: 50, whiteSpace: "nowrap" }}>
-                                        MOST POPULAR
-                                    </div>
-                                )}
-                                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{plan.name}</h3>
-                                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>{plan.desc}</p>
-                                <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginBottom: 28 }}>
-                                    <span style={{ fontSize: 42, fontWeight: 900, color: plan.highlight ? "#E8C96E" : "#fff", letterSpacing: "-2px" }}>{plan.price}</span>
-                                    <span style={{ fontSize: 14, color: "rgba(255,255,255,0.4)" }}>{plan.period}</span>
-                                </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
-                                    {plan.features.map(f => (
-                                        <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
-                                            <span style={{ color: "#4ade80", fontSize: 13, flexShrink: 0 }}>✓</span> {f}
-                                        </div>
-                                    ))}
-                                </div>
-                                <Link href="/signup" style={{
-                                    display: "block", textAlign: "center", textDecoration: "none",
-                                    background: plan.highlight ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.06)",
-                                    color: plan.highlight ? "#1a1000" : "#fff",
-                                    fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 12,
-                                    border: plan.highlight ? "none" : "1px solid rgba(255,255,255,0.1)",
-                                    transition: "opacity 0.2s",
-                                }}>{plan.cta}</Link>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+
 
             {/* ── FINAL CTA ── */}
             <section style={{ padding: "70px 24px 80px", textAlign: "center" }}>
@@ -382,7 +333,7 @@ export default function LandingPage() {
                         <Link href="/login?demo=true" className="hero-btn-secondary" style={{ fontSize: 17 }}>View Live Demo →</Link>
                     </div>
                     <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", marginTop: 20 }}>
-                        14-day free trial · No credit card · Cancel anytime
+                        Simple setup · No hidden fees · Cancel anytime
                     </p>
                 </div>
             </section>
