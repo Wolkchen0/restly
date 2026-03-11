@@ -20,6 +20,32 @@ export default function LogbookPage() {
         setTimeout(() => setToastMsg(null), 3000);
     };
 
+    const handleExportLog = () => {
+        showToast("Generating Shift Log CSV...");
+        setTimeout(() => {
+            const headers = ["ID", "Date", "Shift", "Manager", "Tags", "Notes"];
+            const rows = [headers.join(",")];
+
+            logs.forEach(l => {
+                // Must escape quotes and wrap in quotes to protect inner commas inside the long shift notes
+                const safeNotes = `"${l.notes.replace(/"/g, '""')}"`;
+                const safeTags = `"${l.tags.join(" | ")}"`;
+                rows.push([l.id, l.date, l.shift, l.manager, safeTags, safeNotes].join(","));
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Restly_Shift_Logbook_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Logbook export downloaded successfully.");
+        }, 1200);
+    };
+
     const handleNewEntry = () => {
         setLogModalOpen(true);
     };
@@ -57,7 +83,7 @@ export default function LogbookPage() {
                 <div className="topbar-title">📓 Shift Logbook</div>
                 <div className="topbar-right">
                     <button className="btn-primary" onClick={handleNewEntry}>New Entry +</button>
-                    <button className="btn-secondary" onClick={() => showToast("Downloading PDF log...")}>Export Log</button>
+                    <button className="btn-secondary" onClick={handleExportLog}>Export Log ↗</button>
                 </div>
             </div>
 
