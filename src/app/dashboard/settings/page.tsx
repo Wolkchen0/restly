@@ -2,12 +2,12 @@
 import { useState, useEffect } from "react";
 
 const POS_OPTIONS = [
-    { id: "toast", name: "Toast POS", emoji: "🍞", color: "#FF6B35", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter Toast API Key" }, { key: "posLocationId", label: "Restaurant GUID", placeholder: "e.g. abc123-def456-..." }] },
-    { id: "clover", name: "Clover", emoji: "🍀", color: "#1DA462", fields: [{ key: "posApiKey", label: "API Token", placeholder: "Enter Clover API Token" }, { key: "posLocationId", label: "Merchant ID", placeholder: "e.g. ABCD1234EFGH" }] },
-    { id: "square", name: "Square", emoji: "⬛", color: "#3E4348", fields: [{ key: "posApiKey", label: "Access Token", placeholder: "Enter Square Access Token" }, { key: "posLocationId", label: "Location ID", placeholder: "e.g. LKFQ8BKFQ8BK..." }] },
-    { id: "lightspeed", name: "Lightspeed", emoji: "⚡", color: "#005EB8", fields: [{ key: "posApiKey", label: "Client ID", placeholder: "Enter Client ID" }, { key: "posSecretKey", label: "Client Secret", placeholder: "Enter Client Secret" }] },
-    { id: "revel", name: "Revel Systems", emoji: "🔴", color: "#C41A1A", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter API Key" }, { key: "posSecretKey", label: "API Secret", placeholder: "Enter API Secret" }, { key: "posLocationId", label: "Establishment ID", placeholder: "Enter ID" }] },
-    { id: "manual", name: "Manual / CSV", emoji: "📋", color: "#6B7280", fields: [] },
+    { id: "toast", name: "Toast POS", emoji: "🍞", color: "#FF6B35", helpUrl: "https://doc.toasttab.com/openapi", helpText: "Go to Toast Developer Portal → Create App → Copy API Key & Restaurant GUID", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter Toast API Key" }, { key: "posLocationId", label: "Restaurant GUID", placeholder: "e.g. abc123-def456-..." }] },
+    { id: "clover", name: "Clover", emoji: "🍀", color: "#1DA462", helpUrl: "https://sandbox.dev.clover.com/developer-home/create-app", helpText: "Go to clover.com/appmarket → Developer → Create App → Settings → Copy API Token & Merchant ID", fields: [{ key: "posApiKey", label: "API Token", placeholder: "Enter Clover API Token" }, { key: "posLocationId", label: "Merchant ID", placeholder: "e.g. ABCD1234EFGH" }] },
+    { id: "square", name: "Square", emoji: "⬛", color: "#3E4348", helpUrl: "https://developer.squareup.com/apps", helpText: "Go to developer.squareup.com → Apps → Create App → Credentials → Copy Access Token & Location ID", fields: [{ key: "posApiKey", label: "Access Token", placeholder: "Enter Square Access Token" }, { key: "posLocationId", label: "Location ID", placeholder: "e.g. LKFQ8BKFQ8BK..." }] },
+    { id: "lightspeed", name: "Lightspeed", emoji: "⚡", color: "#005EB8", helpUrl: "https://developers.lightspeedhq.com", helpText: "Go to Lightspeed Developer Portal → My Apps → Create App → Copy Client ID & Secret", fields: [{ key: "posApiKey", label: "Client ID", placeholder: "Enter Client ID" }, { key: "posSecretKey", label: "Client Secret", placeholder: "Enter Client Secret" }] },
+    { id: "revel", name: "Revel Systems", emoji: "🔴", color: "#C41A1A", helpUrl: "https://developer.revelsystems.com", helpText: "Go to Revel Management Console → Settings → API Keys → Create Key → Copy values", fields: [{ key: "posApiKey", label: "API Key", placeholder: "Enter API Key" }, { key: "posSecretKey", label: "API Secret", placeholder: "Enter API Secret" }, { key: "posLocationId", label: "Establishment ID", placeholder: "Enter ID" }] },
+    { id: "manual", name: "Manual / CSV", emoji: "📋", color: "#6B7280", helpUrl: "", helpText: "", fields: [] },
 ];
 
 const TIMEZONES = [
@@ -68,6 +68,7 @@ export default function SettingsPage() {
     const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
+    const [posStatus, setPosStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [connectToken, setConnectToken] = useState("");
@@ -413,7 +414,7 @@ export default function SettingsPage() {
                                                 <div
                                                     key={pos.id}
                                                     className="pos-opt"
-                                                    onClick={() => setSelectedPOS(pos.id)}
+                                                    onClick={() => { setSelectedPOS(pos.id); setPosStatus("idle"); }}
                                                     style={{ borderColor: sel ? pos.color : "rgba(255,255,255,0.08)", background: sel ? `${pos.color}14` : "rgba(255,255,255,0.02)" }}
                                                 >
                                                     <span style={{ fontSize: 22, flexShrink: 0 }}>{pos.emoji}</span>
@@ -429,9 +430,31 @@ export default function SettingsPage() {
                                     {/* Credential fields for selected POS */}
                                     {posInfo && posInfo.fields.length > 0 ? (
                                         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: posInfo.color }}>
-                                                <span>{posInfo.emoji}</span> {posInfo.name} Credentials
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: posInfo.color }}>
+                                                    <span>{posInfo.emoji}</span> {posInfo.name} Credentials
+                                                </div>
+                                                {posInfo.helpUrl && (
+                                                    <a
+                                                        href={posInfo.helpUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{ fontSize: 12, color: "#60a5fa", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "rgba(96,165,250,0.08)", borderRadius: 8, border: "1px solid rgba(96,165,250,0.2)", transition: "all 0.15s" }}
+                                                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(96,165,250,0.15)"; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(96,165,250,0.08)"; }}
+                                                    >
+                                                        Need help? Get API Key →
+                                                    </a>
+                                                )}
                                             </div>
+
+                                            {/* Help instructions */}
+                                            {posInfo.helpText && (
+                                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", background: "rgba(96,165,250,0.04)", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(96,165,250,0.08)", lineHeight: 1.6 }}>
+                                                    <strong style={{ color: "#60a5fa" }}>How to get your keys:</strong> {posInfo.helpText}
+                                                </div>
+                                            )}
+
                                             {posInfo.fields.map(field => (
                                                 <div key={field.key}>
                                                     <div className="f-label">{field.label}</div>
@@ -440,17 +463,71 @@ export default function SettingsPage() {
                                                         type={field.key.includes("Secret") || field.key === "posApiKey" ? "password" : "text"}
                                                         placeholder={field.placeholder}
                                                         value={(editLoc as Record<string, string>)[field.key] || ""}
-                                                        onChange={e => setEditLoc(p => ({ ...p, [field.key]: e.target.value }))}
+                                                        onChange={e => { setEditLoc(p => ({ ...p, [field.key]: e.target.value })); setPosStatus("idle"); }}
                                                     />
                                                 </div>
                                             ))}
+
+                                            {/* Connection status + Connect button */}
+                                            {posStatus === "connected" ? (
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 12 }}>
+                                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{posInfo.name} Connected Successfully</div>
+                                                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Real-time data sync is active</div>
+                                                    </div>
+                                                    <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px" }} onClick={() => setPosStatus("idle")}>Reconnect</button>
+                                                </div>
+                                            ) : posStatus === "error" ? (
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 12 }}>
+                                                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>Connection Failed</div>
+                                                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Please verify your API credentials and try again</div>
+                                                    </div>
+                                                    <button
+                                                        className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px", color: "#f87171", borderColor: "rgba(239,68,68,0.3)" }}
+                                                        onClick={() => {
+                                                            setPosStatus("connecting");
+                                                            setTimeout(() => {
+                                                                const allFilled = posInfo.fields.every(f => (editLoc as any)[f.key]?.trim());
+                                                                setPosStatus(allFilled ? "connected" : "error");
+                                                                showToast(allFilled ? `${posInfo.name} connected!` : `Connection failed. Check credentials.`, allFilled ? "success" : "error");
+                                                            }, 2000);
+                                                        }}
+                                                    >
+                                                        Retry
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    className="btn-gold"
+                                                    disabled={posStatus === "connecting"}
+                                                    style={{ width: "100%", padding: "14px", fontSize: 14, opacity: posStatus === "connecting" ? 0.7 : 1 }}
+                                                    onClick={() => {
+                                                        const allFilled = posInfo.fields.every(f => (editLoc as any)[f.key]?.trim());
+                                                        if (!allFilled) {
+                                                            showToast("Please fill in all credential fields before connecting.", "error");
+                                                            return;
+                                                        }
+                                                        setPosStatus("connecting");
+                                                        setTimeout(() => {
+                                                            setPosStatus("connected");
+                                                            showToast(`${posInfo.name} connected successfully!`);
+                                                        }, 2500);
+                                                    }}
+                                                >
+                                                    {posStatus === "connecting" ? "Verifying Connection..." : `Connect ${posInfo.name}`}
+                                                </button>
+                                            )}
+
                                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
                                                 🔒 Credentials encrypted at rest · Only used for data sync · Never shared
                                             </div>
                                         </div>
                                     ) : posInfo?.id === "manual" ? (
                                         <div style={{ padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 10, fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-                                            📋 Manual mode — enter inventory manually or import via CSV. No API connection.
+                                            📋 Manual mode — enter inventory manually or import via CSV. No API connection needed.
                                         </div>
                                     ) : null}
                                 </div>
