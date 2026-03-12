@@ -84,10 +84,10 @@ export default function SchedulePage() {
     return (
         <>
             <div className="topbar">
-                <div className="topbar-title">📅 Schedule & Time-Off</div>
+                <div className="topbar-title">Schedule & Time-Off</div>
                 <div className="topbar-right">
-                    <a href={FORM_TIME_ENTRY} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12 }}>🕐 Time Entry Fix ↗</a>
-                    <a href={FORM_TIME_OFF} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12 }}>🏖️ Time Off Request ↗</a>
+                    <a href={`${FORM_TIME_ENTRY}?locId=${locationId || 'DEMO_RESTLY_12345'}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Entry Fix ↗</a>
+                    <a href={`${FORM_TIME_OFF}?locId=${locationId || 'DEMO_RESTLY_12345'}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Off Request ↗</a>
                 </div>
             </div>
 
