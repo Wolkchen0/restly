@@ -253,6 +253,7 @@ export default function SettingsPage() {
         .f-label { font-size:11px; font-weight:700; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
         .s-input { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:11px 14px; font-size:14px; color:#fff; outline:none; font-family:inherit; transition:border-color 0.15s; box-sizing:border-box; }
         .s-input:focus { border-color:rgba(201,168,76,0.5); }
+        .s-input option { background:#1a1a2e; color:#fff; padding:8px; }
         .btn-gold { background:linear-gradient(135deg,#C9A84C,#E8C96E); color:#1a1000; font-weight:800; font-size:14px; border:none; border-radius:10px; padding:12px 24px; cursor:pointer; font-family:inherit; }
         .btn-ghost { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.6); font-size:13px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 16px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
         .btn-ghost:hover { background:rgba(255,255,255,0.1); color:#fff; }
