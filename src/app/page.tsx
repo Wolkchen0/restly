@@ -253,9 +253,7 @@ export default function LandingPage() {
                                 <span style={{ fontSize: 20 }}>{pos.emoji}</span> {pos.name}
                             </div>
                         ))}
-                        <div style={{ display: "flex", alignItems: "center", padding: "10px 20px", fontSize: 14, color: "rgba(255,255,255,0.3)", fontWeight: 500 }}>
-                            + more
-                        </div>
+
                     </div>
                 </div>
             </section>
