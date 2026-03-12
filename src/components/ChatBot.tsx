@@ -15,6 +15,20 @@ const SUGGESTED_PROMPTS = [
 function ToolResultCard({ toolName, result }: { toolName: string; result: any }) {
     const router = useRouter();
 
+    // ── Side-effect: persist guest additions via /api/guests POST ──
+    useEffect(() => {
+        if (toolName === "add_or_update_guest" && result?.success && result?.guest) {
+            fetch("/api/guests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: result.guest.name,
+                    isVip: result.guest.isVip,
+                }),
+            }).catch(() => {});
+        }
+    }, [toolName, result]);
+
     // ── Manager Action confirmation card (all tools with success + navigation) ──
     if (result?.success && result?.navigation) {
         return (
