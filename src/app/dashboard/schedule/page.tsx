@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx";
 
 const FORM_TIME_ENTRY = "/forms/time-entry";
 const FORM_TIME_OFF = "/forms/time-off";
@@ -194,46 +195,45 @@ export default function SchedulePage() {
         return { onLeave: false };
     };
 
-    // Excel Export
+    // Excel Export using SheetJS for proper .xlsx
     const exportToExcel = () => {
-        let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:spreadsheet" xmlns="http://www.w3.org/TR/REC-html40">';
-        html += '<head><meta charset="utf-8"><style>td,th{border:1px solid #ccc;padding:6px 10px;font-family:Arial;font-size:12px;text-align:center}th{background:#333;color:#fff;font-weight:bold}.dept{background:#d32f2f;color:#fff;font-weight:bold;font-size:13px;text-align:left}.am{background:#c8e6c9;color:#2e7d32}.pm{background:#bbdefb;color:#1565c0}.full{background:#fff9c4;color:#f57f17}.off{background:#ffcdd2;color:#c62828}.blocked{background:#000;color:#fff;font-weight:bold}.hours{background:#f5f5f5;font-weight:bold}</style></head><body>';
-        html += `<h2 style="font-family:Arial">Weekly Schedule — ${weekDates[0]} to ${weekDates[6]}</h2>`;
-        html += '<table cellspacing="0"><thead><tr><th>Employee</th><th>Position</th>';
-        DAYS.forEach((d, i) => { html += `<th>${d} ${weekDates[i]}</th>`; });
-        html += '<th>Hours</th></tr></thead><tbody>';
+        const rows: (string | number)[][] = [];
+        // Header row
+        rows.push(["Employee", "Position", ...DAYS.map((d, i) => `${d} ${weekDates[i]}`), "Hours"]);
+
         departments.forEach(dept => {
-            html += `<tr><td class="dept" colspan="${DAYS.length + 3}">${dept === "Kitchen" ? "🍳 Kitchen" : dept === "FOH" ? "🍽️ Front of House" : "🍸 Bar"}</td></tr>`;
+            // Department header
+            const deptLabel = dept === "Kitchen" ? "Kitchen" : dept === "FOH" ? "Front of House" : "Bar";
+            rows.push([deptLabel, "", "", "", "", "", "", "", ""]);
+
             EMPLOYEES.filter(e => e.department === dept).forEach(emp => {
                 const shifts = schedule[emp.name] || [];
-                html += `<tr><td style="text-align:left;font-weight:bold">${emp.name}</td><td>${emp.position}</td>`;
                 let totalHrs = 0;
-                DAYS.forEach((_, dayIdx) => {
+                const dayCells: string[] = DAYS.map((_, dayIdx) => {
                     const leave = isOnLeave(emp.name, dayIdx);
-                    if (leave.onLeave) {
-                        html += `<td class="blocked">LEAVE</td>`;
-                    } else {
-                        const s = shifts[dayIdx];
-                        if (!s || !s.type) { html += '<td>—</td>'; return; }
-                        const cls = s.type === "AM" ? "am" : s.type === "PM" ? "pm" : s.type === "FULL" ? "full" : "off";
-                        if (s.type === "OFF") { html += `<td class="${cls}">OFF</td>`; return; }
-                        html += `<td class="${cls}">${s.startTime} - ${s.endTime}</td>`;
-                        const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
-                        let diff = parseT(s.endTime) - parseT(s.startTime); if (diff < 0) diff += 24;
-                        totalHrs += diff;
-                    }
+                    if (leave.onLeave) return "LEAVE";
+                    const s = shifts[dayIdx];
+                    if (!s || !s.type) return "—";
+                    if (s.type === "OFF") return "OFF";
+                    const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
+                    let diff = parseT(s.endTime) - parseT(s.startTime); if (diff < 0) diff += 24;
+                    totalHrs += diff;
+                    return `${s.startTime} - ${s.endTime}`;
                 });
-                html += `<td class="hours">${totalHrs > 0 ? Math.round(totalHrs) + "h" : "—"}</td></tr>`;
+                rows.push([emp.name, emp.position, ...dayCells, totalHrs > 0 ? Math.round(totalHrs) : 0]);
             });
         });
-        html += '</tbody></table></body></html>';
-        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Schedule_${weekDates[0].replace('/', '-')}_to_${weekDates[6].replace('/', '-')}.xls`;
-        a.click();
-        URL.revokeObjectURL(url);
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 18 }, { wch: 14 },
+            ...DAYS.map(() => ({ wch: 16 })),
+            { wch: 8 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Schedule");
+        XLSX.writeFile(wb, `Schedule_${weekDates[0].replace(/\//g, '-')}_to_${weekDates[6].replace(/\//g, '-')}.xlsx`);
         showToast('📥 Schedule exported as Excel!');
     };
 

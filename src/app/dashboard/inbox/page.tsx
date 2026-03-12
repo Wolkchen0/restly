@@ -43,6 +43,30 @@ const FILTER_TABS = [
     { key: "dm", label: "DMs" },
     { key: "review", label: "Reviews" },
     { key: "mention", label: "Mentions" },
+    { key: "ai", label: "✨ AI Monitor" },
+];
+
+// AI-Discovered mentions, news, social buzz
+interface AIMention {
+    id: string;
+    source: string;
+    sourceIcon: string;
+    title: string;
+    snippet: string;
+    sentiment: "positive" | "neutral" | "negative";
+    date: string;
+    url: string;
+    isNew: boolean;
+}
+const AI_MENTIONS: AIMention[] = [
+    { id: "ai1", source: "Eater LA", sourceIcon: "📰", title: "7 Best New Restaurants in Downtown LA", snippet: "...Sample Rest. made the list for their exceptional truffle burger and craft cocktail program. The ambiance strikes a perfect balance between upscale and approachable...", sentiment: "positive", date: "2h ago", url: "#", isNew: true },
+    { id: "ai2", source: "Instagram", sourceIcon: "📸", title: "@chefworld tagged you in a story", snippet: "Amazing dinner at @samplerest tonight! The wagyu was cooked to perfection. Must visit if you're in SF. #finedining #bayareafood", sentiment: "positive", date: "4h ago", url: "#", isNew: true },
+    { id: "ai3", source: "Reddit r/LosAngelesfood", sourceIcon: "💬", title: "Thread: Best date night spots downtown?", snippet: "Multiple users recommended Sample Rest. Highlights: ambiance, cocktail menu, truffle fries. One complaint about weekend wait times.", sentiment: "positive", date: "6h ago", url: "#", isNew: true },
+    { id: "ai4", source: "Google Trends", sourceIcon: "📈", title: "Search interest rising +23%", snippet: "\"Sample Restaurant downtown\" search queries increased 23% this week compared to last week. Peak search times: Friday 5-7pm, Saturday 12-2pm.", sentiment: "positive", date: "1d ago", url: "#", isNew: false },
+    { id: "ai5", source: "TikTok", sourceIcon: "🎬", title: "Viral video: 45K views", snippet: "User @eatsbysam posted a 30-sec video of the lamb chops presentation. 45K views, 3.2K likes, 180 comments. Top comment: \"Adding this to my list!\"", sentiment: "positive", date: "1d ago", url: "#", isNew: false },
+    { id: "ai6", source: "Yelp Trending", sourceIcon: "⭐", title: "Now #4 in \"Best Dinner\" category", snippet: "Moved up from #7 to #4 in Yelp's \"Best Dinner\" category for downtown area. Average rating: 4.6/5 from 342 reviews.", sentiment: "positive", date: "2d ago", url: "#", isNew: false },
+    { id: "ai7", source: "Twitter/X", sourceIcon: "🐦", title: "Local food blogger @sfbites review", snippet: "\"The lobster bisque at Sample Rest. is hands down the best I've had in SF. Rich, creamy, perfectly seasoned. Worth every penny.\"", sentiment: "positive", date: "2d ago", url: "#", isNew: false },
+    { id: "ai8", source: "Google Reviews", sourceIcon: "📝", title: "AI Alert: Negative review pattern", snippet: "3 reviews in the past week mention \"long wait time\" on Friday/Saturday evenings. Consider adjusting reservation spacing or adding a waitlist system.", sentiment: "negative", date: "3d ago", url: "#", isNew: false },
 ];
 
 export default function SocialInboxPage() {
@@ -103,8 +127,10 @@ export default function SocialInboxPage() {
                 <div className="topbar-title">
                     Social Inbox
                     {unreadCount > 0 && <span style={{ marginLeft: 8, background: "#E8C96E", color: "#1a1000", fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 10 }}>{unreadCount}</span>}
+                    {AI_MENTIONS.filter(m => m.isNew).length > 0 && <span style={{ marginLeft: 4, background: "rgba(167,139,250,0.15)", color: "#a78bfa", fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 10 }}>✨ {AI_MENTIONS.filter(m => m.isNew).length} AI</span>}
                 </div>
-                <div className="topbar-right">
+                <div className="topbar-right" style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setFilter("ai")} style={{ fontSize: 12, padding: "8px 16px", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>✨ AI Scan</button>
                     <button className="btn-secondary" onClick={() => window.location.href = '/dashboard/settings'}>Manage Accounts</button>
                 </div>
             </div>
@@ -230,6 +256,50 @@ export default function SocialInboxPage() {
                                         </div>
                                     </div>
                                 </>
+                            ) : filter === "ai" ? (
+                                /* AI MONITOR VIEW */
+                                <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>✨ AI Social Monitor</div>
+                                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Auto-scanning mentions, news & social buzz about your restaurant</span>
+                                    </div>
+
+                                    {/* Brand Health */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                                        {[
+                                            { label: "Brand Health", value: "92/100", color: "#4ade80", icon: "📊" },
+                                            { label: "Sentiment", value: "87% Positive", color: "#4ade80", icon: "😊" },
+                                            { label: "Mentions (7d)", value: "34", color: "#60a5fa", icon: "📣" },
+                                            { label: "New Alerts", value: String(AI_MENTIONS.filter(m => m.isNew).length), color: "#a78bfa", icon: "⚡" },
+                                        ].map(c => (
+                                            <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: "14px 16px" }}>
+                                                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 4 }}>{c.icon} {c.label}</div>
+                                                <div style={{ fontSize: 20, fontWeight: 900, color: c.color }}>{c.value}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* AI Mentions List */}
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                        {AI_MENTIONS.map(m => (
+                                            <div key={m.id} style={{ background: m.isNew ? "rgba(167,139,250,0.04)" : "rgba(255,255,255,0.015)", border: `1px solid ${m.isNew ? "rgba(167,139,250,0.15)" : "rgba(255,255,255,0.04)"}`, borderRadius: 14, padding: "16px 20px", transition: "all 0.15s" }}>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                        <span style={{ fontSize: 18 }}>{m.sourceIcon}</span>
+                                                        <span style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa" }}>{m.source}</span>
+                                                        {m.isNew && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(167,139,250,0.15)", color: "#a78bfa", fontWeight: 700 }}>NEW</span>}
+                                                        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: m.sentiment === "positive" ? "rgba(74,222,128,0.08)" : m.sentiment === "negative" ? "rgba(248,113,113,0.08)" : "rgba(255,255,255,0.05)", color: m.sentiment === "positive" ? "#4ade80" : m.sentiment === "negative" ? "#f87171" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>{m.sentiment === "positive" ? "↑ Positive" : m.sentiment === "negative" ? "↓ Negative" : "Neutral"}</span>
+                                                    </div>
+                                                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{m.date}</span>
+                                                </div>
+                                                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 6 }}>{m.title}</div>
+                                                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{m.snippet}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>AI scans every 6 hours · Last scan: 2h ago</div>
+                                </div>
                             ) : (
                                 <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)" }}>
                                     <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>←</div>
