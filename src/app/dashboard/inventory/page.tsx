@@ -133,37 +133,62 @@ export default function InventoryPage() {
             {/* ── RECEIVE STOCK MODAL ── */}
             {receiveModal && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setReceiveModal(null)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: 32, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📦 Receive Stock</div>
-                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Add incoming inventory for <strong style={{ color: "#E8C96E" }}>{receiveModal.name}</strong></div>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "36px 36px 32px", width: 520, maxWidth: "calc(100vw - 32px)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 6 }}>📦 Receive Stock</div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 28 }}>Add incoming inventory for <strong style={{ color: "#E8C96E" }}>{receiveModal.name}</strong></div>
 
-                        <div style={{ marginBottom: 20 }}>
-                            <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Quantity</label>
-                            <div style={{ display: "flex", gap: 10 }}>
-                                <input type="number" min="1" step="1" value={receiveQty} onChange={e => setReceiveQty(e.target.value)} placeholder={receiveModal.type === "bottle" ? "e.g. 4" : `e.g. 50`} autoFocus style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 16px", fontSize: 16, color: "#fff", outline: "none", fontFamily: "inherit" }} />
-                                {receiveModal.type === "bottle" ? (
-                                    <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-                                        {(["bottles", "cases"] as const).map(u => (
-                                            <button key={u} onClick={() => setReceiveUnit(u)} style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "none", background: receiveUnit === u ? "rgba(201,168,76,0.15)" : "rgba(255,255,255,0.03)", color: receiveUnit === u ? "#E8C96E" : "rgba(255,255,255,0.4)" }}>
-                                                {u === "bottles" ? "Bottles" : "Cases (12)"}
-                                            </button>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div style={{ display: "flex", alignItems: "center", padding: "0 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 14, color: "rgba(255,255,255,0.5)" }}>{receiveModal.unit}</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {receiveModal.type === "bottle" && receiveQty && parseFloat(receiveQty) > 0 && (
-                            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-                                Adding <strong style={{ color: "#E8C96E" }}>{receiveUnit === "cases" ? `${parseFloat(receiveQty) * 12} bottles` : `${receiveQty} bottle(s)`}</strong> ({receiveModal.sizeMl}ml each) = <strong style={{ color: "#4ade80" }}>{((receiveUnit === "cases" ? parseFloat(receiveQty) * 12 : parseFloat(receiveQty)) * (receiveModal.sizeMl || 750) / 1000).toFixed(1)}L total</strong>
+                        {/* Unit Type Selector (for bottles) */}
+                        {receiveModal.type === "bottle" && (
+                            <div style={{ marginBottom: 18 }}>
+                                <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10, letterSpacing: 0.5 }}>Receive As</label>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                    {(["bottles", "cases"] as const).map(u => (
+                                        <button key={u} onClick={() => setReceiveUnit(u)} style={{
+                                            padding: "14px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                                            border: receiveUnit === u ? "2px solid rgba(201,168,76,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                                            borderRadius: 12,
+                                            background: receiveUnit === u ? "rgba(201,168,76,0.1)" : "rgba(255,255,255,0.02)",
+                                            color: receiveUnit === u ? "#E8C96E" : "rgba(255,255,255,0.4)",
+                                            textAlign: "center",
+                                        }}>
+                                            {u === "bottles" ? "🍾 Bottles" : "📦 Cases (12 bottles)"}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        <div style={{ display: "flex", gap: 10 }}>
-                            <button onClick={() => setReceiveModal(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                            <button onClick={confirmReceive} disabled={!receiveQty || parseFloat(receiveQty) <= 0} style={{ flex: 1, padding: "12px", background: receiveQty && parseFloat(receiveQty) > 0 ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 10, color: receiveQty && parseFloat(receiveQty) > 0 ? "#1a1000" : "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: 800, cursor: receiveQty ? "pointer" : "not-allowed", fontFamily: "inherit" }}>Confirm Receive</button>
+                        {/* Quantity Input */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10, letterSpacing: 0.5 }}>
+                                {receiveModal.type === "bottle" ? `How many ${receiveUnit}?` : `Quantity (${receiveModal.unit})`}
+                            </label>
+                            <input
+                                type="number" min="1" step="1" value={receiveQty}
+                                onChange={e => setReceiveQty(e.target.value)}
+                                placeholder={receiveModal.type === "bottle" ? (receiveUnit === "cases" ? "e.g. 4 cases" : "e.g. 12 bottles") : `e.g. 50 ${receiveModal.unit}`}
+                                autoFocus
+                                style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "16px 20px", fontSize: 20, fontWeight: 700, color: "#fff", outline: "none", fontFamily: "inherit" }}
+                            />
+                        </div>
+
+                        {/* Calculation Preview */}
+                        {receiveModal.type === "bottle" && receiveQty && parseFloat(receiveQty) > 0 && (
+                            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 22, fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.6 }}>
+                                Adding <strong style={{ color: "#E8C96E" }}>{receiveUnit === "cases" ? `${parseFloat(receiveQty) * 12} bottles` : `${receiveQty} bottle(s)`}</strong> ({receiveModal.sizeMl}ml each)<br />
+                                Total volume: <strong style={{ color: "#4ade80", fontSize: 16 }}>{((receiveUnit === "cases" ? parseFloat(receiveQty) * 12 : parseFloat(receiveQty)) * (receiveModal.sizeMl || 750) / 1000).toFixed(1)}L</strong>
+                            </div>
+                        )}
+                        {receiveModal.type === "food" && receiveQty && parseFloat(receiveQty) > 0 && (
+                            <div style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 22, fontSize: 14, color: "rgba(255,255,255,0.65)" }}>
+                                Adding <strong style={{ color: "#4ade80" }}>{receiveQty} {receiveModal.unit}</strong> of {receiveModal.name}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <button onClick={() => setReceiveModal(null)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={confirmReceive} disabled={!receiveQty || parseFloat(receiveQty) <= 0} style={{ flex: 1, padding: "14px", background: receiveQty && parseFloat(receiveQty) > 0 ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 12, color: receiveQty && parseFloat(receiveQty) > 0 ? "#1a1000" : "rgba(255,255,255,0.3)", fontSize: 15, fontWeight: 800, cursor: receiveQty ? "pointer" : "not-allowed", fontFamily: "inherit" }}>✅ Confirm Receive</button>
                         </div>
                     </div>
                 </div>
