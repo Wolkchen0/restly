@@ -27,6 +27,8 @@ interface ShiftEntry {
     type: ShiftType;
     startTime: string;
     endTime: string;
+    shift2Start?: string;
+    shift2End?: string;
 }
 
 const DEPT_COLORS: Record<string, { bg: string; border: string; text: string; headerBg: string }> = {
@@ -126,6 +128,9 @@ export default function SchedulePage() {
     const [editShiftType, setEditShiftType] = useState<ShiftType>("AM");
     const [editStart, setEditStart] = useState("");
     const [editEnd, setEditEnd] = useState("");
+    const [editShift2Start, setEditShift2Start] = useState("");
+    const [editShift2End, setEditShift2End] = useState("");
+    const [showShift2, setShowShift2] = useState(false);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
     const weekDates = getWeekDates(weekOffset);
@@ -163,13 +168,22 @@ export default function SchedulePage() {
         setEditShiftType(s?.type || "AM");
         setEditStart(s?.startTime || "11:00 AM");
         setEditEnd(s?.endTime || "4:00 PM");
+        setEditShift2Start(s?.shift2Start || "");
+        setEditShift2End(s?.shift2End || "");
+        setShowShift2(!!(s?.shift2Start && s?.shift2End));
     };
     const saveShift = () => {
         if (!editCell) return;
         setSchedule(prev => {
             const updated = { ...prev };
             const shifts = [...(updated[editCell.empName] || [])];
-            shifts[editCell.dayIdx] = { type: editShiftType, startTime: editShiftType === "OFF" ? "" : editStart, endTime: editShiftType === "OFF" ? "" : editEnd };
+            shifts[editCell.dayIdx] = {
+                type: editShiftType,
+                startTime: editShiftType === "OFF" ? "" : editStart,
+                endTime: editShiftType === "OFF" ? "" : editEnd,
+                shift2Start: editShiftType === "OFF" || !showShift2 ? "" : editShift2Start,
+                shift2End: editShiftType === "OFF" || !showShift2 ? "" : editShift2End,
+            };
             updated[editCell.empName] = shifts;
             return updated;
         });
@@ -218,7 +232,13 @@ export default function SchedulePage() {
                     const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                     let diff = parseT(s.endTime) - parseT(s.startTime); if (diff < 0) diff += 24;
                     totalHrs += diff;
-                    return `${s.startTime} - ${s.endTime}`;
+                    let cellText = `${s.startTime} - ${s.endTime}`;
+                    if (s.shift2Start && s.shift2End) {
+                        let diff2 = parseT(s.shift2End) - parseT(s.shift2Start); if (diff2 < 0) diff2 += 24;
+                        totalHrs += diff2;
+                        cellText += ` + ${s.shift2Start} - ${s.shift2End}`;
+                    }
+                    return cellText;
                 });
                 rows.push([emp.name, emp.position, ...dayCells, totalHrs > 0 ? Math.round(totalHrs) : 0]);
             });
@@ -283,16 +303,40 @@ export default function SchedulePage() {
                         </div>
 
                         {editShiftType !== "OFF" && (
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Start Time</label>
-                                    <input type="text" value={editStart} onChange={e => setEditStart(e.target.value)} placeholder="11:00 AM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
+                            <>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 6 }}>Shift 1</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                                    <div>
+                                        <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>Start</label>
+                                        <input type="text" value={editStart} onChange={e => setEditStart(e.target.value)} placeholder="11:00 AM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>End</label>
+                                        <input type="text" value={editEnd} onChange={e => setEditEnd(e.target.value)} placeholder="4:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#60a5fa", outline: "none", fontFamily: "inherit" }} />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>End Time</label>
-                                    <input type="text" value={editEnd} onChange={e => setEditEnd(e.target.value)} placeholder="4:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#60a5fa", outline: "none", fontFamily: "inherit" }} />
-                                </div>
-                            </div>
+
+                                {!showShift2 ? (
+                                    <button onClick={() => { setShowShift2(true); setEditShift2Start("5:00 PM"); setEditShift2End("10:00 PM"); }} style={{ width: "100%", padding: "10px", marginBottom: 16, background: "rgba(167,139,250,0.06)", border: "1px dashed rgba(167,139,250,0.25)", borderRadius: 10, color: "#a78bfa", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Add 2nd Shift (Split Shift)</button>
+                                ) : (
+                                    <>
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                                            <div style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase" }}>Shift 2 (Split)</div>
+                                            <button onClick={() => { setShowShift2(false); setEditShift2Start(""); setEditShift2End(""); }} style={{ fontSize: 10, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontWeight: 700 }}>✕ Remove</button>
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                                            <div>
+                                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>Start</label>
+                                                <input type="text" value={editShift2Start} onChange={e => setEditShift2Start(e.target.value)} placeholder="5:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
+                                            </div>
+                                            <div>
+                                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>End</label>
+                                                <input type="text" value={editShift2End} onChange={e => setEditShift2End(e.target.value)} placeholder="10:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </>
                         )}
 
                         <div style={{ display: "flex", gap: 10 }}>
@@ -398,12 +442,17 @@ export default function SchedulePage() {
                                             </tr>,
                                             ...deptEmps.map(emp => {
                                                 const shifts = schedule[emp.name] || [];
+                                                const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                                                 const totalHrs = shifts.reduce((acc, s) => {
                                                     if (s.type === "OFF" || !s.startTime || !s.endTime) return acc;
-                                                    // Simple hour calc
-                                                    const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                                                     let diff = parseT(s.endTime) - parseT(s.startTime);
                                                     if (diff < 0) diff += 24;
+                                                    // Add shift2 hours
+                                                    if (s.shift2Start && s.shift2End) {
+                                                        let diff2 = parseT(s.shift2End) - parseT(s.shift2Start);
+                                                        if (diff2 < 0) diff2 += 24;
+                                                        diff += diff2;
+                                                    }
                                                     return acc + diff;
                                                 }, 0);
                                                 return (
@@ -426,15 +475,23 @@ export default function SchedulePage() {
                                                             }
                                                             const s = shifts[dayIdx] || { type: "" as ShiftType, startTime: "", endTime: "" };
                                                             const sc = SHIFT_COLORS[s.type || ""];
+                                                            const hasSplit = !!(s.shift2Start && s.shift2End);
                                                             return (
                                                                 <td key={dayIdx}>
-                                                                    <div className="shift-cell" style={{ background: sc.bg, color: sc.text }} onClick={() => openEditShift(emp.name, dayIdx)}>
+                                                                    <div className="shift-cell" style={{ background: sc.bg, color: sc.text, padding: hasSplit ? "2px 4px" : undefined }} onClick={() => openEditShift(emp.name, dayIdx)}>
                                                                         {s.type === "OFF" ? "OFF" : s.type ? (
-                                                                            <>
-                                                                                <span style={{ fontSize: 10, opacity: 0.7 }}>{s.type}</span>
-                                                                                <span>{s.startTime}</span>
-                                                                                <span style={{ fontSize: 9, opacity: 0.5 }}>to {s.endTime}</span>
-                                                                            </>
+                                                                            hasSplit ? (
+                                                                                <>
+                                                                                    <span style={{ fontSize: 9 }}>{s.startTime}-{s.endTime}</span>
+                                                                                    <span style={{ fontSize: 8, color: "#a78bfa" }}>+{s.shift2Start}-{s.shift2End}</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <span style={{ fontSize: 10, opacity: 0.7 }}>{s.type}</span>
+                                                                                    <span>{s.startTime}</span>
+                                                                                    <span style={{ fontSize: 9, opacity: 0.5 }}>to {s.endTime}</span>
+                                                                                </>
+                                                                            )
                                                                         ) : "—"}
                                                                     </div>
                                                                 </td>

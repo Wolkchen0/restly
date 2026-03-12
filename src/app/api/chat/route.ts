@@ -6,6 +6,8 @@ import { searchGuests, getVipGuests, getTodayReservations, addOrUpdateGuest } fr
 import { getInventory, getLowStockItems, getInventoryStats } from "@/services/toast";
 import { getAllTimeOffRequests } from "@/services/timeoff";
 import { getRecentReviews, getReviewStats } from "@/services/reviews";
+import { BOTTLE_INVENTORY, DRINK_RECIPES } from "@/services/drinks";
+import { FOOD_INGREDIENTS, FOOD_RECIPES, getFoodCost, getFoodServingsRemaining } from "@/services/food-recipes";
 
 export const maxDuration = 30;
 const AI_MODEL = "gpt-4o-mini";
@@ -259,18 +261,64 @@ When users ask about connecting review platforms or social media, give them exac
 
                 // ── ACTION TOOLS (MANAGER COMMANDS) ──────────────────────────────────
                 update_inventory_item: tool({
-                    description: "Update inventory quantity or status. Use 'add' to increase, 'remove' to decrease, or 'set' to set absolute value.",
+                    description: "Update inventory quantity or status. Use 'add' to increase, 'remove' to decrease, or 'set' to set absolute value. Works for bottles (e.g. Tito's, Grey Goose) and food items (e.g. flour, eggs, beef).",
                     parameters: z.object({
-                        itemName: z.string().describe("Name of the inventory item"),
+                        itemName: z.string().describe("Name of the inventory item (bottle or food ingredient)"),
                         quantity: z.number().describe("The quantity to add, remove, or set"),
                         action: z.enum(["add", "remove", "set"]).default("set"),
-                        status: z.enum(["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK"]).optional(),
+                        unit: z.string().optional().describe("Unit of measure (bottles, cases, lbs, etc.)"),
+                        reason: z.string().optional().describe("Reason for adjustment (e.g. breakage, delivery, spillage)"),
                     }),
-                    execute: async ({ itemName, quantity, action }) => ({
-                        success: true,
-                        message: `Successfully ${action === "add" ? "added" : action === "remove" ? "removed" : "set"} ${quantity} for ${itemName}.`,
-                        navigation: { path: "/dashboard/inventory", label: "Inventory Dashboard" }
+                    execute: async ({ itemName, quantity, action, unit, reason }) => {
+                        // Check bottle inventory match
+                        const bottle = BOTTLE_INVENTORY.find(b => b.name.toLowerCase().includes(itemName.toLowerCase()));
+                        // Check food inventory match
+                        const food = FOOD_INGREDIENTS.find(f => f.name.toLowerCase().includes(itemName.toLowerCase()));
+                        const matchedItem = bottle ? `${bottle.name} (${bottle.fullBottles} full bottles + ${bottle.openBottleMl}ml open)` : food ? `${food.name} (${food.onHand} ${food.unit} on hand)` : itemName;
+                        // Find affected recipes
+                        const affectedRecipes = bottle
+                            ? DRINK_RECIPES.filter(r => r.ingredients.some(i => i.spiritId === bottle.spiritId)).map(r => r.name)
+                            : food
+                            ? FOOD_RECIPES.filter(r => r.ingredients.some(i => i.inventoryId === food.inventoryId)).map(r => r.name)
+                            : [];
+
+                        return {
+                            success: true,
+                            message: `${action === "add" ? "Added" : action === "remove" ? "Removed" : "Set"} ${quantity}${unit ? " " + unit : ""} ${action === "remove" ? "from" : action === "add" ? "to" : "for"} ${matchedItem}.${reason ? " Reason: " + reason : ""}`,
+                            affectedRecipes: affectedRecipes.length > 0 ? affectedRecipes : undefined,
+                            navigation: { path: "/dashboard/inventory", label: "Inventory Dashboard" }
+                        };
+                    },
+                }),
+
+                get_full_inventory_details: tool({
+                    description: "Get detailed breakdown of all bottle inventory (spirits, wine) and food ingredients with recipe connections, costs, and remaining servings.",
+                    parameters: z.object({
+                        category: z.enum(["bottles", "food", "all"]).default("all").describe("Filter by category")
                     }),
+                    execute: async ({ category }) => {
+                        const result: any = {};
+                        if (category === "bottles" || category === "all") {
+                            result.bottles = BOTTLE_INVENTORY.map(b => ({
+                                name: b.name, fullBottles: b.fullBottles, openBottleMl: b.openBottleMl, sizeMl: b.sizeMl,
+                                costPerBottle: b.costPerBottle,
+                                usedIn: DRINK_RECIPES.filter(r => r.ingredients.some(i => i.spiritId === b.spiritId)).map(r => r.name),
+                            }));
+                        }
+                        if (category === "food" || category === "all") {
+                            result.food = FOOD_INGREDIENTS.map(f => {
+                                const usedIn = FOOD_RECIPES.filter(r => r.ingredients.some(i => i.inventoryId === f.inventoryId));
+                                return {
+                                    name: f.name, onHand: f.onHand, unit: f.unit,
+                                    costPerUnit: f.costPerUnit, supplier: f.supplier,
+                                    usedIn: usedIn.map(r => r.name),
+                                    servingsLeft: usedIn.length > 0 ? Math.min(...usedIn.map(r => getFoodServingsRemaining(r, FOOD_INGREDIENTS))) : null,
+                                };
+                            });
+                        }
+                        result.navigation = { path: "/dashboard/inventory", label: "Inventory Dashboard" };
+                        return result;
+                    },
                 }),
 
                 add_or_update_guest: tool({
