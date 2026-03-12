@@ -29,7 +29,7 @@ export interface Reservation {
   notes: string;
 }
 
-const MOCK_GUESTS: Guest[] = [
+let guestList: Guest[] = [
   {
     id: "g1",
     firstName: "James",
@@ -179,12 +179,12 @@ const TODAY_RESERVATIONS: Reservation[] = [
 ];
 
 export function getAllGuests(): Guest[] {
-  return MOCK_GUESTS;
+  return guestList;
 }
 
 export function searchGuests(query: string): Guest[] {
   const q = query.toLowerCase();
-  return MOCK_GUESTS.filter(
+  return guestList.filter(
     g =>
       g.firstName.toLowerCase().includes(q) ||
       g.lastName.toLowerCase().includes(q) ||
@@ -193,7 +193,7 @@ export function searchGuests(query: string): Guest[] {
 }
 
 export function getGuestById(id: string): Guest | undefined {
-  return MOCK_GUESTS.find(g => g.id === id);
+  return guestList.find(g => g.id === id);
 }
 
 export function getTodayReservations(): Reservation[] {
@@ -201,15 +201,54 @@ export function getTodayReservations(): Reservation[] {
 }
 
 export function getVipGuests(): Guest[] {
-  return MOCK_GUESTS.filter(g => g.isVip);
+  return guestList.filter(g => g.isVip);
 }
 
 export function getStats() {
   return {
-    totalGuests: MOCK_GUESTS.length,
-    vipGuests: MOCK_GUESTS.filter(g => g.isVip).length,
+    totalGuests: guestList.length,
+    vipGuests: guestList.filter(g => g.isVip).length,
     coversToday: TODAY_RESERVATIONS.reduce((acc, r) => acc + r.partySize, 0),
     reservationsToday: TODAY_RESERVATIONS.length,
-    avgSpend: Math.round(MOCK_GUESTS.reduce((acc, g) => acc + g.averageSpend, 0) / MOCK_GUESTS.length),
+    avgSpend: Math.round(guestList.reduce((acc, g) => acc + g.averageSpend, 0) / guestList.length),
   };
+}
+
+export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): Guest {
+  const parts = name.trim().split(/\s+/);
+  const firstName = parts[0] || name;
+  const lastName = parts.slice(1).join(" ") || "";
+  
+  // Check if guest already exists
+  const existing = guestList.find(g => 
+    g.firstName.toLowerCase() === firstName.toLowerCase() && 
+    g.lastName.toLowerCase() === lastName.toLowerCase()
+  );
+  
+  if (existing) {
+    existing.isVip = isVip;
+    if (notes) existing.notes = notes;
+    return existing;
+  }
+  
+  // Add new guest
+  const newGuest: Guest = {
+    id: `g${guestList.length + 1}`,
+    firstName,
+    lastName,
+    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`,
+    phone: "",
+    visitCount: 1,
+    lastVisit: new Date().toISOString().split("T")[0],
+    preferences: [],
+    dietaryNotes: "",
+    averageSpend: 0,
+    isVip,
+    favoriteItems: [],
+    specialOccasions: [],
+    averagePartySize: 2,
+    notes: notes || (isVip ? "Added as VIP via Restly AI." : "Added via Restly AI."),
+  };
+  guestList = [newGuest, ...guestList];
+  return newGuest;
 }

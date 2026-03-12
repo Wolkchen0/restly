@@ -2,7 +2,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { searchGuests, getVipGuests, getTodayReservations } from "@/services/opentable";
+import { searchGuests, getVipGuests, getTodayReservations, addOrUpdateGuest } from "@/services/opentable";
 import { getInventory, getLowStockItems, getInventoryStats } from "@/services/toast";
 import { getAllTimeOffRequests } from "@/services/timeoff";
 import { getRecentReviews, getReviewStats } from "@/services/reviews";
@@ -280,11 +280,15 @@ When users ask about connecting review platforms or social media, give them exac
                         isVip: z.boolean().default(true),
                         notes: z.string().optional().describe("Special preferences, allergies, or notes"),
                     }),
-                    execute: async ({ name, isVip }) => ({
-                        success: true,
-                        message: `${name} updated in the system as ${isVip ? "VIP" : "Guest"}.`,
-                        navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
-                    }),
+                    execute: async ({ name, isVip, notes }) => {
+                        const guest = addOrUpdateGuest(name, isVip, notes);
+                        return {
+                            success: true,
+                            message: `${guest.firstName} ${guest.lastName} updated in the system as ${isVip ? "VIP" : "Guest"}.`,
+                            guest: { id: guest.id, name: `${guest.firstName} ${guest.lastName}`, isVip: guest.isVip },
+                            navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
+                        };
+                    },
                 }),
 
                 approve_staff_timeoff: tool({
