@@ -247,14 +247,26 @@ export default function SchedulePage() {
         const ws = XLSX.utils.aoa_to_sheet(rows);
         // Set column widths
         ws['!cols'] = [
-            { wch: 18 }, { wch: 14 },
-            ...DAYS.map(() => ({ wch: 16 })),
+            { wch: 20 }, { wch: 16 },
+            ...DAYS.map(() => ({ wch: 18 })),
             { wch: 8 }
         ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-        XLSX.writeFile(wb, `Schedule_${weekDates[0].replace(/\//g, '-')}_to_${weekDates[6].replace(/\//g, '-')}.xlsx`);
-        showToast('📥 Schedule exported as Excel!');
+
+        // Use XLSX.write with Blob for reliable browser download
+        const wbOut = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([wbOut], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const dateRange = `${weekDates[0].replace(/\//g, '-')}_to_${weekDates[6].replace(/\//g, '-')}`;
+        a.href = url;
+        a.download = `Schedule_${dateRange}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📥 Schedule exported!');
     };
 
     function copyLink(url: string, key: string) {
