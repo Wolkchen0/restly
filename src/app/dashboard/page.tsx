@@ -17,7 +17,6 @@ const salesData = [
 export default function DashboardOverview() {
     const [activeLoc, setActiveLoc] = useState<string>("Loading...");
     const [currentTime, setCurrentTime] = useState("");
-    const [reviewsData, setReviewsData] = useState<any>(null);
     const [isDemo, setIsDemo] = useState<boolean>(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -49,9 +48,7 @@ export default function DashboardOverview() {
                 setActiveLoc("Setup Required");
             });
 
-        fetch("/api/reviews")
-            .then(r => r.json())
-            .then(d => setReviewsData(d));
+
 
         return () => clearInterval(t);
     }, []);
@@ -280,44 +277,82 @@ export default function DashboardOverview() {
                         </div>
                     </div>
 
-                    {/* Social Sentiment (New Widget) */}
-                    {reviewsData && (
-                        <div className="panel" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                <h2 style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>Live Social Sentiment</h2>
-                                {isDemo && (
-                                    <span style={{ fontSize: 12, fontWeight: 700, background: "rgba(201,168,76,0.1)", color: "var(--gold-light)", padding: "4px 8px", borderRadius: 8 }}>
-                                        ★ {reviewsData.stats?.averageRating} Avg
-                                    </span>
-                                )}
-                            </div>
+                </div>
+            </div>
 
-                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-                                {isDemo ? (
-                                    reviewsData.reviews?.slice(0, 3).map((r: any) => (
-                                        <div key={r.id} style={{ padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.05)" }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                                <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{r.platform} • {r.author}</div>
-                                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{r.date}</div>
-                                            </div>
-                                            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                                                "{r.text}"
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div style={{ padding: "24px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px dashed rgba(255,255,255,0.1)", textAlign: "center", flex: 1, display: "flex", alignItems: "center" }}>
-                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Link Google Business & Yelp to enable AI review summarization.</div>
+            {/* ── DAILY REVIEWS & SENTIMENT INTELLIGENCE ── */}
+            <div className="panel" style={{ marginTop: 24 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                    <div>
+                        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Daily Reviews & Sentiment Intelligence</h2>
+                        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Aggregated from Google, Yelp, OpenTable, Instagram & more</p>
+                    </div>
+                    <Link href="/dashboard/inbox" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", textDecoration: "none", padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                        View Inbox →
+                    </Link>
+                </div>
+
+                {/* Sentiment KPIs */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
+                    {[
+                        { label: "Avg Rating", value: isDemo ? "4.6" : "—", icon: "★", color: "#E8C96E" },
+                        { label: "Reviews Today", value: isDemo ? "7" : "0", icon: "◉", color: "#60a5fa" },
+                        { label: "Positive", value: isDemo ? "5" : "0", icon: "↑", color: "#4ade80" },
+                        { label: "Neutral", value: isDemo ? "1" : "0", icon: "→", color: "rgba(255,255,255,0.5)" },
+                        { label: "Negative", value: isDemo ? "1" : "0", icon: "↓", color: "#f87171" },
+                    ].map(k => (
+                        <div key={k.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: 14, textAlign: "center" }}>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>{k.label}</div>
+                            <div style={{ fontSize: 24, fontWeight: 900, color: k.color }}>{k.icon} {k.value}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Latest Reviews */}
+                {isDemo ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                        {[
+                            { platform: "Google", author: "Mike R.", rating: 5, text: "Exceptional dining experience. Truffle burger was outstanding and cocktail program is top-notch.", color: "#4285F4", time: "1h ago" },
+                            { platform: "Yelp", author: "Anna L.", rating: 4, text: "Great food but wait time was long past our reservation. Once seated, everything was perfect.", color: "#D32323", time: "6h ago" },
+                            { platform: "OpenTable", author: "Sarah M.", rating: 5, text: "Perfect anniversary dinner. Staff arranged a special dessert and wine pairing was spot-on.", color: "#DA3743", time: "1d ago" },
+                            { platform: "Instagram", author: "@foodie.gal_ny", rating: 0, text: "DM: Looking for vegan options for a birthday party of 5. Two strict vegans in our group.", color: "#E1306C", time: "10m ago" },
+                            { platform: "X", author: "@lafoodie", rating: 0, text: "Mention: Anyone tried the lamb chops? Absolutely insane. Best I've had in LA.", color: "#fff", time: "3h ago" },
+                            { platform: "Email", author: "Jennifer Oaks", rating: 0, text: "Corporate dinner inquiry for 35 guests on March 28th. Needs private dining and set menu.", color: "#60a5fa", time: "5m ago" },
+                        ].map((r, i) => (
+                            <div key={i} style={{ padding: 16, background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: r.color }}>{r.platform}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>{r.author}</span>
+                                    </div>
+                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{r.time}</span>
+                                </div>
+                                {r.rating > 0 && (
+                                    <div style={{ marginBottom: 6, fontSize: 12, color: "#E8C96E" }}>
+                                        {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
                                     </div>
                                 )}
+                                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                    {r.text}
+                                </div>
                             </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div style={{ padding: "32px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px dashed rgba(255,255,255,0.1)", textAlign: "center" }}>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Connect your Google Business, Yelp, OpenTable, and social accounts in Settings to see daily reviews and sentiment analysis here.</div>
+                    </div>
+                )}
 
-                            <div style={{ marginTop: 12, fontSize: 11, color: isDemo ? "#E8C96E" : "rgba(255,255,255,0.4)", fontStyle: "italic", textAlign: "center" }}>
-                                ✨ AI Insight: {reviewsData.aiInsight}
-                            </div>
+                {/* AI Insight */}
+                {isDemo && (
+                    <div style={{ marginTop: 16, padding: "14px 20px", background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 10, display: "flex", gap: 12, alignItems: "center" }}>
+                        <div style={{ fontSize: 18 }}>🧠</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+                            AI Insight: Today's reviews are 71% positive. Guests are praising the truffle burger and cocktail program. One concern about reservation wait times — consider adding a 10-minute buffer between seatings on weekends.
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
 
         </main>
