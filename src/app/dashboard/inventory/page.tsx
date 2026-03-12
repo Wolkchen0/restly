@@ -12,12 +12,39 @@ export default function InventoryPage() {
     const [lastSynced, setLastSynced] = useState<string>("");
     const [syncCountdown, setSyncCountdown] = useState(600);
     const [bottles, setBottles] = useState<BottleInfo[]>(BOTTLE_INVENTORY);
-    const [foodIngredients] = useState<FoodIngredient[]>(FOOD_INGREDIENTS);
+    const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>(FOOD_INGREDIENTS);
     const [drinkSubTab, setDrinkSubTab] = useState<"bottles" | "cocktails">("bottles");
     const [foodSubTab, setFoodSubTab] = useState<"ingredients" | "recipes">("recipes");
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+    // Receive Stock Modal
+    const [receiveModal, setReceiveModal] = useState<{ type: "bottle" | "food"; id: string; name: string; unit: string; sizeMl?: number } | null>(null);
+    const [receiveQty, setReceiveQty] = useState("");
+    const [receiveUnit, setReceiveUnit] = useState<"bottles" | "cases">("bottles");
+
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
+
+    const openReceiveBottle = (b: BottleInfo) => {
+        setReceiveModal({ type: "bottle", id: b.spiritId, name: b.name, unit: "bottles", sizeMl: b.sizeMl });
+        setReceiveQty(""); setReceiveUnit("bottles");
+    };
+    const openReceiveFood = (i: FoodIngredient) => {
+        setReceiveModal({ type: "food", id: i.inventoryId, name: i.name, unit: i.unit });
+        setReceiveQty("");
+    };
+    const confirmReceive = () => {
+        const qty = parseFloat(receiveQty);
+        if (!qty || qty <= 0 || !receiveModal) return;
+        if (receiveModal.type === "bottle") {
+            const addBottles = receiveUnit === "cases" ? qty * 12 : qty;
+            setBottles(prev => prev.map(b => b.spiritId === receiveModal.id ? { ...b, fullBottles: b.fullBottles + addBottles } : b));
+            showToast(`✅ Received ${receiveUnit === "cases" ? `${qty} case(s) (${addBottles} bottles)` : `${qty} bottle(s)`} of ${receiveModal.name}`);
+        } else {
+            setFoodIngredients(prev => prev.map(i => i.inventoryId === receiveModal.id ? { ...i, onHand: i.onHand + qty } : i));
+            showToast(`✅ Received ${qty} ${receiveModal.unit} of ${receiveModal.name}`);
+        }
+        setReceiveModal(null);
+    };
 
     useEffect(() => {
         const init = async () => {
@@ -98,8 +125,47 @@ export default function InventoryPage() {
             </div>
 
             {toastMsg && (
-                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
-                    ✓ {toastMsg}
+                <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 200, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+                    {toastMsg}
+                </div>
+            )}
+
+            {/* ── RECEIVE STOCK MODAL ── */}
+            {receiveModal && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setReceiveModal(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: 32, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📦 Receive Stock</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Add incoming inventory for <strong style={{ color: "#E8C96E" }}>{receiveModal.name}</strong></div>
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Quantity</label>
+                            <div style={{ display: "flex", gap: 10 }}>
+                                <input type="number" min="1" step="1" value={receiveQty} onChange={e => setReceiveQty(e.target.value)} placeholder={receiveModal.type === "bottle" ? "e.g. 4" : `e.g. 50`} autoFocus style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 16px", fontSize: 16, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                                {receiveModal.type === "bottle" ? (
+                                    <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                        {(["bottles", "cases"] as const).map(u => (
+                                            <button key={u} onClick={() => setReceiveUnit(u)} style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "none", background: receiveUnit === u ? "rgba(201,168,76,0.15)" : "rgba(255,255,255,0.03)", color: receiveUnit === u ? "#E8C96E" : "rgba(255,255,255,0.4)" }}>
+                                                {u === "bottles" ? "Bottles" : "Cases (12)"}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "flex", alignItems: "center", padding: "0 16px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, fontSize: 14, color: "rgba(255,255,255,0.5)" }}>{receiveModal.unit}</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {receiveModal.type === "bottle" && receiveQty && parseFloat(receiveQty) > 0 && (
+                            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                                Adding <strong style={{ color: "#E8C96E" }}>{receiveUnit === "cases" ? `${parseFloat(receiveQty) * 12} bottles` : `${receiveQty} bottle(s)`}</strong> ({receiveModal.sizeMl}ml each) = <strong style={{ color: "#4ade80" }}>{((receiveUnit === "cases" ? parseFloat(receiveQty) * 12 : parseFloat(receiveQty)) * (receiveModal.sizeMl || 750) / 1000).toFixed(1)}L total</strong>
+                            </div>
+                        )}
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setReceiveModal(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={confirmReceive} disabled={!receiveQty || parseFloat(receiveQty) <= 0} style={{ flex: 1, padding: "12px", background: receiveQty && parseFloat(receiveQty) > 0 ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 10, color: receiveQty && parseFloat(receiveQty) > 0 ? "#1a1000" : "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: 800, cursor: receiveQty ? "pointer" : "not-allowed", fontFamily: "inherit" }}>Confirm Receive</button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -264,11 +330,11 @@ export default function InventoryPage() {
                                                             ) : <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>}
                                                         </td>
                                                         <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 180 }}>
-                                                            {recipes.length > 0 ? recipes.slice(0, 2).map(r => r.name).join(", ") + (recipes.length > 2 ? ` +${recipes.length - 2}` : "") : "—"}
+                                                            {recipes.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{recipes.slice(0, 2).map(r => r.name).join(", ")}{recipes.length > 2 ? ` +${recipes.length - 2}` : ""}</>) : "—"}
                                                         </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${i.costPerUnit}</td>
                                                         <td>
-                                                            <button onClick={() => showToast(`PO created for ${i.name}`)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>Restock</button>
+                                                            <button onClick={() => openReceiveFood(i)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ Receive</button>
                                                         </td>
                                                     </tr>
                                                 );
@@ -350,11 +416,11 @@ export default function InventoryPage() {
                                                             {totalMl > 0 ? `${(totalMl / 1000).toFixed(1)}L` : "0"}
                                                         </td>
                                                         <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 160 }}>
-                                                            {usedIn.length > 0 ? usedIn.slice(0, 2).map(r => r.name).join(", ") + (usedIn.length > 2 ? ` +${usedIn.length - 2}` : "") : "—"}
+                                                            {usedIn.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{usedIn.slice(0, 2).map(r => r.name).join(", ")}{usedIn.length > 2 ? ` +${usedIn.length - 2}` : ""}</>) : "—"}
                                                         </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${b.costPerBottle}</td>
                                                         <td>
-                                                            <button onClick={() => showToast(`PO created for ${b.name}`)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>Restock</button>
+                                                            <button onClick={() => openReceiveBottle(b)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ Receive</button>
                                                         </td>
                                                     </tr>
                                                 );
