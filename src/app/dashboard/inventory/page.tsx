@@ -12,6 +12,10 @@ export default function InventoryPage() {
     const [editingItem, setEditingItem] = useState<any>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({ quantity: 0, threshold: 0, status: "IN_STOCK" });
+    const [lastSynced, setLastSynced] = useState<string>("");
+    const [syncCountdown, setSyncCountdown] = useState(600);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [addForm, setAddForm] = useState({ name: "", category: "Proteins", quantity: 0, unit: "lbs", threshold: 0, costPerUnit: 0, supplier: "" });
 
     useEffect(() => {
         const init = async () => {
@@ -30,6 +34,21 @@ export default function InventoryPage() {
             }
         };
         init();
+
+        // Auto-sync timer (every 10 minutes)
+        const syncTimer = setInterval(() => {
+            setSyncCountdown(prev => {
+                if (prev <= 1) {
+                    setLastSynced(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+                    return 600;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        setLastSynced(new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }));
+
+        return () => clearInterval(syncTimer);
     }, []);
 
     const items: any[] = isDemo ? (data?.inventory ?? []) : [];
@@ -66,17 +85,21 @@ export default function InventoryPage() {
     return (
         <>
             <div className="topbar">
-                <div className="topbar-title">📦 Inventory</div>
-                <div className="topbar-right">
+                <div className="topbar-title">Inventory</div>
+                <div className="topbar-right" style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     {loading ? (
                         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Syncing with POS...</span>
                     ) : isDemo ? (
-                        <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
-                            🟢 Toast POS Connected (Demo)
-                        </span>
+                        <>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Next sync: {Math.floor(syncCountdown / 60)}m {syncCountdown % 60}s · Last: {lastSynced}</span>
+                            <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
+                                POS Connected
+                            </span>
+                            <button onClick={() => setIsAddModalOpen(true)} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Add Item</button>
+                        </>
                     ) : (
                         <span style={{ fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
-                            ⚪ POS Not Connected
+                            POS Not Connected
                         </span>
                     )}
                 </div>
@@ -174,8 +197,8 @@ export default function InventoryPage() {
                                 <table className="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Item</th><th>Category</th><th>Status</th>
-                                            <th>Quantity</th><th>Threshold</th><th>Cost/Unit</th><th>Action</th>
+                                            <th>Item</th><th>Source</th><th>Category</th><th>Status</th>
+                                            <th>Quantity</th><th>Days Left</th><th>Cost/Unit</th><th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -188,12 +211,27 @@ export default function InventoryPage() {
                                                     {item.status === "LOW_STOCK" && <span style={{ marginRight: 6 }}>⚠️</span>}
                                                     {item.name}
                                                 </td>
+                                                <td>
+                                                    <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 6, fontWeight: 600, background: item.source === "pos" ? "rgba(96,165,250,0.1)" : "rgba(255,255,255,0.05)", color: item.source === "pos" ? "#60a5fa" : "rgba(255,255,255,0.4)", border: `1px solid ${item.source === "pos" ? "rgba(96,165,250,0.2)" : "rgba(255,255,255,0.08)"}` }}>
+                                                        {item.source === "pos" ? "POS" : "Manual"}
+                                                    </span>
+                                                </td>
                                                 <td><span className="badge badge-blue">{item.category}</span></td>
                                                 <td><span className={`badge ${statusClass[item.status]}`}>{statusLabel[item.status]}</span></td>
                                                 <td style={{ fontWeight: 600, color: item.status === "OUT_OF_STOCK" ? "var(--red)" : item.status === "LOW_STOCK" ? "var(--yellow)" : "var(--text-primary)" }}>
                                                     {item.quantity} {item.unit}
                                                 </td>
-                                                <td style={{ color: "var(--text-muted)", fontSize: 12 }}>{item.threshold} {item.unit}</td>
+                                                <td style={{ fontSize: 12 }}>
+                                                    {item.dailyUsage && item.quantity > 0 ? (
+                                                        <span style={{ color: Math.ceil(item.quantity / item.dailyUsage) <= 2 ? "var(--red)" : Math.ceil(item.quantity / item.dailyUsage) <= 5 ? "var(--yellow)" : "var(--green)", fontWeight: 600 }}>
+                                                            {Math.ceil(item.quantity / item.dailyUsage)}d
+                                                        </span>
+                                                    ) : item.status === "OUT_OF_STOCK" ? (
+                                                        <span style={{ color: "var(--red)", fontWeight: 600 }}>0d</span>
+                                                    ) : (
+                                                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                                                    )}
+                                                </td>
                                                 <td style={{ color: "var(--text-muted)" }}>${item.costPerUnit}</td>
                                                 <td>
                                                     <div style={{ display: "flex", gap: 6 }}>
@@ -288,6 +326,87 @@ export default function InventoryPage() {
                         <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>
                             Go to Integrations
                         </button>
+                    </div>
+                )}
+
+                {/* ADD ITEM MODAL */}
+                {isAddModalOpen && (
+                    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 110, backdropFilter: "blur(8px)" }}>
+                        <div className="card" style={{ width: 460, padding: 32 }}>
+                            <h2 style={{ fontSize: 20, fontWeight: 900, color: "#fff", marginBottom: 8 }}>Add Item Manually</h2>
+                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>This item will be matched against POS menu items. If found, usage will auto-deduct from inventory.</p>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Item Name *</label>
+                                    <input value={addForm.name} onChange={e => setAddForm({ ...addForm, name: e.target.value })} placeholder="e.g. Don Julio Blanco" style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Category</label>
+                                    <select value={addForm.category} onChange={e => setAddForm({ ...addForm, category: e.target.value })} style={{ width: "100%", background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                                        {["Proteins", "Soups & Apps", "Dairy", "Specialty", "Oils & Condiments", "Produce", "Dry Goods", "Desserts", "Bakery", "Alcohol", "Beverages"].map(c => <option key={c} value={c} style={{ background: "#1a1a24", color: "#fff" }}>{c}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Quantity *</label>
+                                    <input type="number" value={addForm.quantity} onChange={e => setAddForm({ ...addForm, quantity: parseFloat(e.target.value) || 0 })} style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Unit</label>
+                                    <select value={addForm.unit} onChange={e => setAddForm({ ...addForm, unit: e.target.value })} style={{ width: "100%", background: "#1a1a24", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                                        {["lbs", "portions", "bottles", "kegs", "gallons", "quarts", "pieces", "grams", "servings", "loaves"].map(u => <option key={u} value={u} style={{ background: "#1a1a24", color: "#fff" }}>{u}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Threshold</label>
+                                    <input type="number" value={addForm.threshold} onChange={e => setAddForm({ ...addForm, threshold: parseFloat(e.target.value) || 0 })} style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, boxSizing: "border-box" }} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Cost/Unit ($)</label>
+                                    <input type="number" value={addForm.costPerUnit} onChange={e => setAddForm({ ...addForm, costPerUnit: parseFloat(e.target.value) || 0 })} style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 6 }}>Supplier</label>
+                                    <input value={addForm.supplier} onChange={e => setAddForm({ ...addForm, supplier: e.target.value })} placeholder="e.g. Wine Direct" style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                                <button className="btn-secondary" onClick={() => setIsAddModalOpen(false)}>Cancel</button>
+                                <button
+                                    className="btn-primary"
+                                    disabled={!addForm.name.trim()}
+                                    onClick={() => {
+                                        const newItem = {
+                                            guid: `manual_${Date.now()}`,
+                                            name: addForm.name,
+                                            category: addForm.category,
+                                            status: addForm.quantity <= 0 ? "OUT_OF_STOCK" : addForm.quantity <= addForm.threshold ? "LOW_STOCK" : "IN_STOCK",
+                                            quantity: addForm.quantity,
+                                            unit: addForm.unit,
+                                            threshold: addForm.threshold,
+                                            costPerUnit: addForm.costPerUnit,
+                                            lastUpdated: new Date().toISOString().split("T")[0],
+                                            supplier: addForm.supplier || "Manual",
+                                            source: "manual",
+                                        };
+                                        setData({ ...data, inventory: [newItem, ...data.inventory], stats: { ...data.stats, total: data.stats.total + 1, inStock: data.stats.inStock + (newItem.status === "IN_STOCK" ? 1 : 0) } });
+                                        setIsAddModalOpen(false);
+                                        setAddForm({ name: "", category: "Proteins", quantity: 0, unit: "lbs", threshold: 0, costPerUnit: 0, supplier: "" });
+                                        showToast(`${addForm.name} added. Searching POS for matching menu items...`);
+                                    }}
+                                    style={{ padding: "10px 24px" }}
+                                >
+                                    Add to Inventory
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
