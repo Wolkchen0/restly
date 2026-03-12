@@ -22,6 +22,7 @@ export default function InventoryPage() {
     const [receiveModal, setReceiveModal] = useState<{ type: "bottle" | "food"; id: string; name: string; unit: string; sizeMl?: number } | null>(null);
     const [receiveQty, setReceiveQty] = useState("");
     const [receiveUnit, setReceiveUnit] = useState<"bottles" | "cases">("bottles");
+    const [receiveMode, setReceiveMode] = useState<"add" | "remove">("add");
 
     // Recipe Edit Modal
     const [editRecipe, setEditRecipe] = useState<DrinkRecipe | null>(null);
@@ -63,24 +64,36 @@ export default function InventoryPage() {
         setBottles(deductSalesFromBottles(BOTTLE_INVENTORY, recipes));
     }, [recipes, deductSalesFromBottles]);
 
-    const openReceiveBottle = (b: BottleInfo) => {
+    const openReceiveBottle = (b: BottleInfo, mode: "add" | "remove" = "add") => {
         setReceiveModal({ type: "bottle", id: b.spiritId, name: b.name, unit: "bottles", sizeMl: b.sizeMl });
-        setReceiveQty(""); setReceiveUnit("bottles");
+        setReceiveQty(""); setReceiveUnit("bottles"); setReceiveMode(mode);
     };
-    const openReceiveFood = (i: FoodIngredient) => {
+    const openReceiveFood = (i: FoodIngredient, mode: "add" | "remove" = "add") => {
         setReceiveModal({ type: "food", id: i.inventoryId, name: i.name, unit: i.unit });
-        setReceiveQty("");
+        setReceiveQty(""); setReceiveMode(mode);
     };
     const confirmReceive = () => {
         const qty = parseFloat(receiveQty);
         if (!qty || qty <= 0 || !receiveModal) return;
-        if (receiveModal.type === "bottle") {
-            const addBottles = receiveUnit === "cases" ? qty * 12 : qty;
-            setBottles(prev => prev.map(b => b.spiritId === receiveModal.id ? { ...b, fullBottles: b.fullBottles + addBottles } : b));
-            showToast(`✅ Received ${receiveUnit === "cases" ? `${qty} case(s) (${addBottles} bottles)` : `${qty} bottle(s)`} of ${receiveModal.name}`);
+        if (receiveMode === "add") {
+            if (receiveModal.type === "bottle") {
+                const addBottles = receiveUnit === "cases" ? qty * 12 : qty;
+                setBottles(prev => prev.map(b => b.spiritId === receiveModal.id ? { ...b, fullBottles: b.fullBottles + addBottles } : b));
+                showToast(`✅ Received ${receiveUnit === "cases" ? `${qty} case(s) (${addBottles} bottles)` : `${qty} bottle(s)`} of ${receiveModal.name}`);
+            } else {
+                setFoodIngredients(prev => prev.map(i => i.inventoryId === receiveModal.id ? { ...i, onHand: i.onHand + qty } : i));
+                showToast(`✅ Received ${qty} ${receiveModal.unit} of ${receiveModal.name}`);
+            }
         } else {
-            setFoodIngredients(prev => prev.map(i => i.inventoryId === receiveModal.id ? { ...i, onHand: i.onHand + qty } : i));
-            showToast(`✅ Received ${qty} ${receiveModal.unit} of ${receiveModal.name}`);
+            // REMOVE mode
+            if (receiveModal.type === "bottle") {
+                const rmBottles = receiveUnit === "cases" ? qty * 12 : qty;
+                setBottles(prev => prev.map(b => b.spiritId === receiveModal.id ? { ...b, fullBottles: Math.max(0, b.fullBottles - rmBottles) } : b));
+                showToast(`🗑️ Removed ${receiveUnit === "cases" ? `${qty} case(s) (${rmBottles} bottles)` : `${qty} bottle(s)`} of ${receiveModal.name}`);
+            } else {
+                setFoodIngredients(prev => prev.map(i => i.inventoryId === receiveModal.id ? { ...i, onHand: Math.max(0, i.onHand - qty) } : i));
+                showToast(`🗑️ Removed ${qty} ${receiveModal.unit} of ${receiveModal.name}`);
+            }
         }
         setReceiveModal(null);
     };
@@ -182,12 +195,16 @@ export default function InventoryPage() {
                 </div>
             )}
 
-            {/* ── RECEIVE STOCK MODAL ── */}
+            {/* ── STOCK ADJUSTMENT MODAL ── */}
             {receiveModal && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setReceiveModal(null)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "36px 36px 32px", width: 520, maxWidth: "calc(100vw - 32px)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 6 }}>📦 Receive Stock</div>
-                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 28 }}>Add incoming inventory for <strong style={{ color: "#E8C96E" }}>{receiveModal.name}</strong></div>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: `1px solid ${receiveMode === "remove" ? "rgba(248,113,113,0.2)" : "rgba(201,168,76,0.2)"}`, borderRadius: 20, padding: "36px 36px 32px", width: 520, maxWidth: "calc(100vw - 32px)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        {/* Mode Toggle */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 20, background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: 4 }}>
+                            <button onClick={() => setReceiveMode("add")} style={{ padding: "10px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", borderRadius: 8, border: "none", background: receiveMode === "add" ? "rgba(74,222,128,0.12)" : "transparent", color: receiveMode === "add" ? "#4ade80" : "rgba(255,255,255,0.35)" }}>📦 Receive Stock</button>
+                            <button onClick={() => setReceiveMode("remove")} style={{ padding: "10px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", borderRadius: 8, border: "none", background: receiveMode === "remove" ? "rgba(248,113,113,0.12)" : "transparent", color: receiveMode === "remove" ? "#f87171" : "rgba(255,255,255,0.35)" }}>🗑️ Remove Stock</button>
+                        </div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 24 }}>{receiveMode === "add" ? "Add incoming inventory for" : "Remove / write off stock for"} <strong style={{ color: receiveMode === "remove" ? "#f87171" : "#E8C96E" }}>{receiveModal.name}</strong></div>
 
                         {/* Unit Type Selector (for bottles) */}
                         {receiveModal.type === "bottle" && (
@@ -240,7 +257,11 @@ export default function InventoryPage() {
                         {/* Action Buttons */}
                         <div style={{ display: "flex", gap: 12 }}>
                             <button onClick={() => setReceiveModal(null)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                            <button onClick={confirmReceive} disabled={!receiveQty || parseFloat(receiveQty) <= 0} style={{ flex: 1, padding: "14px", background: receiveQty && parseFloat(receiveQty) > 0 ? "linear-gradient(135deg,#C9A84C,#E8C96E)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 12, color: receiveQty && parseFloat(receiveQty) > 0 ? "#1a1000" : "rgba(255,255,255,0.3)", fontSize: 15, fontWeight: 800, cursor: receiveQty ? "pointer" : "not-allowed", fontFamily: "inherit" }}>✅ Confirm Receive</button>
+                            <button onClick={confirmReceive} disabled={!receiveQty || parseFloat(receiveQty) <= 0} style={{
+                                flex: 1, padding: "14px", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 800, cursor: receiveQty ? "pointer" : "not-allowed", fontFamily: "inherit",
+                                background: receiveQty && parseFloat(receiveQty) > 0 ? (receiveMode === "remove" ? "linear-gradient(135deg,#dc2626,#f87171)" : "linear-gradient(135deg,#C9A84C,#E8C96E)") : "rgba(255,255,255,0.04)",
+                                color: receiveQty && parseFloat(receiveQty) > 0 ? "#fff" : "rgba(255,255,255,0.3)",
+                            }}>{receiveMode === "remove" ? "🗑️ Confirm Removal" : "✅ Confirm Receive"}</button>
                         </div>
                     </div>
                 </div>
@@ -411,7 +432,10 @@ export default function InventoryPage() {
                                                         </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${i.costPerUnit}</td>
                                                         <td>
-                                                            <button onClick={() => openReceiveFood(i)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ Receive</button>
+                                                            <div style={{ display: "flex", gap: 4 }}>
+                                                                <button onClick={() => openReceiveFood(i, "add")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+</button>
+                                                                <button onClick={() => openReceiveFood(i, "remove")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>−</button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -500,7 +524,10 @@ export default function InventoryPage() {
                                                         </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${b.costPerBottle}</td>
                                                         <td>
-                                                            <button onClick={() => openReceiveBottle(b)} style={{ fontSize: 12, padding: "6px 14px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ Receive</button>
+                                                            <div style={{ display: "flex", gap: 4 }}>
+                                                                <button onClick={() => openReceiveBottle(b, "add")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+</button>
+                                                                <button onClick={() => openReceiveBottle(b, "remove")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>−</button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
