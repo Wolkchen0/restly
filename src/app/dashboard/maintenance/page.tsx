@@ -8,10 +8,10 @@ const INITIAL_LOGS = [
 ];
 
 const INITIAL_EQUIPMENT = [
-    { id: "EQ-1", name: "Walk-in Cooler (Main)", type: "Refrigeration", nextService: "2026-05-15", status: "OK", urgent: false },
-    { id: "EQ-2", name: "Hobart Dishwasher", type: "Cleanup", nextService: "2026-03-10", status: "NEEDS_MAINTENANCE", urgent: true },
-    { id: "EQ-3", name: "Pitco Fryer #2", type: "Cooking", nextService: "2026-03-08", status: "BROKEN", urgent: true },
-    { id: "EQ-4", name: "Ice Machine (Bar)", type: "Refrigeration", nextService: "2026-06-01", status: "OK", urgent: false },
+    { id: "EQ-1", name: "Walk-in Cooler (Main)", type: "Refrigeration", nextService: "2026-05-15", status: "OK", urgent: false, model: "Kolpak QS7-1010-FT", serial: "KP-2023-44891", warranty: "2027-08-15", phone: "+1 (800) 555-2671", email: "service@kolpak.com", installer: "CoolTech HVAC", notes: "Last filter replaced Jan 2026. Runs at 34F avg." },
+    { id: "EQ-2", name: "Hobart Dishwasher", type: "Cleanup", nextService: "2026-03-10", status: "NEEDS_MAINTENANCE", urgent: true, model: "Hobart AM15-6", serial: "HB-2024-77342", warranty: "2028-01-20", phone: "+1 (800) 555-4482", email: "support@hobartservice.com", installer: "ProKitchen Installs", notes: "Making loud noise, not draining properly. Last serviced Dec 2025." },
+    { id: "EQ-3", name: "Pitco Fryer #2", type: "Cooking", nextService: "2026-03-08", status: "BROKEN", urgent: true, model: "Pitco SSH75R", serial: "PT-2022-55190", warranty: "Expired (2025-06)", phone: "+1 (800) 555-9103", email: "repair@pitcofryer.com", installer: "Kitchen Pros LLC", notes: "Thermostat failure. Oil not heating past 280F. Needs replacement part." },
+    { id: "EQ-4", name: "Ice Machine (Bar)", type: "Refrigeration", nextService: "2026-06-01", status: "OK", urgent: false, model: "Manitowoc IYT0620A", serial: "MW-2024-33215", warranty: "2028-04-10", phone: "+1 (800) 555-7744", email: "service@manitowoc.com", installer: "CoolTech HVAC", notes: "Produces 575 lbs/day. Last descaled Feb 2026." },
 ];
 
 export default function MaintenancePage() {
@@ -19,6 +19,7 @@ export default function MaintenancePage() {
     const [isDemo, setIsDemo] = useState(true);
     const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
     const [aiDispatched, setAiDispatched] = useState(false);
+    const [expandedEq, setExpandedEq] = useState<string | null>(null);
 
     // Modal State
     const [eqModalOpen, setEqModalOpen] = useState(false);
@@ -81,8 +82,13 @@ export default function MaintenancePage() {
             nextService: hasReminder ? `Next ${reminderPeriod} (Day ${monthlyDay})` : "Not Set",
             status: "OK",
             urgent: false,
+            model: "",
+            serial: "",
+            warranty: "",
             phone: newEqPhone,
-            email: newEqEmail
+            email: newEqEmail,
+            installer: "",
+            notes: ""
         };
         setEquipmentList([...equipmentList, newEq]);
         // Reset form
@@ -241,35 +247,70 @@ export default function MaintenancePage() {
                                             <th>Category</th>
                                             <th>Status</th>
                                             <th>Next Scheduled Service</th>
-                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {equipmentList.map(eq => (
-                                            <tr key={eq.id}>
-                                                <td style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>{eq.id}</td>
-                                                <td style={{ fontWeight: 700, color: "#fff" }}>{eq.name}</td>
-                                                <td>{eq.type}</td>
-                                                <td>
-                                                    {eq.status === "OK" && <span className="badge badge-green">Operational</span>}
-                                                    {eq.status === "NEEDS_MAINTENANCE" && <span className="badge badge-yellow">Needs Service</span>}
-                                                    {eq.status === "BROKEN" && <span className="badge badge-red">Out of Order</span>}
-                                                </td>
-                                                <td style={{ color: eq.urgent ? "var(--red)" : "inherit", fontWeight: eq.urgent ? 600 : 400 }}>
-                                                    {eq.nextService}
-                                                </td>
-                                                <td>
-                                                    {actioned === eq.id ? (
-                                                        <button disabled style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--green)", padding: "6px 12px", borderRadius: 6, fontSize: 11 }}>
-                                                            ✓ Request Sent
-                                                        </button>
-                                                    ) : (
-                                                        <button onClick={() => handleDispatch(eq.id)} style={{ background: eq.urgent ? "var(--red)" : "var(--bg-card)", border: eq.urgent ? "1px solid rgba(239, 68, 68, 0.5)" : "1px solid var(--border)", color: eq.urgent ? "#fff" : "var(--text-muted)", padding: "6px 12px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>
-                                                            {eq.urgent ? "Email Fix-it ↗" : "Log Maintenance"}
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
+                                            <>
+                                                <tr key={eq.id} onClick={() => setExpandedEq(expandedEq === eq.id ? null : eq.id)} style={{ cursor: "pointer", transition: "background 0.15s", background: expandedEq === eq.id ? "rgba(201,168,76,0.05)" : "transparent" }}>
+                                                    <td style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>{eq.id}</td>
+                                                    <td style={{ fontWeight: 700, color: "#fff" }}>
+                                                        <span style={{ marginRight: 6, fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{expandedEq === eq.id ? "▼" : "▶"}</span>
+                                                        {eq.name}
+                                                    </td>
+                                                    <td>{eq.type}</td>
+                                                    <td>
+                                                        {eq.status === "OK" && <span className="badge badge-green">Operational</span>}
+                                                        {eq.status === "NEEDS_MAINTENANCE" && <span className="badge badge-yellow">Needs Service</span>}
+                                                        {eq.status === "BROKEN" && <span className="badge badge-red">Out of Order</span>}
+                                                    </td>
+                                                    <td style={{ color: eq.urgent ? "var(--red)" : "inherit", fontWeight: eq.urgent ? 600 : 400 }}>
+                                                        {eq.nextService}
+                                                    </td>
+                                                </tr>
+                                                {expandedEq === eq.id && (
+                                                    <tr key={`${eq.id}-detail`}>
+                                                        <td colSpan={5} style={{ padding: 0, border: "none" }}>
+                                                            <div style={{ padding: "16px 24px 20px", background: "rgba(255,255,255,0.015)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Model</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{(eq as any).model || "—"}</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Serial Number</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff", fontFamily: "monospace" }}>{(eq as any).serial || "—"}</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Warranty</div>
+                                                                        <div style={{ fontSize: 13, color: (eq as any).warranty?.includes("Expired") ? "var(--red)" : "var(--green)", fontWeight: 600 }}>{(eq as any).warranty || "—"}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Service Phone</div>
+                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{(eq as any).phone || "Not set"}</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Service Email</div>
+                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{(eq as any).email || "Not set"}</div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Installed By</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff" }}>{(eq as any).installer || "—"}</div>
+                                                                    </div>
+                                                                </div>
+                                                                {(eq as any).notes && (
+                                                                    <div>
+                                                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Notes</div>
+                                                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>{(eq as any).notes}</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </>
                                         ))}
                                     </tbody>
                                 </table>
