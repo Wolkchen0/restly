@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { BOTTLE_INVENTORY, DRINK_RECIPES, DEMO_DRINK_SALES, getTotalMlRemaining, getServingsRemaining, getPourCost, getCocktailsUsing, type BottleInfo } from "@/services/drinks";
+import { useState, useEffect, useCallback } from "react";
+import { BOTTLE_INVENTORY, DRINK_RECIPES, DEMO_DRINK_SALES, getTotalMlRemaining, getServingsRemaining, getPourCost, getCocktailsUsing, type BottleInfo, type DrinkRecipe } from "@/services/drinks";
 import { FOOD_INGREDIENTS, FOOD_RECIPES, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, getRecipesUsing, type FoodIngredient } from "@/services/food-recipes";
 
 export default function InventoryPage() {
@@ -11,18 +11,57 @@ export default function InventoryPage() {
     const [loading, setLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState<string>("");
     const [syncCountdown, setSyncCountdown] = useState(600);
-    const [bottles, setBottles] = useState<BottleInfo[]>(BOTTLE_INVENTORY);
+    const [bottles, setBottles] = useState<BottleInfo[]>([]);
     const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>(FOOD_INGREDIENTS);
     const [drinkSubTab, setDrinkSubTab] = useState<"bottles" | "cocktails">("bottles");
     const [foodSubTab, setFoodSubTab] = useState<"ingredients" | "recipes">("recipes");
     const [toastMsg, setToastMsg] = useState<string | null>(null);
+    const [recipes, setRecipes] = useState<DrinkRecipe[]>(DRINK_RECIPES);
 
     // Receive Stock Modal
     const [receiveModal, setReceiveModal] = useState<{ type: "bottle" | "food"; id: string; name: string; unit: string; sizeMl?: number } | null>(null);
     const [receiveQty, setReceiveQty] = useState("");
     const [receiveUnit, setReceiveUnit] = useState<"bottles" | "cases">("bottles");
 
+    // Recipe Edit Modal
+    const [editRecipe, setEditRecipe] = useState<DrinkRecipe | null>(null);
+    const [editIngredients, setEditIngredients] = useState<{ spiritId: string; amountMl: number }[]>([]);
+    const [editPrice, setEditPrice] = useState("");
+
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
+
+    // ── Auto-deduction: subtract POS sales from bottle inventory ──
+    const deductSalesFromBottles = useCallback((baseBottles: BottleInfo[], drinkRecipes: DrinkRecipe[]) => {
+        const updated = baseBottles.map(b => ({ ...b }));
+        for (const sale of DEMO_DRINK_SALES) {
+            const recipe = drinkRecipes.find(r => r.id === sale.recipeId);
+            if (!recipe || sale.sold === 0) continue;
+            for (const ing of recipe.ingredients) {
+                const bottle = updated.find(b => b.spiritId === ing.spiritId);
+                if (!bottle) continue;
+                let mlToDeduct = ing.amountMl * sale.sold;
+                // Deduct from open bottle first, then full bottles
+                if (bottle.openBottleMl > 0) {
+                    const fromOpen = Math.min(bottle.openBottleMl, mlToDeduct);
+                    bottle.openBottleMl -= fromOpen;
+                    mlToDeduct -= fromOpen;
+                }
+                while (mlToDeduct > 0 && bottle.fullBottles > 0) {
+                    bottle.fullBottles--;
+                    bottle.openBottleMl = bottle.sizeMl;
+                    const fromNew = Math.min(bottle.openBottleMl, mlToDeduct);
+                    bottle.openBottleMl -= fromNew;
+                    mlToDeduct -= fromNew;
+                }
+                if (mlToDeduct > 0) { bottle.openBottleMl = 0; bottle.fullBottles = 0; }
+            }
+        }
+        return updated;
+    }, []);
+
+    useEffect(() => {
+        setBottles(deductSalesFromBottles(BOTTLE_INVENTORY, recipes));
+    }, [recipes, deductSalesFromBottles]);
 
     const openReceiveBottle = (b: BottleInfo) => {
         setReceiveModal({ type: "bottle", id: b.spiritId, name: b.name, unit: "bottles", sizeMl: b.sizeMl });
@@ -44,6 +83,19 @@ export default function InventoryPage() {
             showToast(`✅ Received ${qty} ${receiveModal.unit} of ${receiveModal.name}`);
         }
         setReceiveModal(null);
+    };
+
+    // Recipe Edit Handlers
+    const openEditRecipe = (r: DrinkRecipe) => {
+        setEditRecipe(r);
+        setEditIngredients(r.ingredients.map(i => ({ ...i })));
+        setEditPrice(String(r.menuPrice));
+    };
+    const saveRecipe = () => {
+        if (!editRecipe) return;
+        setRecipes(prev => prev.map(r => r.id === editRecipe.id ? { ...r, ingredients: editIngredients, menuPrice: parseFloat(editPrice) || r.menuPrice } : r));
+        showToast(`✅ Updated recipe: ${editRecipe.name}`);
+        setEditRecipe(null);
     };
 
     useEffect(() => {
@@ -92,7 +144,7 @@ export default function InventoryPage() {
     };
 
     const filteredBottles = bottles.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()));
-    const filteredDrinkRecipes = DRINK_RECIPES.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
+    const filteredDrinkRecipes = recipes.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
     const filteredFoodIngredients = foodIngredients.filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
     const filteredFoodRecipes = FOOD_RECIPES.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -412,7 +464,7 @@ export default function InventoryPage() {
                                             <tr>
                                                 <th>Spirit</th><th>Category</th><th>Status</th>
                                                 <th>Full Bottles</th><th>Open Bottle</th><th>Total</th>
-                                                <th>Used In</th><th>Cost</th><th>Action</th>
+                                                <th>Today POS Usage</th><th>Used In</th><th>Cost</th><th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -440,8 +492,11 @@ export default function InventoryPage() {
                                                         <td style={{ fontWeight: 700, fontSize: 14, color: totalMl === 0 ? "#f87171" : totalMl < b.sizeMl * 2 ? "#facc15" : "#4ade80" }}>
                                                             {totalMl > 0 ? `${(totalMl / 1000).toFixed(1)}L` : "0"}
                                                         </td>
-                                                        <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 160 }}>
-                                                            {usedIn.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{usedIn.slice(0, 2).map(r => r.name).join(", ")}{usedIn.length > 2 ? ` +${usedIn.length - 2}` : ""}</>) : "—"}
+                                                        <td style={{ fontSize: 12, color: "#60a5fa" }}>
+                                                            {(() => { let used = 0; for (const sale of DEMO_DRINK_SALES) { const r = recipes.find(x => x.id === sale.recipeId); if (!r) continue; const ing = r.ingredients.find(x => x.spiritId === b.spiritId); if (ing) used += ing.amountMl * sale.sold; } return used > 0 ? <><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{(used/1000).toFixed(1)}L</> : "—"; })()}
+                                                        </td>
+                                                        <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 140 }}>
+                                                            {usedIn.length > 0 ? usedIn.slice(0, 2).map(r => r.name).join(", ") + (usedIn.length > 2 ? ` +${usedIn.length - 2}` : "") : "—"}
                                                         </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${b.costPerBottle}</td>
                                                         <td>
@@ -461,10 +516,10 @@ export default function InventoryPage() {
                             <>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
                                     {[
-                                        { label: "Menu Cocktails", value: DRINK_RECIPES.length, color: "#fff" },
+                                        { label: "Menu Cocktails", value: recipes.length, color: "#fff" },
                                         { label: "Drinks Sold Today", value: DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0), color: "#60a5fa" },
-                                        { label: "Bar Revenue", value: `$${DEMO_DRINK_SALES.reduce((a, s) => { const r = DRINK_RECIPES.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}`, color: "#4ade80" },
-                                        { label: "Unavailable", value: DRINK_RECIPES.filter(r => getServingsRemaining(r, bottles) === 0).length, color: "#f87171" },
+                                        { label: "Bar Revenue", value: `$${DEMO_DRINK_SALES.reduce((a, s) => { const r = recipes.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}`, color: "#4ade80" },
+                                        { label: "Unavailable", value: recipes.filter(r => getServingsRemaining(r, bottles) === 0).length, color: "#f87171" },
                                     ].map(c => (
                                         <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
                                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{c.label}</div>
@@ -479,7 +534,7 @@ export default function InventoryPage() {
                                             <tr>
                                                 <th>Cocktail</th><th>Type</th><th>Menu Price</th>
                                                 <th>Ingredients</th><th>Pour Cost</th><th>Margin</th>
-                                                <th>Can Make</th><th>Sold Today</th>
+                                                <th>Can Make</th><th>Sold Today</th><th>Edit</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -506,6 +561,7 @@ export default function InventoryPage() {
                                                         <td style={{ fontWeight: 700, fontSize: 14, color: margin >= 80 ? "#4ade80" : margin >= 70 ? "#facc15" : "#f87171" }}>{margin}%</td>
                                                         <td style={{ fontWeight: 700, fontSize: 15, color: servings === 0 ? "#f87171" : servings <= 10 ? "#facc15" : "#4ade80" }}>{servings}</td>
                                                         <td style={{ fontWeight: 700, fontSize: 15, color: "#60a5fa" }}>{sale?.sold ?? 0}</td>
+                                                        <td><button onClick={() => openEditRecipe(r)} style={{ fontSize: 12, padding: "6px 12px", background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)", color: "#E8C96E", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✏️ Edit</button></td>
                                                     </tr>
                                                 );
                                             })}
@@ -516,6 +572,53 @@ export default function InventoryPage() {
                         )}
                     </>
                 )}
+
+            {/* ── RECIPE EDIT MODAL ── */}
+            {editRecipe && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setEditRecipe(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "36px", width: 540, maxWidth: "calc(100vw - 32px)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 6 }}>✏️ Edit Recipe — {editRecipe.name}</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Adjust ingredient amounts and menu price. Changes auto-recalculate bottle usage.</div>
+
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Menu Price ($)</label>
+                            <input type="number" min="0" step="0.5" value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, padding: "14px 18px", fontSize: 18, fontWeight: 700, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
+                        </div>
+
+                        <div style={{ marginBottom: 24 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Ingredients (ml per serving)</label>
+                            {editIngredients.map((ing, idx) => {
+                                const bot = BOTTLE_INVENTORY.find(b => b.spiritId === ing.spiritId);
+                                return (
+                                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 16px" }}>
+                                        <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#fff" }}>{bot?.name || ing.spiritId}</span>
+                                        <input type="number" min="1" step="5" value={ing.amountMl} onChange={e => { const v = [...editIngredients]; v[idx] = { ...v[idx], amountMl: parseInt(e.target.value) || 0 }; setEditIngredients(v); }} style={{ width: 80, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px 12px", fontSize: 16, fontWeight: 700, color: "#E8C96E", outline: "none", textAlign: "center", fontFamily: "inherit" }} />
+                                        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>ml</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {editIngredients.length > 0 && (() => {
+                            let cost = 0;
+                            for (const ing of editIngredients) { const bot = BOTTLE_INVENTORY.find(b => b.spiritId === ing.spiritId); if (bot) cost += (ing.amountMl / bot.sizeMl) * bot.costPerBottle; }
+                            const price = parseFloat(editPrice) || 0;
+                            const margin = price > 0 ? Math.round(((price - cost) / price) * 100) : 0;
+                            return (
+                                <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 22, display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Pour Cost: <strong style={{ color: "#f87171" }}>${cost.toFixed(2)}</strong></span>
+                                    <span style={{ color: "rgba(255,255,255,0.6)" }}>Margin: <strong style={{ color: margin >= 70 ? "#4ade80" : "#facc15" }}>{margin}%</strong></span>
+                                </div>
+                            );
+                        })()}
+
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <button onClick={() => setEditRecipe(null)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={saveRecipe} style={{ flex: 1, padding: "14px", background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", borderRadius: 12, color: "#1a1000", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>💾 Save Recipe</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
                 {/* NOT CONNECTED STATE */}
                 {!isDemo && (
