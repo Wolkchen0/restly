@@ -1,6 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 
+const DEMO_STAFF_TODAY = [
+    { rank: 1, name: "Lisa Park", role: "Bartender", daysWorked: 1, totalSales: 1420, foodSales: 280, drinkSales: 1140, checkAvg: 102, turnTime: 28, tipPct: 26.5, trend: "up", topItems: ["Espresso Martini", "Negroni"], upsellRate: 82 },
+    { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 1, totalSales: 1180, foodSales: 820, drinkSales: 360, checkAvg: 90, turnTime: 40, tipPct: 23.0, trend: "up", topItems: ["Truffle Burger", "Lobster Risotto"], upsellRate: 72 },
+    { rank: 3, name: "Marcus Torres", role: "Server", daysWorked: 1, totalSales: 960, foodSales: 710, drinkSales: 250, checkAvg: 74, turnTime: 38, tipPct: 20.5, trend: "up", topItems: ["NY Strip", "House Red"], upsellRate: 58 },
+    { rank: 4, name: "David Chen", role: "Server", daysWorked: 1, totalSales: 620, foodSales: 490, drinkSales: 130, checkAvg: 62, turnTime: 52, tipPct: 16.8, trend: "flat", topItems: ["Avocado Toast", "Iced Tea"], upsellRate: 25 },
+    { rank: 5, name: "Emily Watson", role: "Server", daysWorked: 1, totalSales: 480, foodSales: 360, drinkSales: 120, checkAvg: 60, turnTime: 55, tipPct: 15.2, trend: "down", topItems: ["Club Sandwich", "Lemonade"], upsellRate: 20 },
+];
+
 const DEMO_STAFF_MONTH = [
     { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", daysWorked: 21, totalSales: 18500, foodSales: 12400, drinkSales: 6100, checkAvg: 85, turnTime: 45, tipPct: 22.4, trend: "up", topItems: ["Truffle Burger", "Lobster Risotto"], upsellRate: 68 },
     { rank: 2, name: "Marcus Torres", role: "Server", daysWorked: 18, totalSales: 16200, foodSales: 11800, drinkSales: 4400, checkAvg: 72, turnTime: 42, tipPct: 19.8, trend: "up", topItems: ["NY Strip", "Caesar Salad"], upsellRate: 52 },
@@ -53,7 +61,7 @@ function getAIRecommendation(staff: any, allStaff: any[]) {
 }
 
 export default function TeamPerformancePage() {
-    const [period, setPeriod] = useState<"month" | "year">("month");
+    const [period, setPeriod] = useState<"today" | "month" | "year">("today");
     const [isDemo, setIsDemo] = useState(true);
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
 
@@ -99,7 +107,7 @@ export default function TeamPerformancePage() {
         }, 1200);
     };
 
-    const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
+    const data = period === "today" ? DEMO_STAFF_TODAY : period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
     const topServer = data[0];
 
     return (
@@ -109,18 +117,15 @@ export default function TeamPerformancePage() {
                 <div className="topbar-right">
                     <button className="btn-secondary" onClick={handleExportStaff} style={{ fontSize: 13 }}>Export Leaderboard ↗</button>
                     <div style={{ display: "flex", background: "var(--bg-card)", borderRadius: "8px", padding: "4px" }}>
-                        <button
-                            onClick={() => setPeriod("month")}
-                            style={{ padding: "6px 16px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: period === "month" ? 700 : 500, background: period === "month" ? "rgba(255,255,255,0.1)" : "transparent", color: period === "month" ? "#fff" : "var(--text-muted)" }}
-                        >
-                            This Month
-                        </button>
-                        <button
-                            onClick={() => setPeriod("year")}
-                            style={{ padding: "6px 16px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: period === "year" ? 700 : 500, background: period === "year" ? "rgba(255,255,255,0.1)" : "transparent", color: period === "year" ? "#fff" : "var(--text-muted)" }}
-                        >
-                            This Year
-                        </button>
+                        {(["today", "month", "year"] as const).map(p => (
+                            <button
+                                key={p}
+                                onClick={() => setPeriod(p)}
+                                style={{ padding: "6px 16px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: period === p ? 700 : 500, background: period === p ? "rgba(255,255,255,0.1)" : "transparent", color: period === p ? "#fff" : "var(--text-muted)", fontFamily: "inherit" }}
+                            >
+                                {p === "today" ? "Today" : p === "month" ? "This Month" : "This Year"}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -266,7 +271,7 @@ export default function TeamPerformancePage() {
                                                 </td>
                                                 <td style={{ fontWeight: 600, color: "#60a5fa", textDecoration: "underline", textUnderlineOffset: 3 }}>{staff.name}</td>
                                                 <td><span className={`badge ${staff.role === "Bartender" ? "badge-blue" : "badge-yellow"}`}>{staff.role}</span></td>
-                                                <td>{staff.daysWorked}d</td>
+                                                <td>{period === "today" ? "Today" : `${staff.daysWorked}d`}</td>
                                                 <td style={{ fontWeight: 600 }}>${staff.totalSales.toLocaleString()}</td>
                                                 <td>${staff.checkAvg}</td>
                                                 <td>{staff.turnTime}m</td>
