@@ -28,8 +28,21 @@ export interface Reservation {
   isVip: boolean;
   notes: string;
 }
+// Use globalThis to share state across serverless function calls within the same warm instance
+const GUEST_KEY = '__restly_guestList__' as const;
 
-let guestList: Guest[] = [
+function getGuestList(): Guest[] {
+  if (!(globalThis as any)[GUEST_KEY]) {
+    (globalThis as any)[GUEST_KEY] = [...INITIAL_GUESTS];
+  }
+  return (globalThis as any)[GUEST_KEY];
+}
+
+function setGuestList(list: Guest[]) {
+  (globalThis as any)[GUEST_KEY] = list;
+}
+
+const INITIAL_GUESTS: Guest[] = [
   {
     id: "g1",
     firstName: "James",
@@ -179,13 +192,13 @@ const TODAY_RESERVATIONS: Reservation[] = [
 ];
 
 export function getAllGuests(): Guest[] {
-  return guestList;
+  return getGuestList();
 }
 
 export function searchGuests(query: string): Guest[] {
   const q = query.toLowerCase();
-  return guestList.filter(
-    g =>
+  return getGuestList().filter(
+    (g: Guest) =>
       g.firstName.toLowerCase().includes(q) ||
       g.lastName.toLowerCase().includes(q) ||
       g.email.toLowerCase().includes(q)
@@ -193,7 +206,7 @@ export function searchGuests(query: string): Guest[] {
 }
 
 export function getGuestById(id: string): Guest | undefined {
-  return guestList.find(g => g.id === id);
+  return getGuestList().find((g: Guest) => g.id === id);
 }
 
 export function getTodayReservations(): Reservation[] {
@@ -201,16 +214,17 @@ export function getTodayReservations(): Reservation[] {
 }
 
 export function getVipGuests(): Guest[] {
-  return guestList.filter(g => g.isVip);
+  return getGuestList().filter((g: Guest) => g.isVip);
 }
 
 export function getStats() {
+  const list = getGuestList();
   return {
-    totalGuests: guestList.length,
-    vipGuests: guestList.filter(g => g.isVip).length,
+    totalGuests: list.length,
+    vipGuests: list.filter((g: Guest) => g.isVip).length,
     coversToday: TODAY_RESERVATIONS.reduce((acc, r) => acc + r.partySize, 0),
     reservationsToday: TODAY_RESERVATIONS.length,
-    avgSpend: Math.round(guestList.reduce((acc, g) => acc + g.averageSpend, 0) / guestList.length),
+    avgSpend: list.length > 0 ? Math.round(list.reduce((acc: number, g: Guest) => acc + g.averageSpend, 0) / list.length) : 0,
   };
 }
 
@@ -218,9 +232,10 @@ export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): 
   const parts = name.trim().split(/\s+/);
   const firstName = parts[0] || name;
   const lastName = parts.slice(1).join(" ") || "";
+  const list = getGuestList();
   
   // Check if guest already exists
-  const existing = guestList.find(g => 
+  const existing = list.find((g: Guest) => 
     g.firstName.toLowerCase() === firstName.toLowerCase() && 
     g.lastName.toLowerCase() === lastName.toLowerCase()
   );
@@ -233,7 +248,7 @@ export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): 
   
   // Add new guest
   const newGuest: Guest = {
-    id: `g${guestList.length + 1}`,
+    id: `g${list.length + 1}`,
     firstName,
     lastName,
     email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`,
@@ -249,6 +264,7 @@ export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): 
     averagePartySize: 2,
     notes: notes || (isVip ? "Added as VIP via Restly AI." : "Added via Restly AI."),
   };
-  guestList = [newGuest, ...guestList];
+  setGuestList([newGuest, ...list]);
   return newGuest;
 }
+
