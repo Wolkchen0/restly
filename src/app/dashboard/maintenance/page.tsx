@@ -23,9 +23,16 @@ export default function MaintenancePage() {
 
     // Modal State
     const [eqModalOpen, setEqModalOpen] = useState(false);
+    const [editingEqId, setEditingEqId] = useState<string | null>(null);
     const [newEqName, setNewEqName] = useState("");
+    const [newEqType, setNewEqType] = useState("Custom");
+    const [newEqModel, setNewEqModel] = useState("");
+    const [newEqSerial, setNewEqSerial] = useState("");
+    const [newEqWarranty, setNewEqWarranty] = useState("");
     const [newEqPhone, setNewEqPhone] = useState("");
     const [newEqEmail, setNewEqEmail] = useState("");
+    const [newEqInstaller, setNewEqInstaller] = useState("");
+    const [newEqNotes, setNewEqNotes] = useState("");
     const [hasReminder, setHasReminder] = useState(false);
     const [reminderPeriod, setReminderPeriod] = useState("monthly");
     const [monthlyDay, setMonthlyDay] = useState("1");
@@ -70,34 +77,60 @@ export default function MaintenancePage() {
     };
 
     const handleAddEquipment = () => {
+        setEditingEqId(null);
+        setNewEqName(""); setNewEqType("Custom"); setNewEqModel(""); setNewEqSerial("");
+        setNewEqWarranty(""); setNewEqPhone(""); setNewEqEmail("");
+        setNewEqInstaller(""); setNewEqNotes("");
+        setHasReminder(false);
         setEqModalOpen(true);
+    };
+
+    const handleEditEquipment = (eqId: string) => {
+        const eq = equipmentList.find(e => e.id === eqId);
+        if (!eq) return;
+        setEditingEqId(eqId);
+        setNewEqName(eq.name); setNewEqType(eq.type); setNewEqModel(eq.model);
+        setNewEqSerial(eq.serial); setNewEqWarranty(eq.warranty);
+        setNewEqPhone(eq.phone); setNewEqEmail(eq.email);
+        setNewEqInstaller(eq.installer); setNewEqNotes(eq.notes);
+        setHasReminder(false);
+        setEqModalOpen(true);
+    };
+
+    const handleDeleteEquipment = (eqId: string) => {
+        setEquipmentList(prev => prev.filter(e => e.id !== eqId));
+        setExpandedEq(null);
+        showToast("Equipment removed.");
     };
 
     const confirmAddEquipment = () => {
         if (!newEqName.trim()) return;
-        const newEq = {
-            id: `EQ-${equipmentList.length + 1}`,
-            name: newEqName,
-            type: "Custom",
-            nextService: hasReminder ? `Next ${reminderPeriod} (Day ${monthlyDay})` : "Not Set",
-            status: "OK",
-            urgent: false,
-            model: "",
-            serial: "",
-            warranty: "",
-            phone: newEqPhone,
-            email: newEqEmail,
-            installer: "",
-            notes: ""
-        };
-        setEquipmentList([...equipmentList, newEq]);
-        // Reset form
-        setNewEqName("");
-        setNewEqPhone("");
-        setNewEqEmail("");
-        setHasReminder(false);
+        if (editingEqId) {
+            // Editing existing
+            setEquipmentList(prev => prev.map(eq => eq.id === editingEqId ? {
+                ...eq,
+                name: newEqName, type: newEqType, model: newEqModel,
+                serial: newEqSerial, warranty: newEqWarranty,
+                phone: newEqPhone, email: newEqEmail,
+                installer: newEqInstaller, notes: newEqNotes,
+                nextService: hasReminder ? `Next ${reminderPeriod} (Day ${monthlyDay})` : eq.nextService,
+            } : eq));
+            showToast("Equipment updated.");
+        } else {
+            // Adding new
+            const newEq = {
+                id: `EQ-${equipmentList.length + 1}`,
+                name: newEqName, type: newEqType,
+                nextService: hasReminder ? `Next ${reminderPeriod} (Day ${monthlyDay})` : "Not Set",
+                status: "OK", urgent: false,
+                model: newEqModel, serial: newEqSerial, warranty: newEqWarranty,
+                phone: newEqPhone, email: newEqEmail,
+                installer: newEqInstaller, notes: newEqNotes,
+            };
+            setEquipmentList([...equipmentList, newEq]);
+            showToast("Equipment added.");
+        }
         setEqModalOpen(false);
-        showToast("Equipment added successfully.");
     };
 
     return (
@@ -119,79 +152,101 @@ export default function MaintenancePage() {
             {/* CUSTOM MODAL */}
             {eqModalOpen && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, backdropFilter: "blur(8px)" }}>
-                    <div className="card" style={{ width: 450, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: "#fff" }}>Add New Equipment</h3>
+                    <div className="card" style={{ width: 520, padding: 32, maxHeight: '90vh', overflowY: 'auto' }}>
+                        <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: "#fff" }}>{editingEqId ? "Edit Equipment" : "Add New Equipment"}</h3>
                         
-                        <div style={{ marginBottom: 16 }}>
-                            <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>EQUIPMENT NAME *</label>
-                            <input
-                                autoFocus
-                                type="text"
-                                value={newEqName}
-                                onChange={e => setNewEqName(e.target.value)}
-                                style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none" }}
-                                placeholder="e.g. Dishwasher, Oven..."
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>EQUIPMENT NAME *</label>
+                                <input autoFocus type="text" value={newEqName} onChange={e => setNewEqName(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="e.g. Dishwasher, Oven..." />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>CATEGORY</label>
+                                <select value={newEqType} onChange={e => setNewEqType(e.target.value)}
+                                    style={{ width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, boxSizing: "border-box" }}>
+                                    <option value="Cooking">Cooking</option>
+                                    <option value="Refrigeration">Refrigeration</option>
+                                    <option value="Cleanup">Cleanup</option>
+                                    <option value="HVAC">HVAC</option>
+                                    <option value="Custom">Other</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>PHONE (OPTIONAL)</label>
-                                <input
-                                    type="text"
-                                    value={newEqPhone}
-                                    onChange={e => setNewEqPhone(e.target.value)}
-                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none" }}
-                                    placeholder="+1..."
-                                />
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>MODEL</label>
+                                <input type="text" value={newEqModel} onChange={e => setNewEqModel(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="Model number" />
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>EMAIL (OPTIONAL)</label>
-                                <input
-                                    type="email"
-                                    value={newEqEmail}
-                                    onChange={e => setNewEqEmail(e.target.value)}
-                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none" }}
-                                    placeholder="service@..."
-                                />
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>SERIAL NUMBER</label>
+                                <input type="text" value={newEqSerial} onChange={e => setNewEqSerial(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="Serial #" />
                             </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>WARRANTY EXPIRY</label>
+                                <input type="date" value={newEqWarranty} onChange={e => setNewEqWarranty(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", colorScheme: "dark" }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>INSTALLED BY</label>
+                                <input type="text" value={newEqInstaller} onChange={e => setNewEqInstaller(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="Company name" />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>PHONE</label>
+                                <input type="tel" value={newEqPhone} onChange={e => setNewEqPhone(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="+1 (800) 555-0000" />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>EMAIL</label>
+                                <input type="email" value={newEqEmail} onChange={e => setNewEqEmail(e.target.value)}
+                                    style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                                    placeholder="service@company.com" />
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>NOTES</label>
+                            <textarea value={newEqNotes} onChange={e => setNewEqNotes(e.target.value)} rows={3}
+                                style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+                                placeholder="Service notes, maintenance history..." />
                         </div>
 
                         <div style={{ marginBottom: 24, padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasReminder ? 16 : 0 }}>
                                 <span style={{ fontSize: 14, color: '#fff', fontWeight: 600 }}>Enable Periodic Reminder?</span>
-                                <input 
-                                    type="checkbox" 
-                                    checked={hasReminder} 
-                                    onChange={e => setHasReminder(e.target.checked)}
-                                    style={{ width: 20, height: 20, accentColor: 'var(--purple)' }}
-                                />
+                                <input type="checkbox" checked={hasReminder} onChange={e => setHasReminder(e.target.checked)}
+                                    style={{ width: 20, height: 20, accentColor: 'var(--purple)' }} />
                             </div>
-
                             {hasReminder && (
                                 <div className="fade-in">
                                     <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>FREQUENCY</label>
-                                    <select 
-                                        value={reminderPeriod}
-                                        onChange={e => setReminderPeriod(e.target.value)}
-                                        style={{ width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 14, marginBottom: 12 }}
-                                    >
+                                    <select value={reminderPeriod} onChange={e => setReminderPeriod(e.target.value)}
+                                        style={{ width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 14, marginBottom: 12 }}>
                                         <option value="daily">Every Day</option>
                                         <option value="weekly">Every Week</option>
                                         <option value="monthly">Every Month</option>
                                         <option value="yearly">Every Year</option>
                                     </select>
-
                                     {reminderPeriod === "monthly" && (
                                         <>
                                             <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, fontWeight: 600 }}>DAY OF MONTH</label>
-                                            <input 
-                                                type="number" 
-                                                min="1" max="31"
-                                                value={monthlyDay}
-                                                onChange={e => setMonthlyDay(e.target.value)}
-                                                style={{ width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 14 }}
-                                            />
+                                            <input type="number" min="1" max="31" value={monthlyDay} onChange={e => setMonthlyDay(e.target.value)}
+                                                style={{ width: "100%", background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px", borderRadius: 8, fontSize: 14 }} />
                                         </>
                                     )}
                                 </div>
@@ -200,7 +255,7 @@ export default function MaintenancePage() {
 
                         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
                             <button className="btn-secondary" onClick={() => setEqModalOpen(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={confirmAddEquipment}>Save Equipment</button>
+                            <button className="btn-primary" onClick={confirmAddEquipment}>{editingEqId ? "Save Changes" : "Save Equipment"}</button>
                         </div>
                     </div>
                 </div>
@@ -275,37 +330,48 @@ export default function MaintenancePage() {
                                                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Model</div>
-                                                                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{(eq as any).model || "—"}</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{eq.model || "—"}</div>
                                                                     </div>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Serial Number</div>
-                                                                        <div style={{ fontSize: 13, color: "#fff", fontFamily: "monospace" }}>{(eq as any).serial || "—"}</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff", fontFamily: "monospace" }}>{eq.serial || "—"}</div>
                                                                     </div>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Warranty</div>
-                                                                        <div style={{ fontSize: 13, color: (eq as any).warranty?.includes("Expired") ? "var(--red)" : "var(--green)", fontWeight: 600 }}>{(eq as any).warranty || "—"}</div>
+                                                                        <div style={{ fontSize: 13, color: eq.warranty?.includes("Expired") ? "var(--red)" : "var(--green)", fontWeight: 600 }}>{eq.warranty || "—"}</div>
                                                                     </div>
                                                                 </div>
                                                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Service Phone</div>
-                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{(eq as any).phone || "Not set"}</div>
+                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{eq.phone || "Not set"}</div>
                                                                     </div>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Service Email</div>
-                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{(eq as any).email || "Not set"}</div>
+                                                                        <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 600 }}>{eq.email || "Not set"}</div>
                                                                     </div>
                                                                     <div>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Installed By</div>
-                                                                        <div style={{ fontSize: 13, color: "#fff" }}>{(eq as any).installer || "—"}</div>
+                                                                        <div style={{ fontSize: 13, color: "#fff" }}>{eq.installer || "—"}</div>
                                                                     </div>
                                                                 </div>
-                                                                {(eq as any).notes && (
-                                                                    <div>
+                                                                {eq.notes && (
+                                                                    <div style={{ marginBottom: 16 }}>
                                                                         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Notes</div>
-                                                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>{(eq as any).notes}</div>
+                                                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>{eq.notes}</div>
                                                                     </div>
                                                                 )}
+                                                                {/* ACTION BUTTONS */}
+                                                                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 14 }}>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleEditEquipment(eq.id); }}
+                                                                        style={{ padding: "8px 18px", fontSize: 12, fontWeight: 700, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 8, color: "#60a5fa", cursor: "pointer", fontFamily: "inherit" }}>
+                                                                        ✏️ Edit
+                                                                    </button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); if (confirm(`Remove "${eq.name}"?`)) handleDeleteEquipment(eq.id); }}
+                                                                        style={{ padding: "8px 18px", fontSize: 12, fontWeight: 700, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 8, color: "#f87171", cursor: "pointer", fontFamily: "inherit" }}>
+                                                                        🗑 Remove
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         </td>
                                                     </tr>
