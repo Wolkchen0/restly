@@ -189,6 +189,7 @@ export default function ChatBot() {
     const [pulse, setPulse] = useState(true);
     const [tooltipDismissed, setTooltipDismissed] = useState(false);
     const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
+    const [showAlerts, setShowAlerts] = useState(true);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
@@ -340,8 +341,19 @@ export default function ChatBot() {
                             </div>
                         </div>
                         <div style={{ display: "flex", gap: 6 }}>
+                            {activeAlerts.length > 0 && (
+                                <button onClick={() => { setShowAlerts(!showAlerts); setShowHistory(false); }} title="Notifications" style={{
+                                    width: 36, height: 36, borderRadius: 10, background: showAlerts ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.04)",
+                                    border: `1px solid ${showAlerts ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.06)"}`,
+                                    color: showAlerts ? "#f87171" : "rgba(255,255,255,0.4)", fontSize: 16, cursor: "pointer",
+                                    display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
+                                }}>
+                                    🔔
+                                    <span style={{ position: "absolute", top: -3, right: -3, background: "#f87171", color: "#fff", fontSize: 9, fontWeight: 800, width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0e0e1c" }}>{activeAlerts.length}</span>
+                                </button>
+                            )}
                             {history.length > 0 && (
-                                <button onClick={() => setShowHistory(!showHistory)} title="Chat History" style={{
+                                <button onClick={() => { setShowHistory(!showHistory); setShowAlerts(false); }} title="Chat History" style={{
                                     width: 36, height: 36, borderRadius: 10, background: showHistory ? "rgba(201,168,76,0.12)" : "rgba(255,255,255,0.04)",
                                     border: `1px solid ${showHistory ? "rgba(201,168,76,0.25)" : "rgba(255,255,255,0.06)"}`,
                                     color: showHistory ? "#E8C96E" : "rgba(255,255,255,0.4)", fontSize: 16, cursor: "pointer",
@@ -381,8 +393,8 @@ export default function ChatBot() {
                     {/* Messages Area */}
                     <div style={{ flex: 1, overflowY: "auto", padding: "20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-                        {/* ── ALERTS — only shown when no active conversation ── */}
-                        {!hasMessages && activeAlerts.length > 0 && (
+                        {/* ── ALERTS — toggled via bell icon ── */}
+                        {showAlerts && activeAlerts.length > 0 && (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
                                 {activeAlerts.map(alert => (
                                     <div key={alert.id} style={{
@@ -421,16 +433,13 @@ export default function ChatBot() {
                         )}
 
                         {/* ── CONVERSATION or empty state ── */}
-                        {!hasMessages && (
+                        {!hasMessages && !showAlerts && (
                             <div style={{ textAlign: "center", padding: "16px 16px 8px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-                                {activeAlerts.length > 0 ? (
-                                    <div style={{ marginTop: 8 }}>Type below to start a conversation, or dismiss alerts above.</div>
-                                ) : (
-                                    <div>
-                                        <div style={{ fontSize: 20, marginBottom: 8 }}>💬</div>
-                                        How can I help you today? Ask me anything about your restaurant.
-                                    </div>
-                                )}
+                                <div>
+                                    <div style={{ fontSize: 20, marginBottom: 8 }}>💬</div>
+                                    How can I help you today? Ask me anything about your restaurant.
+                                    {activeAlerts.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}>Tap 🔔 to view {activeAlerts.length} notification{activeAlerts.length > 1 ? "s" : ""}.</div>}
+                                </div>
                             </div>
                         )}
 
