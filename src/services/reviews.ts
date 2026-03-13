@@ -48,12 +48,12 @@ const MOCK_REVIEWS: Review[] = [
 ];
 
 export function getRecentReviews(restaurantName: string): Review[] {
-    if (restaurantName?.toLowerCase() !== "meyhouse") return [];
+    if (!restaurantName) return [];
     return MOCK_REVIEWS;
 }
 
 export function getReviewStats(restaurantName: string) {
-    if (restaurantName?.toLowerCase() !== "meyhouse") {
+    if (!restaurantName) {
         return {
             averageRating: 0,
             totalReviews: 0,
