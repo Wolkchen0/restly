@@ -5,18 +5,43 @@ import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe } from "
 
 type TabKey = "All" | "Main" | "Appetizer" | "Side" | "Dessert" | "Bread" | "Soup" | "Drinks";
 
+// AI Agent: find the closest inventory match for a given ingredient name
+function aiFindInventoryMatch(name: string, inventory: FoodIngredient[]): FoodIngredient | null {
+    const lower = name.toLowerCase().trim();
+    // Exact match
+    const exact = inventory.find(i => i.name.toLowerCase() === lower);
+    if (exact) return exact;
+    // Partial match
+    const partial = inventory.find(i => i.name.toLowerCase().includes(lower) || lower.includes(i.name.toLowerCase().split(' ')[0]));
+    if (partial) return partial;
+    // Word-level fuzzy
+    const words = lower.split(/\s+/);
+    for (const inv of inventory) {
+        const invWords = inv.name.toLowerCase().split(/\s+/);
+        const overlap = words.filter(w => invWords.some(iw => iw.includes(w) || w.includes(iw)));
+        if (overlap.length >= 1) return inv;
+    }
+    return null;
+}
+
 export default function RecipesPage() {
     const [activeTab, setActiveTab] = useState<TabKey>("All");
     const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([...FOOD_INGREDIENTS]);
+    const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([...FOOD_RECIPES]);
     const [isDemo, setIsDemo] = useState(true);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
     const [editModal, setEditModal] = useState<FoodRecipe | null>(null);
-    const [editIngredients, setEditIngredients] = useState<{ inventoryId: string; name: string; amount: number; unit: string }[]>([]);
-    const [editPrice, setEditPrice] = useState("");
+    const [editIngredients, setEditIngredients] = useState<{ inventoryId: string; name: string; amount: number; unit: string; matched?: boolean }[]>([]);
     const [search, setSearch] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
+    // Add ingredient
+    const [addIngName, setAddIngName] = useState("");
+    const [addIngAmount, setAddIngAmount] = useState("");
+    const [addIngUnit, setAddIngUnit] = useState("oz");
+    // AI deduction state
+    const [aiDeducted, setAiDeducted] = useState(false);
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
@@ -34,6 +59,38 @@ export default function RecipesPage() {
         return { cost, servings, margin, dailySales, daysSupply };
     };
 
+    // AI Auto-Deduction: simulate POS end-of-day deduction from food inventory
+    useEffect(() => {
+        if (aiDeducted) return;
+        // After 2 seconds, auto-deduct today's sales from inventory (simulated)
+        const timer = setTimeout(() => {
+            setFoodIngredients(prev => {
+                const updated = prev.map(i => ({ ...i }));
+                for (const sale of DEMO_FOOD_SALES) {
+                    const recipe = foodRecipes.find(r => r.id === sale.recipeId);
+                    if (!recipe || sale.sold === 0) continue;
+                    for (const ing of recipe.ingredients) {
+                        const inv = updated.find(i => i.inventoryId === ing.inventoryId);
+                        if (!inv) continue;
+                        // Simple deduction (simplified unit matching)
+                        const deductAmount = ing.amount * sale.sold;
+                        // Only deduct if units match approximately
+                        if (ing.unit === inv.unit || ing.unit + 's' === inv.unit || ing.unit === inv.unit + 's'
+                            || (ing.unit === 'oz' && inv.unit === 'lbs') || (ing.unit === 'piece' && inv.unit === 'pieces')
+                            || (ing.unit === 'portion' && inv.unit === 'portions') || (ing.unit === 'slice' && inv.unit === 'slices')) {
+                            let actualDeduct = deductAmount;
+                            if (ing.unit === 'oz' && inv.unit === 'lbs') actualDeduct = deductAmount / 16;
+                            inv.onHand = Math.max(0, inv.onHand - actualDeduct);
+                        }
+                    }
+                }
+                return updated;
+            });
+            setAiDeducted(true);
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, [aiDeducted, foodRecipes]);
+
     // Drink recipe cost
     const getDrinkData = (r: DrinkRecipe) => {
         let cost = 0;
@@ -46,7 +103,7 @@ export default function RecipesPage() {
         return { cost: Math.round(cost * 100) / 100, margin, dailySales };
     };
 
-    const filteredFood = FOOD_RECIPES.filter(r => {
+    const filteredFood = foodRecipes.filter(r => {
         if (activeTab !== "All" && activeTab !== "Drinks" && r.category !== activeTab) return false;
         if (activeTab === "Drinks") return false;
         if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -58,20 +115,49 @@ export default function RecipesPage() {
         : [];
 
     // Stats
-    const totalRecipes = FOOD_RECIPES.length + DRINK_RECIPES.length;
-    const lowStockRecipes = FOOD_RECIPES.filter(r => getFoodServingsRemaining(r, foodIngredients) <= 5).length;
-    const avgMarginFood = FOOD_RECIPES.length > 0 ? Math.round(FOOD_RECIPES.reduce((a, r) => a + getFoodData(r).margin, 0) / FOOD_RECIPES.length) : 0;
+    const totalRecipes = foodRecipes.length + DRINK_RECIPES.length;
+    const lowStockRecipes = foodRecipes.filter(r => getFoodServingsRemaining(r, foodIngredients) <= 5).length;
+    const avgMarginFood = foodRecipes.length > 0 ? Math.round(foodRecipes.reduce((a, r) => a + getFoodData(r).margin, 0) / foodRecipes.length) : 0;
     const totalDailySales = DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0);
 
     const openEdit = (r: FoodRecipe) => {
         setEditModal(r);
-        setEditIngredients(r.ingredients.map(i => ({ ...i })));
-        setEditPrice(String(r.menuPrice));
+        setEditIngredients(r.ingredients.map(i => {
+            const invMatch = foodIngredients.find(fi => fi.inventoryId === i.inventoryId);
+            return { ...i, matched: !!invMatch };
+        }));
+        setAddIngName(""); setAddIngAmount(""); setAddIngUnit("oz");
+    };
+
+    const addIngredientToRecipe = () => {
+        if (!addIngName.trim() || !addIngAmount) return;
+        const match = aiFindInventoryMatch(addIngName, foodIngredients);
+        const newIng = {
+            inventoryId: match?.inventoryId || `custom_${Date.now()}`,
+            name: addIngName.trim(),
+            amount: parseFloat(addIngAmount) || 0,
+            unit: addIngUnit,
+            matched: !!match,
+        };
+        setEditIngredients(prev => [...prev, newIng]);
+        if (match) {
+            showToast(`🤖 AI matched "${addIngName}" → ${match.name} (${match.onHand} ${match.unit} in stock)`);
+        } else {
+            showToast(`⚠️ No inventory match found for "${addIngName}" — add it to Inventory Management`);
+        }
+        setAddIngName(""); setAddIngAmount(""); setAddIngUnit("oz");
+    };
+
+    const removeIngredientFromRecipe = (index: number) => {
+        setEditIngredients(prev => prev.filter((_, i) => i !== index));
     };
 
     const saveEdit = () => {
         if (!editModal) return;
-        showToast(`✅ Recipe "${editModal.name}" updated`);
+        // Update the recipe with new ingredients
+        const updatedIngredients = editIngredients.map(({ matched, ...rest }) => rest);
+        setFoodRecipes(prev => prev.map(r => r.id === editModal.id ? { ...r, ingredients: updatedIngredients } : r));
+        showToast(`✅ Recipe "${editModal.name}" updated — AI will sync with inventory`);
         setEditModal(null);
     };
 
@@ -118,31 +204,58 @@ export default function RecipesPage() {
             {/* EDIT MODAL */}
             {editModal && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setEditModal(null)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "32px 36px", width: 520, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "32px 36px", width: 560, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
                         <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 4 }}>✏️ Edit Recipe</div>
                         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{editModal.name} — {editModal.category}</div>
 
-                        <div style={{ marginBottom: 18 }}>
-                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Menu Price ($)</label>
-                            <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 18, fontWeight: 800, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
+                        {/* Menu Price - READ ONLY (from POS) */}
+                        <div style={{ marginBottom: 18, padding: "14px 18px", background: "rgba(96,165,250,0.04)", border: "1px solid rgba(96,165,250,0.12)", borderRadius: 12 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 2 }}>Menu Price</div>
+                                    <div style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>${editModal.menuPrice}</div>
+                                </div>
+                                <div style={{ fontSize: 10, color: "rgba(96,165,250,0.7)", background: "rgba(96,165,250,0.08)", padding: "4px 10px", borderRadius: 6, fontWeight: 700 }}>🔒 POS Controlled</div>
+                            </div>
                         </div>
 
+                        {/* Ingredients List */}
                         <div style={{ marginBottom: 8 }}>
-                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Ingredients</label>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Ingredients ({editIngredients.length})</label>
                         </div>
                         {editIngredients.map((ing, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.04)" }}>
-                                <span style={{ flex: 1, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{ing.name}</span>
-                                <input type="number" step="0.1" value={ing.amount} onChange={e => { const u = [...editIngredients]; u[i].amount = parseFloat(e.target.value) || 0; setEditIngredients(u); }} style={{ width: 70, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "8px", fontSize: 14, fontWeight: 700, color: "#E8C96E", textAlign: "center", outline: "none", fontFamily: "inherit" }} />
-                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", minWidth: 40 }}>{ing.unit}</span>
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: `1px solid ${ing.matched !== false ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)'}` }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: ing.matched !== false ? "#4ade80" : "#f87171", flexShrink: 0 }} title={ing.matched !== false ? "Linked to inventory" : "Not in inventory"} />
+                                <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{ing.name}</span>
+                                <input type="number" step="0.1" value={ing.amount} onChange={e => { const u = [...editIngredients]; u[i].amount = parseFloat(e.target.value) || 0; setEditIngredients(u); }} style={{ width: 65, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "6px 8px", fontSize: 13, fontWeight: 700, color: "#E8C96E", textAlign: "center", outline: "none", fontFamily: "inherit" }} />
+                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", minWidth: 35 }}>{ing.unit}</span>
+                                <button onClick={() => removeIngredientFromRecipe(i)} style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 6, color: "#f87171", cursor: "pointer", padding: "4px 8px", fontSize: 11, fontWeight: 700, fontFamily: "inherit" }}>✕</button>
                             </div>
                         ))}
 
+                        {/* Add New Ingredient */}
+                        <div style={{ marginTop: 12, padding: "14px", background: "rgba(167,139,250,0.04)", border: "1px dashed rgba(167,139,250,0.2)", borderRadius: 12, marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", marginBottom: 8 }}>🤖 Add Ingredient (AI will match to inventory)</div>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <input type="text" value={addIngName} onChange={e => setAddIngName(e.target.value)} placeholder="Ingredient name..." style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                                <input type="number" step="0.1" value={addIngAmount} onChange={e => setAddIngAmount(e.target.value)} placeholder="Qty" style={{ width: 60, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 8px", fontSize: 13, color: "#E8C96E", textAlign: "center", outline: "none", fontFamily: "inherit" }} />
+                                <select value={addIngUnit} onChange={e => setAddIngUnit(e.target.value)} style={{ width: 70, background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 6px", fontSize: 12, color: "#fff", fontFamily: "inherit" }}>
+                                    <option value="oz">oz</option>
+                                    <option value="lbs">lbs</option>
+                                    <option value="piece">piece</option>
+                                    <option value="portion">portion</option>
+                                    <option value="slice">slice</option>
+                                    <option value="cups">cups</option>
+                                </select>
+                                <button onClick={addIngredientToRecipe} style={{ padding: "10px 14px", background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", borderRadius: 8, color: "#a78bfa", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit", whiteSpace: "nowrap" }}>+ Add</button>
+                            </div>
+                        </div>
+
                         {/* Cost Preview */}
-                        <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "14px 18px", marginTop: 16, marginBottom: 20 }}>
+                        <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
                                 <span>Food Cost: <strong style={{ color: "#facc15" }}>${getFoodCost(editModal, foodIngredients).toFixed(2)}</strong></span>
-                                <span>Margin: <strong style={{ color: "#4ade80" }}>{parseFloat(editPrice) > 0 ? Math.round((1 - getFoodCost(editModal, foodIngredients) / parseFloat(editPrice)) * 100) : 0}%</strong></span>
+                                <span>Margin: <strong style={{ color: "#4ade80" }}>{editModal.menuPrice > 0 ? Math.round((1 - getFoodCost(editModal, foodIngredients) / editModal.menuPrice) * 100) : 0}%</strong></span>
                             </div>
                         </div>
 
@@ -177,6 +290,22 @@ export default function RecipesPage() {
             </div>
 
             <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 28px 80px" }}>
+
+                {/* AI Inventory Agent Status */}
+                <div style={{ background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.12)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(167,139,250,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🤖</div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa", marginBottom: 2 }}>AI Inventory Agent</div>
+                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+                            {aiDeducted
+                                ? `✅ Today's POS sales deducted from inventory — ${DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0)} dishes processed across ${foodRecipes.length} recipes`
+                                : "⏳ Processing today's POS sales data..."}
+                        </div>
+                    </div>
+                    <div style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, background: aiDeducted ? "rgba(74,222,128,0.08)" : "rgba(250,204,21,0.08)", color: aiDeducted ? "#4ade80" : "#facc15", fontWeight: 700 }}>
+                        {aiDeducted ? "SYNCED" : "SYNCING..."}
+                    </div>
+                </div>
 
                 {/* KPI Stats */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}>
