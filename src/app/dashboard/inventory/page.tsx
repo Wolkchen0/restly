@@ -29,6 +29,18 @@ export default function InventoryPage() {
     const [editIngredients, setEditIngredients] = useState<{ spiritId: string; amountMl: number }[]>([]);
     const [editPrice, setEditPrice] = useState("");
 
+    // Add New Food Ingredient Modal
+    const [addFoodModal, setAddFoodModal] = useState(false);
+    const [newFoodName, setNewFoodName] = useState("");
+    const [newFoodUnit, setNewFoodUnit] = useState("lbs");
+    const [newFoodQty, setNewFoodQty] = useState("");
+    const [newFoodCost, setNewFoodCost] = useState("");
+    const [newFoodSupplier, setNewFoodSupplier] = useState("");
+
+    // Rename ingredient
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState("");
+
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
     // ── Auto-deduction: subtract POS sales from bottle inventory ──
@@ -109,6 +121,43 @@ export default function InventoryPage() {
         setRecipes(prev => prev.map(r => r.id === editRecipe.id ? { ...r, ingredients: editIngredients, menuPrice: parseFloat(editPrice) || r.menuPrice } : r));
         showToast(`✅ Updated recipe: ${editRecipe.name}`);
         setEditRecipe(null);
+    };
+
+    // Add New Food Ingredient
+    const confirmAddFood = () => {
+        if (!newFoodName.trim()) return;
+        const newItem: FoodIngredient = {
+            inventoryId: `fi_custom_${Date.now()}`,
+            name: newFoodName.trim(),
+            onHand: parseFloat(newFoodQty) || 0,
+            unit: newFoodUnit,
+            costPerUnit: parseFloat(newFoodCost) || 0,
+            supplier: newFoodSupplier || "Manual",
+            source: "manual",
+        };
+        setFoodIngredients(prev => [...prev, newItem]);
+        setAddFoodModal(false);
+        setNewFoodName(""); setNewFoodUnit("lbs"); setNewFoodQty(""); setNewFoodCost(""); setNewFoodSupplier("");
+        showToast(`✅ Added "${newItem.name}" to inventory`);
+    };
+
+    // Rename ingredient
+    const startRename = (id: string, currentName: string) => {
+        setRenamingId(id);
+        setRenameValue(currentName);
+    };
+    const confirmRename = () => {
+        if (!renamingId || !renameValue.trim()) return;
+        setFoodIngredients(prev => prev.map(i => i.inventoryId === renamingId ? { ...i, name: renameValue.trim() } : i));
+        showToast(`✅ Renamed to "${renameValue.trim()}"`);
+        setRenamingId(null);
+    };
+
+    // Delete ingredient
+    const deleteIngredient = (id: string, name: string) => {
+        if (!confirm(`Remove "${name}" from inventory?`)) return;
+        setFoodIngredients(prev => prev.filter(i => i.inventoryId !== id));
+        showToast(`🗑️ Removed "${name}"`);
     };
 
     useEffect(() => {
@@ -267,6 +316,59 @@ export default function InventoryPage() {
                 </div>
             )}
 
+            {/* ADD FOOD INGREDIENT MODAL */}
+            {addFoodModal && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setAddFoodModal(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "32px 36px", width: 480, boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 4 }}>+ Add New Ingredient</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Add a new raw ingredient to your inventory</div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>NAME *</label>
+                            <input autoFocus type="text" value={newFoodName} onChange={e => setNewFoodName(e.target.value)} placeholder="e.g. Ground Chicken, Olive Oil..." style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>QUANTITY ON HAND</label>
+                                <input type="number" value={newFoodQty} onChange={e => setNewFoodQty(e.target.value)} placeholder="0" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#E8C96E", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>UNIT</label>
+                                <select value={newFoodUnit} onChange={e => setNewFoodUnit(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", fontFamily: "inherit" }}>
+                                    <option value="lbs">lbs</option>
+                                    <option value="oz">oz</option>
+                                    <option value="pieces">pieces</option>
+                                    <option value="portions">portions</option>
+                                    <option value="slices">slices</option>
+                                    <option value="loaves">loaves</option>
+                                    <option value="quarts">quarts</option>
+                                    <option value="gallons">gallons</option>
+                                    <option value="bottles">bottles</option>
+                                    <option value="cases">cases</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>COST PER UNIT ($)</label>
+                                <input type="number" step="0.01" value={newFoodCost} onChange={e => setNewFoodCost(e.target.value)} placeholder="0.00" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>SUPPLIER</label>
+                                <input type="text" value={newFoodSupplier} onChange={e => setNewFoodSupplier(e.target.value)} placeholder="e.g. US Foods" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <button onClick={() => setAddFoodModal(false)} style={{ flex: 1, padding: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={confirmAddFood} disabled={!newFoodName.trim()} style={{ flex: 1, padding: "14px", background: newFoodName.trim() ? "linear-gradient(135deg,#22c55e,#4ade80)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 12, color: newFoodName.trim() ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 15, fontWeight: 800, cursor: newFoodName.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>✅ Add to Inventory</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* TAB SELECTOR */}
             <div style={{ padding: "0 28px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 28 }}>
                 <div style={{ display: "flex", gap: 32, maxWidth: 1400, margin: "0 auto" }}>
@@ -299,7 +401,12 @@ export default function InventoryPage() {
                                     {st === "recipes" ? "Menu Recipes" : "Raw Ingredients"}
                                 </button>
                             ))}
-                            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ marginLeft: "auto", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none", width: 240 }} />
+                            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+                                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none", width: 200 }} />
+                                {foodSubTab === "ingredients" && (
+                                    <button onClick={() => setAddFoodModal(true)} style={{ fontSize: 13, padding: "10px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, whiteSpace: "nowrap" }}>+ Add Item</button>
+                                )}
+                            </div>
                         </div>
 
                         {/* FOOD RECIPES VIEW */}
@@ -403,10 +510,23 @@ export default function InventoryPage() {
                                                 const daysLeft = dailyUse > 0 && i.onHand > 0 ? Math.floor(i.onHand / dailyUse) : i.onHand <= 0 ? 0 : null;
                                                 return (
                                                     <tr key={i.inventoryId}>
-                                                        <td style={{ fontWeight: 700, color: status === "OUT" ? "#f87171" : "#fff", fontSize: 15 }}>
-                                                            {status === "OUT" && <span style={{ marginRight: 6 }}>🚨</span>}
-                                                            {status === "Low" && <span style={{ marginRight: 6 }}>⚠️</span>}
-                                                            {i.name}
+                                                        <td style={{ fontWeight: 700, color: status === "OUT" ? "#f87171" : "#fff", fontSize: 14 }}>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                                {status === "OUT" && <span>🚨</span>}
+                                                                {status === "Low" && <span>⚠️</span>}
+                                                                {renamingId === i.inventoryId ? (
+                                                                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                                                        <input autoFocus type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmRename()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 160 }} />
+                                                                        <button onClick={confirmRename} style={{ fontSize: 11, padding: "4px 8px", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 4, color: "#4ade80", cursor: "pointer", fontFamily: "inherit" }}>✓</button>
+                                                                        <button onClick={() => setRenamingId(null)} style={{ fontSize: 11, padding: "4px 8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <>
+                                                                        <span>{i.name}</span>
+                                                                        <button onClick={() => startRename(i.inventoryId, i.name)} title="Rename" style={{ fontSize: 10, padding: "2px 5px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "rgba(255,255,255,0.25)", cursor: "pointer", fontFamily: "inherit", lineHeight: 1 }}>✏️</button>
+                                                                    </>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td><span className={i.source === "pos" ? "inv-badge-pos" : "inv-badge-manual"}>{i.source === "pos" ? "POS" : "Manual"}</span></td>
                                                         <td>
@@ -435,6 +555,7 @@ export default function InventoryPage() {
                                                             <div style={{ display: "flex", gap: 4 }}>
                                                                 <button onClick={() => openReceiveFood(i, "add")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+</button>
                                                                 <button onClick={() => openReceiveFood(i, "remove")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>−</button>
+                                                                <button onClick={() => deleteIngredient(i.inventoryId, i.name)} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🗑</button>
                                                             </div>
                                                         </td>
                                                     </tr>

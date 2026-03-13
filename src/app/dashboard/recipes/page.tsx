@@ -1,20 +1,17 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
-import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe } from "@/services/drinks";
+import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining } from "@/services/drinks";
 
 type TabKey = "All" | "Main" | "Appetizer" | "Side" | "Dessert" | "Bread" | "Soup" | "Drinks";
 
 // AI Agent: find the closest inventory match for a given ingredient name
 function aiFindInventoryMatch(name: string, inventory: FoodIngredient[]): FoodIngredient | null {
     const lower = name.toLowerCase().trim();
-    // Exact match
     const exact = inventory.find(i => i.name.toLowerCase() === lower);
     if (exact) return exact;
-    // Partial match
     const partial = inventory.find(i => i.name.toLowerCase().includes(lower) || lower.includes(i.name.toLowerCase().split(' ')[0]));
     if (partial) return partial;
-    // Word-level fuzzy
     const words = lower.split(/\s+/);
     for (const inv of inventory) {
         const invWords = inv.name.toLowerCase().split(/\s+/);
@@ -24,10 +21,28 @@ function aiFindInventoryMatch(name: string, inventory: FoodIngredient[]): FoodIn
     return null;
 }
 
+// AI Agent: find closest bottle match for a given spirit name
+function aiFindBottleMatch(name: string, bottles: BottleInfo[]): BottleInfo | null {
+    const lower = name.toLowerCase().trim();
+    const exact = bottles.find(b => b.name.toLowerCase() === lower);
+    if (exact) return exact;
+    const partial = bottles.find(b => b.name.toLowerCase().includes(lower) || lower.includes(b.name.toLowerCase().split(' ')[0]));
+    if (partial) return partial;
+    const words = lower.split(/\s+/);
+    for (const b of bottles) {
+        const bWords = b.name.toLowerCase().split(/\s+/);
+        const overlap = words.filter(w => bWords.some(bw => bw.includes(w) || w.includes(bw)));
+        if (overlap.length >= 1) return b;
+    }
+    return null;
+}
+
 export default function RecipesPage() {
     const [activeTab, setActiveTab] = useState<TabKey>("All");
     const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([...FOOD_INGREDIENTS]);
     const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([...FOOD_RECIPES]);
+    const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([...DRINK_RECIPES]);
+    const [bottles] = useState<BottleInfo[]>([...BOTTLE_INVENTORY]);
     const [isDemo, setIsDemo] = useState(true);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
@@ -36,12 +51,17 @@ export default function RecipesPage() {
     const [search, setSearch] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
-    // Add ingredient
+    // Add ingredient (food)
     const [addIngName, setAddIngName] = useState("");
     const [addIngAmount, setAddIngAmount] = useState("");
     const [addIngUnit, setAddIngUnit] = useState("oz");
     // AI deduction state
     const [aiDeducted, setAiDeducted] = useState(false);
+    // Drink edit modal
+    const [drinkEditModal, setDrinkEditModal] = useState<DrinkRecipe | null>(null);
+    const [drinkEditIngredients, setDrinkEditIngredients] = useState<{ spiritId: string; amountMl: number; name?: string; matched?: boolean }[]>([]);
+    const [addSpiritName, setAddSpiritName] = useState("");
+    const [addSpiritMl, setAddSpiritMl] = useState("");
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
@@ -93,14 +113,11 @@ export default function RecipesPage() {
 
     // Drink recipe cost
     const getDrinkData = (r: DrinkRecipe) => {
-        let cost = 0;
-        for (const ing of r.ingredients) {
-            const bottle = BOTTLE_INVENTORY.find(b => b.spiritId === ing.spiritId);
-            if (bottle) cost += (ing.amountMl / bottle.sizeMl) * bottle.costPerBottle;
-        }
+        const cost = getPourCost(r, bottles);
         const margin = r.menuPrice > 0 ? Math.round((1 - cost / r.menuPrice) * 100) : 0;
         const dailySales = DEMO_DRINK_SALES.find(s => s.recipeId === r.id)?.sold || 0;
-        return { cost: Math.round(cost * 100) / 100, margin, dailySales };
+        const servings = getServingsRemaining(r, bottles);
+        return { cost, margin, dailySales, servings };
     };
 
     const filteredFood = foodRecipes.filter(r => {
@@ -111,11 +128,11 @@ export default function RecipesPage() {
     });
 
     const filteredDrinks = activeTab === "All" || activeTab === "Drinks"
-        ? DRINK_RECIPES.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()))
+        ? drinkRecipes.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()))
         : [];
 
     // Stats
-    const totalRecipes = foodRecipes.length + DRINK_RECIPES.length;
+    const totalRecipes = foodRecipes.length + drinkRecipes.length;
     const lowStockRecipes = foodRecipes.filter(r => getFoodServingsRemaining(r, foodIngredients) <= 5).length;
     const avgMarginFood = foodRecipes.length > 0 ? Math.round(foodRecipes.reduce((a, r) => a + getFoodData(r).margin, 0) / foodRecipes.length) : 0;
     const totalDailySales = DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0);
@@ -154,11 +171,50 @@ export default function RecipesPage() {
 
     const saveEdit = () => {
         if (!editModal) return;
-        // Update the recipe with new ingredients
         const updatedIngredients = editIngredients.map(({ matched, ...rest }) => rest);
         setFoodRecipes(prev => prev.map(r => r.id === editModal.id ? { ...r, ingredients: updatedIngredients } : r));
         showToast(`✅ Recipe "${editModal.name}" updated — AI will sync with inventory`);
         setEditModal(null);
+    };
+
+    // Drink recipe edit handlers
+    const openDrinkEdit = (r: DrinkRecipe) => {
+        setDrinkEditModal(r);
+        setDrinkEditIngredients(r.ingredients.map(i => {
+            const b = bottles.find(x => x.spiritId === i.spiritId);
+            return { ...i, name: b?.name || i.spiritId, matched: !!b };
+        }));
+        setAddSpiritName(""); setAddSpiritMl("");
+    };
+
+    const addSpiritToRecipe = () => {
+        if (!addSpiritName.trim() || !addSpiritMl) return;
+        const match = aiFindBottleMatch(addSpiritName, bottles);
+        const newIng = {
+            spiritId: match?.spiritId || `custom_spirit_${Date.now()}`,
+            amountMl: parseFloat(addSpiritMl) || 0,
+            name: match?.name || addSpiritName.trim(),
+            matched: !!match,
+        };
+        setDrinkEditIngredients(prev => [...prev, newIng]);
+        if (match) {
+            showToast(`🤖 AI matched "${addSpiritName}" → ${match.name} (${match.fullBottles} bottles in stock)`);
+        } else {
+            showToast(`⚠️ No bottle match for "${addSpiritName}" — add it to Bar Inventory`);
+        }
+        setAddSpiritName(""); setAddSpiritMl("");
+    };
+
+    const removeSpiritFromRecipe = (index: number) => {
+        setDrinkEditIngredients(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const saveDrinkEdit = () => {
+        if (!drinkEditModal) return;
+        const updatedIngs = drinkEditIngredients.map(({ name, matched, ...rest }) => rest);
+        setDrinkRecipes(prev => prev.map(r => r.id === drinkEditModal.id ? { ...r, ingredients: updatedIngs } : r));
+        showToast(`✅ Cocktail "${drinkEditModal.name}" updated — AI synced with bottle inventory`);
+        setDrinkEditModal(null);
     };
 
     const handlePhotoUpload = () => fileInputRef.current?.click();
@@ -262,6 +318,64 @@ export default function RecipesPage() {
                         <div style={{ display: "flex", gap: 10 }}>
                             <button onClick={() => setEditModal(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                             <button onClick={saveEdit} style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", borderRadius: 10, color: "#1a1000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>💾 Save Recipe</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DRINK EDIT MODAL */}
+            {drinkEditModal && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setDrinkEditModal(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(167,139,250,0.2)", borderRadius: 20, padding: "32px 36px", width: 560, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 4 }}>🍸 Edit Cocktail</div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>{drinkEditModal.name} — {drinkEditModal.category}</div>
+
+                        {/* Menu Price - READ ONLY (from POS) */}
+                        <div style={{ marginBottom: 18, padding: "14px 18px", background: "rgba(96,165,250,0.04)", border: "1px solid rgba(96,165,250,0.12)", borderRadius: 12 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: 2 }}>Menu Price</div>
+                                    <div style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>${drinkEditModal.menuPrice}</div>
+                                </div>
+                                <div style={{ fontSize: 10, color: "rgba(96,165,250,0.7)", background: "rgba(96,165,250,0.08)", padding: "4px 10px", borderRadius: 6, fontWeight: 700 }}>🔒 POS Controlled</div>
+                            </div>
+                        </div>
+
+                        {/* Spirit Ingredients */}
+                        <div style={{ marginBottom: 8 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 10 }}>Spirits & Ingredients ({drinkEditIngredients.length})</label>
+                        </div>
+                        {drinkEditIngredients.map((ing, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "10px 14px", background: "rgba(255,255,255,0.02)", borderRadius: 10, border: `1px solid ${ing.matched !== false ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)'}` }}>
+                                <div style={{ width: 8, height: 8, borderRadius: "50%", background: ing.matched !== false ? "#4ade80" : "#f87171", flexShrink: 0 }} title={ing.matched !== false ? "Linked to bar inventory" : "Not in bar inventory"} />
+                                <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{ing.name || ing.spiritId}</span>
+                                <input type="number" step="1" value={ing.amountMl} onChange={e => { const u = [...drinkEditIngredients]; u[i].amountMl = parseFloat(e.target.value) || 0; setDrinkEditIngredients(u); }} style={{ width: 65, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, padding: "6px 8px", fontSize: 13, fontWeight: 700, color: "#E8C96E", textAlign: "center", outline: "none", fontFamily: "inherit" }} />
+                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", minWidth: 20 }}>ml</span>
+                                <button onClick={() => removeSpiritFromRecipe(i)} style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 6, color: "#f87171", cursor: "pointer", padding: "4px 8px", fontSize: 11, fontWeight: 700, fontFamily: "inherit" }}>✕</button>
+                            </div>
+                        ))}
+
+                        {/* Add Spirit */}
+                        <div style={{ marginTop: 12, padding: "14px", background: "rgba(167,139,250,0.04)", border: "1px dashed rgba(167,139,250,0.2)", borderRadius: 12, marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase", marginBottom: 8 }}>🤖 Add Spirit (AI will match to bar inventory)</div>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <input type="text" value={addSpiritName} onChange={e => setAddSpiritName(e.target.value)} placeholder="Spirit name..." style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                                <input type="number" step="1" value={addSpiritMl} onChange={e => setAddSpiritMl(e.target.value)} placeholder="ml" style={{ width: 60, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "10px 8px", fontSize: 13, color: "#E8C96E", textAlign: "center", outline: "none", fontFamily: "inherit" }} />
+                                <button onClick={addSpiritToRecipe} style={{ padding: "10px 14px", background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", borderRadius: 8, color: "#a78bfa", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit", whiteSpace: "nowrap" }}>+ Add</button>
+                            </div>
+                        </div>
+
+                        {/* Pour Cost Preview */}
+                        <div style={{ background: "rgba(167,139,250,0.06)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                                <span>Pour Cost: <strong style={{ color: "#facc15" }}>${getDrinkData(drinkEditModal).cost.toFixed(2)}</strong></span>
+                                <span>Margin: <strong style={{ color: "#4ade80" }}>{getDrinkData(drinkEditModal).margin}%</strong></span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setDrinkEditModal(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={saveDrinkEdit} style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#a78bfa,#c4b5fd)", border: "none", borderRadius: 10, color: "#1a1000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>💾 Save Cocktail</button>
                         </div>
                     </div>
                 </div>
@@ -404,7 +518,7 @@ export default function RecipesPage() {
                     <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden" }}>
                         <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>🍸 Bar & Cocktail Recipes <span style={{ fontWeight: 400, fontSize: 12, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>({filteredDrinks.length})</span></div>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Linked to Bottle Inventory</div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>AI linked to Bottle Inventory</div>
                         </div>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                             <thead>
@@ -414,19 +528,22 @@ export default function RecipesPage() {
                                     <th style={thStyle}>Price</th>
                                     <th style={thStyle}>Pour Cost</th>
                                     <th style={thStyle}>Margin</th>
+                                    <th style={thStyle}>Can Make</th>
                                     <th style={thStyle}>Daily Sales</th>
+                                    <th style={{ ...thStyle, width: 60 }}>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredDrinks.map(r => {
                                     const d = getDrinkData(r);
-                                    return (
-                                        <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                                    const isExpanded = expandedRecipe === r.id;
+                                    return [
+                                        <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)", cursor: "pointer" }} onClick={() => setExpandedRecipe(isExpanded ? null : r.id)}>
                                             <td style={tdStyle}><span style={{ fontWeight: 700, color: "#fff" }}>{r.name}</span></td>
                                             <td style={tdStyle}>
                                                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
                                                     {r.ingredients.map(i => {
-                                                        const b = BOTTLE_INVENTORY.find(x => x.spiritId === i.spiritId);
+                                                        const b = bottles.find(x => x.spiritId === i.spiritId);
                                                         return b ? `${b.name} ${i.amountMl}ml` : `${i.spiritId} ${i.amountMl}ml`;
                                                     }).join(" · ")}
                                                 </span>
@@ -434,9 +551,34 @@ export default function RecipesPage() {
                                             <td style={tdStyle}><span style={{ fontWeight: 700, color: "#fff" }}>${r.menuPrice}</span></td>
                                             <td style={tdStyle}><span style={{ color: "rgba(255,255,255,0.5)" }}>${d.cost.toFixed(2)}</span></td>
                                             <td style={tdStyle}><span style={{ fontWeight: 700, color: d.margin >= 70 ? "#4ade80" : d.margin >= 50 ? "#facc15" : "#f87171" }}>{d.margin}%</span></td>
+                                            <td style={tdStyle}><span style={{ fontWeight: 700, color: d.servings <= 5 ? "#f87171" : d.servings <= 15 ? "#facc15" : "#4ade80" }}>{d.servings}</span></td>
                                             <td style={tdStyle}><span style={{ color: "#60a5fa" }}>{d.dailySales > 0 ? <><span style={{ fontSize: 10, background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.2)", padding: "1px 5px", borderRadius: 4, marginRight: 4 }}>POS</span>{d.dailySales}</> : "—"}</span></td>
-                                        </tr>
-                                    );
+                                            <td style={tdStyle}>
+                                                <button onClick={e => { e.stopPropagation(); openDrinkEdit(r); }} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.15)", color: "#a78bfa", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>✏️</button>
+                                            </td>
+                                        </tr>,
+                                        isExpanded && (
+                                            <tr key={r.id + "-detail"}>
+                                                <td colSpan={8} style={{ padding: "0 20px 16px", background: "rgba(255,255,255,0.01)" }}>
+                                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, padding: "12px 0" }}>
+                                                        {r.ingredients.map((ing, i) => {
+                                                            const b = bottles.find(x => x.spiritId === ing.spiritId);
+                                                            return (
+                                                                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: `1px solid ${b ? "rgba(74,222,128,0.1)" : "rgba(248,113,113,0.1)"}` }}>
+                                                                    <div>
+                                                                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{b?.name || ing.spiritId}</span>
+                                                                        {b && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{b.fullBottles} bottles in stock</div>}
+                                                                    </div>
+                                                                    <span style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa" }}>{ing.amountMl}ml</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>💡 AI: {d.dailySales > 0 ? `${d.dailySales} daily sales × ${r.ingredients.length} spirits = ~$${(d.cost * d.dailySales).toFixed(2)}/day pour cost` : "No POS sales data yet"}</div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    ];
                                 })}
                             </tbody>
                         </table>
