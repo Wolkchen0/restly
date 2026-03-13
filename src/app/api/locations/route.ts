@@ -21,6 +21,9 @@ export async function GET() {
     return NextResponse.json({
         restaurantName: restaurant.name,
         plan: restaurant.plan,
+        email: restaurant.email,
+        emailVerified: restaurant.emailVerified,
+        createdAt: restaurant.createdAt,
         locations: restaurant.locations.map(l => ({
             id: l.id,
             name: l.name,

@@ -54,10 +54,13 @@ interface EditState {
 interface RestaurantInfo {
     restaurantName: string;
     plan: string;
+    email: string;
+    emailVerified: boolean;
+    createdAt: string;
 }
 
 export default function SettingsPage() {
-    const [info, setInfo] = useState<RestaurantInfo>({ restaurantName: "", plan: "trial" });
+    const [info, setInfo] = useState<RestaurantInfo>({ restaurantName: "", plan: "trial", email: "", emailVerified: false, createdAt: "" });
     const [locations, setLocations] = useState<LocationData[]>([]);
     const [activeLocId, setActiveLocId] = useState<string>("");
     const [editLoc, setEditLoc] = useState<EditState>({});
@@ -67,7 +70,7 @@ export default function SettingsPage() {
     const [addingLoc, setAddingLoc] = useState(false);
     const [newLocName, setNewLocName] = useState("");
     const [newLocCity, setNewLocCity] = useState("");
-    const [tab, setTab] = useState<"locations" | "brand" | "plan">("locations");
+    const [tab, setTab] = useState<"account" | "locations" | "brand" | "plan">("account");
     const [connectedApps, setConnectedApps] = useState<string[]>([]);
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
     const [posStatus, setPosStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
@@ -163,7 +166,7 @@ export default function SettingsPage() {
             .then(r => r.json())
             .then(d => {
                 if (d.locations?.length) {
-                    setInfo({ restaurantName: d.restaurantName || "", plan: d.plan || "trial" });
+                    setInfo({ restaurantName: d.restaurantName || "", plan: d.plan || "trial", email: d.email || "", emailVerified: d.emailVerified ?? false, createdAt: d.createdAt || "" });
                     setLocations(d.locations);
                     const saved = localStorage.getItem("restly_active_location");
                     const def = d.locations.find((l: LocationData) => l.id === saved)
@@ -319,13 +322,98 @@ export default function SettingsPage() {
             </div>
 
             {/* ── TABS ── */}
-            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 28 }}>
-                {(["locations", "brand", "plan"] as const).map(t => (
+            <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 28, flexWrap: "wrap" }}>
+                {(["account", "locations", "brand", "plan"] as const).map(t => (
                     <button key={t} className={`stab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
-                        {t === "locations" ? "📍 Locations & Integrations" : t === "brand" ? "🏠 Brand" : "💳 Plan"}
+                        {t === "account" ? "👤 Account" : t === "locations" ? "📍 Locations & Integrations" : t === "brand" ? "🏠 Brand" : "💳 Plan"}
                     </button>
                 ))}
             </div>
+
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {/* TAB: ACCOUNT                             */}
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            {
+                tab === "account" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                        {/* Verification Banner */}
+                        {!info.emailVerified && info.email && (
+                            <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+                                <div style={{ fontSize: 26 }}>📧</div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", marginBottom: 2 }}>Email not verified</div>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Verify your email to unlock all features and secure your account.</div>
+                                </div>
+                                <button className="btn-gold" style={{ fontSize: 12, padding: "8px 16px", whiteSpace: "nowrap" }}>Verify Now</button>
+                            </div>
+                        )}
+
+                        {/* Profile Card */}
+                        <div className="s-card">
+                            <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>👤 Account Information</h2>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                                <div>
+                                    <div className="f-label">Restaurant Name</div>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", padding: "11px 0" }}>{info.restaurantName || "—"}</div>
+                                </div>
+                                <div>
+                                    <div className="f-label">Email</div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 0" }}>
+                                        <span style={{ fontSize: 14, color: "#fff" }}>{info.email || "—"}</span>
+                                        {info.emailVerified ? (
+                                            <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(74,222,128,0.1)", color: "#4ade80", padding: "2px 8px", borderRadius: 6, border: "1px solid rgba(74,222,128,0.2)" }}>✓ Verified</span>
+                                        ) : (
+                                            <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(251,191,36,0.1)", color: "#fbbf24", padding: "2px 8px", borderRadius: 6, border: "1px solid rgba(251,191,36,0.2)" }}>Unverified</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="f-label">Plan</div>
+                                    <div style={{ fontSize: 14, fontWeight: 700, color: planColor, padding: "11px 0", textTransform: "capitalize" }}>{info.plan}</div>
+                                </div>
+                                <div>
+                                    <div className="f-label">Member Since</div>
+                                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "11px 0" }}>
+                                        {info.createdAt ? new Date(info.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Security Card */}
+                        <div className="s-card">
+                            <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>🔒 Security</h2>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 2 }}>Password</div>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>••••••••••</div>
+                                </div>
+                                <button className="btn-ghost" style={{ fontSize: 12 }}>Change Password</button>
+                            </div>
+                        </div>
+
+                        {/* Data Card */}
+                        <div className="s-card">
+                            <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📊 Your Data</h2>
+                            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Each user has their own encrypted data. Your restaurant data is isolated and private.</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                                <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(96,165,250,0.04)", borderRadius: 12, border: "1px solid rgba(96,165,250,0.1)" }}>
+                                    <div style={{ fontSize: 22, fontWeight: 800, color: "#60a5fa" }}>{locations.length}</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Locations</div>
+                                </div>
+                                <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(74,222,128,0.04)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.1)" }}>
+                                    <div style={{ fontSize: 22, fontWeight: 800, color: "#4ade80" }}>{connectedApps.length}</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Connected Apps</div>
+                                </div>
+                                <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(201,168,76,0.04)", borderRadius: 12, border: "1px solid rgba(201,168,76,0.1)" }}>
+                                    <div style={{ fontSize: 22, fontWeight: 800, color: "#E8C96E" }}>🔒</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Encrypted</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             {/* TAB: LOCATIONS                          */}
