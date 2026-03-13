@@ -142,6 +142,8 @@ export default function KDSPage() {
                                         </div>
                                         <div style={{ textAlign: "right", paddingLeft: 16 }}>
                                             <div style={{ fontSize: 24, fontWeight: 900, color: t.status === "LATE" ? "#ef4444" : t.status === "WARNING" ? "#eab308" : "#4ade80" }}>{t.time}</div>
+                                            {/* Escalate only available with real POS/KDS integration */}
+                                            {!isDemo && (
                                             <button
                                                 className="btn-secondary"
                                                 style={{ padding: "4px 8px", fontSize: 11, marginTop: 8, opacity: escalatedId === t.id ? 0.5 : 1 }}
@@ -150,6 +152,7 @@ export default function KDSPage() {
                                             >
                                                 {escalatedId === t.id ? "Escalated ✓" : "Escalate ↗"}
                                             </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
