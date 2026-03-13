@@ -459,6 +459,137 @@ export default function FinancePage() {
                 )}
             </div>
 
+            {/* ── ANOMALY DETECTION ── */}
+            {isDemo && (
+                <div className="card" style={{ marginTop: 20 }}>
+                    <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 20 }}>🔍</span>
+                            <div>
+                                <span className="card-title" style={{ display: "block" }}>AI Anomaly Detection</span>
+                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Real-time pattern analysis across revenue, costs, and operations</span>
+                            </div>
+                        </div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#a78bfa", background: "rgba(167,139,250,0.1)", padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.2)" }}>
+                            LIVE
+                        </div>
+                    </div>
+                    <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px 20px" }}>
+                        {(() => {
+                            const anomalies: { severity: "critical" | "warning" | "info"; title: string; detail: string; metric: string; action: string }[] = [];
+
+                            // Revenue spike/drop detection
+                            const avgRevenue = DAILY_REVENUE.reduce((a, d) => a + d.revenue, 0) / DAILY_REVENUE.length;
+                            DAILY_REVENUE.forEach(d => {
+                                if (d.revenue < avgRevenue * 0.7) {
+                                    anomalies.push({
+                                        severity: "warning",
+                                        title: `Revenue Drop on ${d.day}`,
+                                        detail: `$${d.revenue.toLocaleString()} is ${((1 - d.revenue / avgRevenue) * 100).toFixed(0)}% below daily average ($${Math.round(avgRevenue).toLocaleString()}).`,
+                                        metric: `$${d.revenue.toLocaleString()} vs $${Math.round(avgRevenue).toLocaleString()} avg`,
+                                        action: "Review that day's staffing, weather, and special events."
+                                    });
+                                }
+                                if (d.revenue > avgRevenue * 1.45) {
+                                    anomalies.push({
+                                        severity: "info",
+                                        title: `Revenue Spike on ${d.day}`,
+                                        detail: `$${d.revenue.toLocaleString()} is ${((d.revenue / avgRevenue - 1) * 100).toFixed(0)}% above daily average. Look for replicable factors.`,
+                                        metric: `$${d.revenue.toLocaleString()} vs $${Math.round(avgRevenue).toLocaleString()} avg`,
+                                        action: "Analyze that day's menu specials, events, or marketing."
+                                    });
+                                }
+                            });
+
+                            // Week-over-week revenue volatility
+                            const w3 = WEEKLY_DATA[2].revenue;
+                            const w4 = WEEKLY_DATA[3].revenue;
+                            const weekChange = ((w4 - w3) / w3) * 100;
+                            if (Math.abs(weekChange) > 25) {
+                                anomalies.push({
+                                    severity: weekChange < 0 ? "critical" : "info",
+                                    title: weekChange < 0 ? "Weekly Revenue Crash" : "Exceptional Weekly Growth",
+                                    detail: `Week 4 (${weekChange > 0 ? "+" : ""}${weekChange.toFixed(1)}%) vs Week 3. ${weekChange > 0 ? "Great trend! Identify what drove this growth." : "Investigate root cause immediately."}`,
+                                    metric: `$${w4.toLocaleString()} vs $${w3.toLocaleString()}`,
+                                    action: weekChange < 0 ? "Check for delivery issues, negative reviews, or staffing problems." : "Replicate successful marketing, menu items, or events."
+                                });
+                            }
+
+                            // COGS anomaly
+                            if (stats.cogsRatio > 35) {
+                                anomalies.push({
+                                    severity: "critical",
+                                    title: "COGS Ratio Critical",
+                                    detail: `Food cost at ${stats.cogsRatio.toFixed(1)}% is far above the 30% target. Possible waste, theft, or supplier price increase.`,
+                                    metric: `${stats.cogsRatio.toFixed(1)}% vs 30% target`,
+                                    action: "Audit inventory counts, check for waste, review supplier invoices."
+                                });
+                            }
+
+                            // Labor anomaly
+                            if (stats.laborRatio > 35) {
+                                anomalies.push({
+                                    severity: "critical",
+                                    title: "Labor Overrun Detected",
+                                    detail: `Labor cost ${stats.laborRatio.toFixed(1)}% exceeds safe threshold. Possible overtime, overstaffing, or scheduling errors.`,
+                                    metric: `${stats.laborRatio.toFixed(1)}% vs 30% target`,
+                                    action: "Review schedule page for overtime employees and optimize shifts."
+                                });
+                            }
+
+                            // Orders per dollar anomaly
+                            const avgOrderValue = Math.round(DAILY_REVENUE.reduce((a, d) => a + d.revenue, 0) / DAILY_REVENUE.reduce((a, d) => a + d.orders, 0));
+                            if (avgOrderValue < 35) {
+                                anomalies.push({
+                                    severity: "warning",
+                                    title: "Low Average Order Value",
+                                    detail: `Average ticket is $${avgOrderValue} — below the $40 industry benchmark for full-service restaurants.`,
+                                    metric: `$${avgOrderValue} vs $40 benchmark`,
+                                    action: "Train staff on upselling, add combo deals, or review menu pricing."
+                                });
+                            }
+
+                            // If no anomalies, show all clear
+                            if (anomalies.length === 0) {
+                                return (
+                                    <div style={{ textAlign: "center", padding: "24px 16px" }}>
+                                        <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: "#4ade80", marginBottom: 4 }}>No Anomalies Detected</div>
+                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>All financial metrics are within normal operating ranges.</div>
+                                    </div>
+                                );
+                            }
+
+                            const sevColors = {
+                                critical: { bg: "rgba(239,68,68,0.06)", border: "rgba(239,68,68,0.2)", color: "#f87171", icon: "🚨", badge: "CRITICAL" },
+                                warning: { bg: "rgba(251,191,36,0.06)", border: "rgba(251,191,36,0.2)", color: "#fbbf24", icon: "⚠️", badge: "WARNING" },
+                                info: { bg: "rgba(96,165,250,0.06)", border: "rgba(96,165,250,0.2)", color: "#60a5fa", icon: "📊", badge: "INSIGHT" },
+                            };
+
+                            return anomalies.map((a, i) => {
+                                const sev = sevColors[a.severity];
+                                return (
+                                    <div key={i} style={{ background: sev.bg, border: `1px solid ${sev.border}`, borderRadius: 14, padding: "16px 18px" }}>
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <span style={{ fontSize: 16 }}>{sev.icon}</span>
+                                                <span style={{ fontSize: 13, fontWeight: 800, color: sev.color }}>{a.title}</span>
+                                            </div>
+                                            <span style={{ fontSize: 9, fontWeight: 800, color: sev.color, background: `${sev.color}15`, padding: "3px 8px", borderRadius: 4, letterSpacing: 0.5 }}>{sev.badge}</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, marginBottom: 8 }}>{a.detail}</div>
+                                        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                            <div style={{ fontSize: 11, color: sev.color, fontWeight: 600 }}>📐 {a.metric}</div>
+                                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontStyle: "italic" }}>💡 {a.action}</div>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
+                    </div>
+                </div>
+            )}
+
             {/* CUSTOM TOAST NOTIFICATION */}
             {toastMsg && (
                 <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
