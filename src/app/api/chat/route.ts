@@ -46,15 +46,18 @@ Today is ${today} at ${timeNow} (California). Current plan: ${restaurantPlan}.
 You are NOT just a chatbot — you are an active operations manager. You can:
 1. Manage Inventory → Check stock, search items, AND update levels. (e.g. "Add 10 lbs of Wagyu")
 2. Manage Guests → Look up guests AND mark them as VIP or add notes. (e.g. "Make Ihsan a VIP")
-3. Manage Staff → View and APPROVE time-off requests.
-4. Maintenance → Report broken equipment and log fixes.
-5. Logbook → Create shift log entries for incidents, notes, and handovers.
-6. Recipes → Update recipe prices or costs.
-7. Finance & KDS → Analyze profit margins, labor costs, and kitchen performance.
-8. Social Reviews → Pull and analyze sentiment from Google/Yelp/OpenTable.
-9. Compliance → Provide California food safety and RBS certification rules.
-10. Navigation → Guide users to specific pages or take them there directly.
-11. POS Integration Help → Guide users through connecting their Point of Sale system.
+3. Manage Staff → View and APPROVE time-off requests, check the weekly schedule, and see who's working today.
+4. Maintenance → Report broken equipment, check equipment status/warranty/service contacts.
+5. Logbook → Create AND read shift log entries for incidents, notes, and handovers.
+6. Recipes → Read and update food and drink recipes with costs, margins, and ingredients.
+7. Finance → Analyze profit margins, labor costs, COGS, and P&L with daily/weekly/monthly breakdowns.
+8. Kitchen (KDS) → Check live ticket times, station bottlenecks, and throughput data.
+9. Team Performance → Get staff leaderboard with sales, tips, check averages, and upsell rates.
+10. Social Reviews → Pull and analyze sentiment from Google/Yelp/OpenTable.
+11. Inbox → Check emails, social mentions, and review alerts.
+12. Compliance → Provide California food safety and RBS certification rules.
+13. Navigation → Guide users to specific pages or take them there directly.
+14. POS Integration Help → Guide users through connecting their Point of Sale system.
 
 ## POS INTEGRATION KNOWLEDGE
 When users ask about connecting their POS, give them exact steps. Here is the official info:
@@ -403,46 +406,35 @@ When users ask about connecting review platforms or social media, give them exac
                         period: z.enum(["today", "week", "month", "all"]).default("all").describe("Time period to get data for")
                     }),
                     execute: async ({ period }) => {
-                        // Daily baseline averages
                         const daily = { revenue: 5867, cogs: 1710, labor: 1903, opex: 500 };
-                        daily.revenue = daily.revenue; // keep TS happy
                         const dayOfWeek = new Date().getDay() || 7;
                         const dayOfMonth = new Date().getDate();
 
                         const periods: Record<string, any> = {
                             today: {
                                 label: "Today",
-                                revenue: daily.revenue,
-                                cogs: daily.cogs,
-                                labor: daily.labor,
-                                opex: daily.opex,
+                                revenue: daily.revenue, cogs: daily.cogs, labor: daily.labor, opex: daily.opex,
                                 netProfit: daily.revenue - daily.cogs - daily.labor - daily.opex,
                             },
                             week: {
                                 label: `Week-to-Date (${dayOfWeek} days)`,
-                                revenue: daily.revenue * dayOfWeek,
-                                cogs: daily.cogs * dayOfWeek,
-                                labor: daily.labor * dayOfWeek,
-                                opex: daily.opex * dayOfWeek,
+                                revenue: daily.revenue * dayOfWeek, cogs: daily.cogs * dayOfWeek,
+                                labor: daily.labor * dayOfWeek, opex: daily.opex * dayOfWeek,
                                 netProfit: (daily.revenue - daily.cogs - daily.labor - daily.opex) * dayOfWeek,
                             },
                             month: {
                                 label: `Month-to-Date (${dayOfMonth} days)`,
-                                revenue: daily.revenue * dayOfMonth,
-                                cogs: daily.cogs * dayOfMonth,
-                                labor: daily.labor * dayOfMonth,
-                                opex: daily.opex * dayOfMonth,
+                                revenue: daily.revenue * dayOfMonth, cogs: daily.cogs * dayOfMonth,
+                                labor: daily.labor * dayOfMonth, opex: daily.opex * dayOfMonth,
                                 netProfit: (daily.revenue - daily.cogs - daily.labor - daily.opex) * dayOfMonth,
                             },
                         };
 
-                        // Add percentages
                         for (const p of Object.values(periods)) {
                             p.cogsPercent = p.revenue > 0 ? ((p.cogs / p.revenue) * 100).toFixed(1) + "%" : "0%";
                             p.laborPercent = p.revenue > 0 ? ((p.labor / p.revenue) * 100).toFixed(1) + "%" : "0%";
                             p.primeCostPercent = p.revenue > 0 ? (((p.cogs + p.labor) / p.revenue) * 100).toFixed(1) + "%" : "0%";
                             p.profitMargin = p.revenue > 0 ? ((p.netProfit / p.revenue) * 100).toFixed(1) + "%" : "0%";
-                            // Format as dollars
                             p.revenue = "$" + p.revenue.toLocaleString();
                             p.cogs = "$" + p.cogs.toLocaleString();
                             p.labor = "$" + p.labor.toLocaleString();
@@ -460,12 +452,7 @@ When users ask about connecting review platforms or social media, give them exac
                                 opex: "$" + daily.opex.toLocaleString(),
                                 netProfit: "$" + (daily.revenue - daily.cogs - daily.labor - daily.opex).toLocaleString(),
                             },
-                            benchmarks: {
-                                cogTarget: "Under 30%",
-                                laborTarget: "25-33%",
-                                primeCostTarget: "Under 65%",
-                                profitMarginTarget: "10-15%",
-                            },
+                            benchmarks: { cogTarget: "Under 30%", laborTarget: "25-33%", primeCostTarget: "Under 65%", profitMarginTarget: "10-15%" },
                             navigation: { path: "/dashboard/finance", label: "P&L / Finance" }
                         };
                     },
@@ -478,6 +465,190 @@ When users ask about connecting review platforms or social media, give them exac
                         const reviews = getRecentReviews(restaurantName);
                         return { stats: getReviewStats(restaurantName), reviews: reviews.slice(0, 3) };
                     },
+                }),
+
+                // ── NEW: SCHEDULE & STAFF TOOLS ─────────────────────────────────────
+                get_schedule_overview: tool({
+                    description: "Get the weekly staff schedule, who is working today, shift coverage, and employee list with roles/departments.",
+                    parameters: z.object({}),
+                    execute: async () => {
+                        const today = new Date();
+                        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                        const todayName = dayNames[today.getDay()];
+                        return {
+                            currentDay: todayName,
+                            staffList: [
+                                { name: "Sarah Jenkins", role: "Sr. Server", department: "FOH" },
+                                { name: "Marcus Torres", role: "Server / Barback", department: "FOH" },
+                                { name: "Lisa Park", role: "Bartender", department: "Bar" },
+                                { name: "David Chen", role: "Server", department: "FOH" },
+                                { name: "Emily Watson", role: "Server", department: "FOH" },
+                                { name: "Carlos Ramirez", role: "Jr. Server", department: "FOH" },
+                                { name: "Chef Antonio", role: "Sous Chef", department: "Kitchen" },
+                                { name: "Mike Rodriguez", role: "Line Cook", department: "Kitchen" },
+                                { name: "Rosa Hernandez", role: "Pastry", department: "Kitchen" },
+                                { name: "Jake Thompson", role: "Prep Cook", department: "Kitchen" },
+                            ],
+                            todayShifts: {
+                                lunch: ["Chef Antonio", "Mike Rodriguez", "Sarah Jenkins", "David Chen"],
+                                dinner: ["Chef Antonio", "Rosa Hernandez", "Jake Thompson", "Lisa Park", "Marcus Torres", "Emily Watson", "Carlos Ramirez"],
+                            },
+                            totalWeeklyHours: 340,
+                            overtimeAlerts: ["Marcus Torres is at 42 hours this week (overtime threshold: 40)"],
+                            navigation: { path: "/dashboard/schedule", label: "Schedule & Forms" }
+                        };
+                    },
+                }),
+
+                get_staff_performance: tool({
+                    description: "Get staff performance leaderboard with sales, tips, check averages, turn times, and AI recommendations for each employee.",
+                    parameters: z.object({
+                        period: z.enum(["today", "month", "year"]).default("today")
+                    }),
+                    execute: async ({ period }) => {
+                        const data: Record<string, any[]> = {
+                            today: [
+                                { rank: 1, name: "Lisa Park", role: "Bartender", totalSales: 1420, checkAvg: 102, tipPct: 26.5, upsellRate: 82, trend: "up" },
+                                { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", totalSales: 1180, checkAvg: 90, tipPct: 23.0, upsellRate: 72, trend: "up" },
+                                { rank: 3, name: "Marcus Torres", role: "Server", totalSales: 960, checkAvg: 74, tipPct: 20.5, upsellRate: 58, trend: "up" },
+                                { rank: 4, name: "David Chen", role: "Server", totalSales: 620, checkAvg: 62, tipPct: 16.8, upsellRate: 25, trend: "flat" },
+                                { rank: 5, name: "Emily Watson", role: "Server", totalSales: 480, checkAvg: 60, tipPct: 15.2, upsellRate: 20, trend: "down" },
+                            ],
+                            month: [
+                                { rank: 1, name: "Sarah Jenkins", role: "Sr. Server", totalSales: 18500, checkAvg: 85, tipPct: 22.4, upsellRate: 68, trend: "up" },
+                                { rank: 2, name: "Marcus Torres", role: "Server", totalSales: 16200, checkAvg: 72, tipPct: 19.8, upsellRate: 52, trend: "up" },
+                                { rank: 3, name: "Lisa Park", role: "Bartender", totalSales: 14800, checkAvg: 95, tipPct: 24.1, upsellRate: 74, trend: "flat" },
+                                { rank: 4, name: "David Chen", role: "Server", totalSales: 12100, checkAvg: 68, tipPct: 18.5, upsellRate: 31, trend: "down" },
+                                { rank: 5, name: "Emily Watson", role: "Server", totalSales: 9400, checkAvg: 65, tipPct: 17.2, upsellRate: 28, trend: "flat" },
+                            ],
+                            year: [
+                                { rank: 1, name: "Marcus Torres", role: "Server", totalSales: 212000, checkAvg: 68, tipPct: 19.2, upsellRate: 55, trend: "up" },
+                                { rank: 2, name: "Sarah Jenkins", role: "Sr. Server", totalSales: 208500, checkAvg: 82, tipPct: 21.8, upsellRate: 70, trend: "up" },
+                                { rank: 3, name: "Lisa Park", role: "Bartender", totalSales: 185000, checkAvg: 92, tipPct: 23.5, upsellRate: 76, trend: "up" },
+                            ],
+                        };
+                        return {
+                            period,
+                            leaderboard: data[period] || data.today,
+                            teamAvgCheckAvg: "$" + Math.round((data[period] || data.today).reduce((a: number, s: any) => a + s.checkAvg, 0) / (data[period] || data.today).length),
+                            teamAvgTipPct: ((data[period] || data.today).reduce((a: number, s: any) => a + s.tipPct, 0) / (data[period] || data.today).length).toFixed(1) + "%",
+                            navigation: { path: "/dashboard/team", label: "Team Performance" }
+                        };
+                    },
+                }),
+
+                // ── NEW: KDS TOOL ───────────────────────────────────────────────────
+                get_kds_status: tool({
+                    description: "Get current Kitchen Display System status: live ticket times, station bottleneck data, longest ticket, average ticket time, and throughput.",
+                    parameters: z.object({}),
+                    execute: async () => ({
+                        avgTicketTime: "18m 30s",
+                        longestTicket: "28m 05s (T-8902, Table 14 — 2x Ribeye M, 1x Caesar, 1x Truffle Fries)",
+                        openTickets: 14,
+                        throughput: "42 plates/hr",
+                        stationBottlenecks: [
+                            { station: "Grill", avgTime: "24m", load: "85%", status: "BOTTLENECK" },
+                            { station: "Fryer", avgTime: "12m", load: "90%", status: "HIGH" },
+                            { station: "Expo", avgTime: "4m", load: "95%", status: "HIGH" },
+                            { station: "Saute", avgTime: "18m", load: "60%", status: "OK" },
+                            { station: "Garde Manger", avgTime: "8m", load: "40%", status: "OK" },
+                        ],
+                        lateTickets: [
+                            { id: "T-8902", table: "14", server: "Lisa P.", time: "28m", status: "LATE", items: "2x Ribeye (M), 1x Caesar, 1x Truffle Fries" },
+                            { id: "T-8903", table: "22", server: "Carlos R.", time: "18m", status: "WARNING", items: "1x Salmon, 1x Vegan Bowl" },
+                        ],
+                        aiRecommendation: "Grill station averaging 24m/ticket (target 15m). Recommend shifting a prep cook to Grill line or 86ing well-done steaks.",
+                        navigation: { path: "/dashboard/kds", label: "Kitchen Performance" }
+                    }),
+                }),
+
+                // ── NEW: LOGBOOK TOOL ───────────────────────────────────────────────
+                get_logbook_entries: tool({
+                    description: "Get recent shift logbook entries with dates, managers, tags, and notes. Use this to check past shift notes, incidents, or handover messages.",
+                    parameters: z.object({}),
+                    execute: async () => ({
+                        entries: [
+                            { date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector passed (98/100). Need more degreaser. Slow lunch ~$1,400.", tags: ["Audit", "Slow"] },
+                            { date: "2026-03-05", shift: "PM", manager: "Mark T.", notes: "Bar slammed (game night). Ran out of draft IPA by 9 PM. Fire alarm tripped 1 min. Sales: $8,500.", tags: ["Busy", "Inventory Incident"] },
+                            { date: "2026-03-06", shift: "AM", manager: "Sarah J.", notes: "Produce delivery late 2hrs. Tomatoes bad, sent back 2 cases. Refund requested.", tags: ["Vendor", "Quality Issue"] },
+                            { date: "2026-03-11", shift: "AM", manager: "Sarah J.", notes: "Hobart Dishwasher acting up, loud noise, not draining. Might be broken.", tags: ["Maintenance", "Urgent"] },
+                        ],
+                        totalEntries: 4,
+                        navigation: { path: "/dashboard/logbook", label: "Shift Logbook" }
+                    }),
+                }),
+
+                // ── NEW: EQUIPMENT TOOL ─────────────────────────────────────────────
+                get_equipment_status: tool({
+                    description: "Get all equipment with status, model, serial, warranty, next service date, and service contact info. Use this to answer questions about equipment health, warranties, or service schedules.",
+                    parameters: z.object({}),
+                    execute: async () => ({
+                        equipment: [
+                            { name: "Walk-in Cooler (Main)", status: "OK", model: "Kolpak QS7-1010-FT", serial: "KP-2023-44891", warranty: "2027-08-15", nextService: "2026-05-15", servicePhone: "+1 (800) 555-2671", notes: "Runs at 34F avg." },
+                            { name: "Hobart Dishwasher", status: "NEEDS_MAINTENANCE", urgent: true, model: "Hobart AM15-6", serial: "HB-2024-77342", warranty: "2028-01-20", nextService: "2026-03-10", servicePhone: "+1 (800) 555-4482", notes: "Loud noise, not draining." },
+                            { name: "Pitco Fryer #2", status: "BROKEN", urgent: true, model: "Pitco SSH75R", serial: "PT-2022-55190", warranty: "Expired (2025-06)", servicePhone: "+1 (800) 555-9103", notes: "Thermostat failure, oil not heating past 280F." },
+                            { name: "Ice Machine (Bar)", status: "OK", model: "Manitowoc IYT0620A", serial: "MW-2024-33215", warranty: "2028-04-10", nextService: "2026-06-01", servicePhone: "+1 (800) 555-7744", notes: "575 lbs/day capacity." },
+                        ],
+                        summary: { total: 4, ok: 2, needsMaintenance: 1, broken: 1 },
+                        navigation: { path: "/dashboard/maintenance", label: "Equipment & Maintenance" }
+                    }),
+                }),
+
+                // ── NEW: RECIPE READ TOOL ───────────────────────────────────────────
+                get_recipe_details: tool({
+                    description: "Get detailed recipe information including food recipes and drink/cocktail recipes with ingredients, costs, margins, and menu prices.",
+                    parameters: z.object({
+                        type: z.enum(["food", "drinks", "all"]).default("all").describe("Type of recipes to retrieve")
+                    }),
+                    execute: async ({ type }) => {
+                        const result: any = {};
+                        if (type === "food" || type === "all") {
+                            result.foodRecipes = FOOD_RECIPES.map(r => {
+                                const cost = getFoodCost(r, FOOD_INGREDIENTS);
+                                const margin = r.menuPrice > 0 ? Math.round(((r.menuPrice - cost) / r.menuPrice) * 100) : 0;
+                                return {
+                                    name: r.name, menuPrice: "$" + r.menuPrice, foodCost: "$" + cost.toFixed(2),
+                                    margin: margin + "%", category: r.category,
+                                    ingredients: r.ingredients.map(i => {
+                                        const item = FOOD_INGREDIENTS.find(f => f.inventoryId === i.inventoryId);
+                                        return item ? `${item.name} (${i.amount} ${i.unit})` : i.inventoryId;
+                                    }),
+                                };
+                            });
+                        }
+                        if (type === "drinks" || type === "all") {
+                            result.drinkRecipes = DRINK_RECIPES.map(r => {
+                                let pourCost = 0;
+                                for (const ing of r.ingredients) {
+                                    const bot = BOTTLE_INVENTORY.find(b => b.spiritId === ing.spiritId);
+                                    if (bot) pourCost += (ing.amountMl / bot.sizeMl) * bot.costPerBottle;
+                                }
+                                const margin = r.menuPrice > 0 ? Math.round(((r.menuPrice - pourCost) / r.menuPrice) * 100) : 0;
+                                return {
+                                    name: r.name, menuPrice: "$" + r.menuPrice, pourCost: "$" + pourCost.toFixed(2),
+                                    margin: margin + "%", category: r.category,
+                                    ingredients: r.ingredients.map(i => {
+                                        const bot = BOTTLE_INVENTORY.find(b => b.spiritId === i.spiritId);
+                                        return bot ? `${bot.name} (${i.amountMl}ml)` : i.spiritId;
+                                    }),
+                                };
+                            });
+                        }
+                        result.navigation = { path: "/dashboard/recipes", label: "Chef & Recipes" };
+                        return result;
+                    },
+                }),
+
+                // ── NEW: INBOX TOOL ─────────────────────────────────────────────────
+                get_inbox_summary: tool({
+                    description: "Get inbox summary including unread email count, recent social mentions, and review alerts.",
+                    parameters: z.object({}),
+                    execute: async () => ({
+                        emails: { total: 6, unread: 3, recentSenders: ["Jennifer Oaks", "David Kim", "Restaurant Depot", "Southern Glazer's", "Sarah Martinez", "OpenTable Notifications"] },
+                        socialMentions: { total: 8, positive: 5, neutral: 2, negative: 1, platforms: ["Instagram", "X/Twitter", "TikTok", "Google News"] },
+                        reviewAlerts: { newReviews: 3, avgRating: 4.2, platformBreakdown: { google: 4.3, yelp: 4.0, opentable: 4.4 } },
+                        navigation: { path: "/dashboard/inbox", label: "Social Inbox" }
+                    }),
                 }),
 
                 navigate_to: tool({
