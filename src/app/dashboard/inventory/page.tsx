@@ -37,9 +37,9 @@ export default function InventoryPage() {
     const [newFoodCost, setNewFoodCost] = useState("");
     const [newFoodSupplier, setNewFoodSupplier] = useState("");
 
-    // Rename ingredient
-    const [renamingId, setRenamingId] = useState<string | null>(null);
-    const [renameValue, setRenameValue] = useState("");
+    // Inline edit row (single-click entire row)
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [editRowData, setEditRowData] = useState<{ name: string; onHand: number; unit: string; costPerUnit: number; supplier: string }>({ name: "", onHand: 0, unit: "", costPerUnit: 0, supplier: "" });
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
@@ -141,17 +141,18 @@ export default function InventoryPage() {
         showToast(`✅ Added "${newItem.name}" to inventory`);
     };
 
-    // Rename ingredient
-    const startRename = (id: string, currentName: string) => {
-        setRenamingId(id);
-        setRenameValue(currentName);
+    // Inline row edit
+    const startRowEdit = (i: FoodIngredient) => {
+        setEditingRowId(i.inventoryId);
+        setEditRowData({ name: i.name, onHand: i.onHand, unit: i.unit, costPerUnit: i.costPerUnit, supplier: i.supplier });
     };
-    const confirmRename = () => {
-        if (!renamingId || !renameValue.trim()) return;
-        setFoodIngredients(prev => prev.map(i => i.inventoryId === renamingId ? { ...i, name: renameValue.trim() } : i));
-        showToast(`✅ Renamed to "${renameValue.trim()}"`);
-        setRenamingId(null);
+    const saveRowEdit = () => {
+        if (!editingRowId || !editRowData.name.trim()) return;
+        setFoodIngredients(prev => prev.map(i => i.inventoryId === editingRowId ? { ...i, name: editRowData.name.trim(), onHand: editRowData.onHand, unit: editRowData.unit, costPerUnit: editRowData.costPerUnit, supplier: editRowData.supplier } : i));
+        showToast(`✅ Updated "${editRowData.name.trim()}"`);
+        setEditingRowId(null);
     };
+    const cancelRowEdit = () => setEditingRowId(null);
 
     // Delete ingredient
     const deleteIngredient = (id: string, name: string) => {
@@ -509,55 +510,88 @@ export default function InventoryPage() {
                                                 }, 0);
                                                 const daysLeft = dailyUse > 0 && i.onHand > 0 ? Math.floor(i.onHand / dailyUse) : i.onHand <= 0 ? 0 : null;
                                                 return (
-                                                    <tr key={i.inventoryId}>
-                                                        <td style={{ fontWeight: 700, color: status === "OUT" ? "#f87171" : "#fff", fontSize: 14 }}>
-                                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                                {status === "OUT" && <span>🚨</span>}
-                                                                {status === "Low" && <span>⚠️</span>}
-                                                                {renamingId === i.inventoryId ? (
-                                                                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                                                                        <input autoFocus type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmRename()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 160 }} />
-                                                                        <button onClick={confirmRename} style={{ fontSize: 11, padding: "4px 8px", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 4, color: "#4ade80", cursor: "pointer", fontFamily: "inherit" }}>✓</button>
-                                                                        <button onClick={() => setRenamingId(null)} style={{ fontSize: 11, padding: "4px 8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                                                    <tr key={i.inventoryId} onClick={() => editingRowId !== i.inventoryId && startRowEdit(i)} style={{ cursor: editingRowId === i.inventoryId ? "default" : "pointer", background: editingRowId === i.inventoryId ? "rgba(201,168,76,0.04)" : undefined, transition: "background 0.15s" }}>
+                                                        {editingRowId === i.inventoryId ? (
+                                                            <>
+                                                                <td>
+                                                                    <input autoFocus type="text" value={editRowData.name} onChange={e => setEditRowData(d => ({ ...d, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && saveRowEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 160, fontWeight: 700 }} onClick={e => e.stopPropagation()} />
+                                                                </td>
+                                                                <td><span className={i.source === "pos" ? "inv-badge-pos" : "inv-badge-manual"}>{i.source === "pos" ? "POS" : "Manual"}</span></td>
+                                                                <td>
+                                                                    <span className={`inv-badge ${status === "OK" ? "inv-badge-ok" : status === "Low" ? "inv-badge-low" : "inv-badge-out"}`}>
+                                                                        {status === "OK" ? "In Stock" : status === "Low" ? "Low" : "OUT"}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    <div style={{ display: "flex", gap: 4, alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                                                                        <input type="number" value={editRowData.onHand} onChange={e => setEditRowData(d => ({ ...d, onHand: parseFloat(e.target.value) || 0 }))} onKeyDown={e => e.key === 'Enter' && saveRowEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 14, fontWeight: 700, color: "#fff", outline: "none", fontFamily: "inherit", width: 70, textAlign: "right" }} />
+                                                                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{editRowData.unit}</span>
                                                                     </div>
-                                                                ) : (
-                                                                    <>
+                                                                </td>
+                                                                <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+                                                                    {dailyUse > 0 ? `~${dailyUse.toFixed(1)} ${i.unit}/day` : "—"}
+                                                                </td>
+                                                                <td style={{ fontWeight: 700, fontSize: 14 }}>
+                                                                    {daysLeft !== null ? (
+                                                                        <span style={{ color: daysLeft <= 1 ? "#f87171" : daysLeft <= 3 ? "#facc15" : "#4ade80" }}>
+                                                                            {daysLeft}d
+                                                                        </span>
+                                                                    ) : <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>}
+                                                                </td>
+                                                                <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 180 }}>
+                                                                    {recipes.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{recipes.slice(0, 2).map(r => r.name).join(", ")}{recipes.length > 2 ? ` +${recipes.length - 2}` : ""}</>) : "—"}
+                                                                </td>
+                                                                <td onClick={e => e.stopPropagation()}>
+                                                                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                                                        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>$</span>
+                                                                        <input type="number" step="0.01" value={editRowData.costPerUnit} onChange={e => setEditRowData(d => ({ ...d, costPerUnit: parseFloat(e.target.value) || 0 }))} onKeyDown={e => e.key === 'Enter' && saveRowEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 6px", fontSize: 13, fontWeight: 700, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 55, textAlign: "right" }} />
+                                                                    </div>
+                                                                </td>
+                                                                <td onClick={e => e.stopPropagation()}>
+                                                                    <div style={{ display: "flex", gap: 4 }}>
+                                                                        <button onClick={saveRowEdit} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 6, color: "#4ade80", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>✔ Save</button>
+                                                                        <button onClick={cancelRowEdit} style={{ fontSize: 11, padding: "5px 8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                                                                        <button onClick={() => deleteIngredient(i.inventoryId, i.name)} style={{ fontSize: 11, padding: "5px 8px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: 6, color: "#f87171", cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
+                                                                    </div>
+                                                                </td>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <td style={{ fontWeight: 700, color: status === "OUT" ? "#f87171" : "#fff", fontSize: 14 }}>
+                                                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                                        {status === "OUT" && <span>🚨</span>}
+                                                                        {status === "Low" && <span>⚠️</span>}
                                                                         <span>{i.name}</span>
-                                                                        <button onClick={() => startRename(i.inventoryId, i.name)} title="Rename" style={{ fontSize: 10, padding: "2px 5px", background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 4, color: "rgba(255,255,255,0.25)", cursor: "pointer", fontFamily: "inherit", lineHeight: 1 }}>✏️</button>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td><span className={i.source === "pos" ? "inv-badge-pos" : "inv-badge-manual"}>{i.source === "pos" ? "POS" : "Manual"}</span></td>
-                                                        <td>
-                                                            <span className={`inv-badge ${status === "OK" ? "inv-badge-ok" : status === "Low" ? "inv-badge-low" : "inv-badge-out"}`}>
-                                                                {status === "OK" ? "In Stock" : status === "Low" ? "Low" : "OUT"}
-                                                            </span>
-                                                        </td>
-                                                        <td style={{ fontWeight: 700, fontSize: 15, color: status === "OUT" ? "#f87171" : status === "Low" ? "#facc15" : "#fff" }}>
-                                                            {i.onHand} {i.unit}
-                                                        </td>
-                                                        <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
-                                                            {dailyUse > 0 ? `~${dailyUse.toFixed(1)} ${i.unit}/day` : "—"}
-                                                        </td>
-                                                        <td style={{ fontWeight: 700, fontSize: 14 }}>
-                                                            {daysLeft !== null ? (
-                                                                <span style={{ color: daysLeft <= 1 ? "#f87171" : daysLeft <= 3 ? "#facc15" : "#4ade80" }}>
-                                                                    {daysLeft}d
-                                                                </span>
-                                                            ) : <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>}
-                                                        </td>
-                                                        <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 180 }}>
-                                                            {recipes.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{recipes.slice(0, 2).map(r => r.name).join(", ")}{recipes.length > 2 ? ` +${recipes.length - 2}` : ""}</>) : "—"}
-                                                        </td>
-                                                        <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${i.costPerUnit}</td>
-                                                        <td>
-                                                            <div style={{ display: "flex", gap: 4 }}>
-                                                                <button onClick={() => openReceiveFood(i, "add")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+</button>
-                                                                <button onClick={() => openReceiveFood(i, "remove")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>−</button>
-                                                                <button onClick={() => deleteIngredient(i.inventoryId, i.name)} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.25)", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>🗑</button>
-                                                            </div>
-                                                        </td>
+                                                                    </div>
+                                                                </td>
+                                                                <td><span className={i.source === "pos" ? "inv-badge-pos" : "inv-badge-manual"}>{i.source === "pos" ? "POS" : "Manual"}</span></td>
+                                                                <td>
+                                                                    <span className={`inv-badge ${status === "OK" ? "inv-badge-ok" : status === "Low" ? "inv-badge-low" : "inv-badge-out"}`}>
+                                                                        {status === "OK" ? "In Stock" : status === "Low" ? "Low" : "OUT"}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ fontWeight: 700, fontSize: 15, color: status === "OUT" ? "#f87171" : status === "Low" ? "#facc15" : "#fff" }}>
+                                                                    {i.onHand} {i.unit}
+                                                                </td>
+                                                                <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+                                                                    {dailyUse > 0 ? `~${dailyUse.toFixed(1)} ${i.unit}/day` : "—"}
+                                                                </td>
+                                                                <td style={{ fontWeight: 700, fontSize: 14 }}>
+                                                                    {daysLeft !== null ? (
+                                                                        <span style={{ color: daysLeft <= 1 ? "#f87171" : daysLeft <= 3 ? "#facc15" : "#4ade80" }}>
+                                                                            {daysLeft}d
+                                                                        </span>
+                                                                    ) : <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>}
+                                                                </td>
+                                                                <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 180 }}>
+                                                                    {recipes.length > 0 ? (<><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{recipes.slice(0, 2).map(r => r.name).join(", ")}{recipes.length > 2 ? ` +${recipes.length - 2}` : ""}</>) : "—"}
+                                                                </td>
+                                                                <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${i.costPerUnit}</td>
+                                                                <td>
+                                                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Click to edit</div>
+                                                                </td>
+                                                            </>
+                                                        )}
                                                     </tr>
                                                 );
                                             })}
