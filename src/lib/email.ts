@@ -21,7 +21,7 @@ export async function sendWelcomeEmail({ restaurantName, email }: SendWelcomeEma
             : "https://app.restly.ai/login";
 
         const { data, error } = await resend.emails.send({
-            from: "Restly <welcome@restly.ai>",   // ← change to your verified domain
+            from: "Restly <onboarding@resend.dev>",
             to: email,
             subject: `Welcome to Restly, ${restaurantName}! 🎉 Your 14-day trial starts now`,
             html: WelcomeEmail({ restaurantName, email, loginUrl }),
