@@ -13,7 +13,7 @@ export default function InventoryPage() {
     const [syncCountdown, setSyncCountdown] = useState(600);
     const [bottles, setBottles] = useState<BottleInfo[]>([]);
     const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>(FOOD_INGREDIENTS);
-    const [drinkSubTab, setDrinkSubTab] = useState<"bottles" | "cocktails">("bottles");
+    const [drinkSubTab, setDrinkSubTab] = useState<"liquor" | "wine">("liquor");
     const [foodSubTab, setFoodSubTab] = useState<"ingredients" | "recipes">("recipes");
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [recipes, setRecipes] = useState<DrinkRecipe[]>(DRINK_RECIPES);
@@ -28,6 +28,19 @@ export default function InventoryPage() {
     const [editRecipe, setEditRecipe] = useState<DrinkRecipe | null>(null);
     const [editIngredients, setEditIngredients] = useState<{ spiritId: string; amountMl: number }[]>([]);
     const [editPrice, setEditPrice] = useState("");
+
+    // Add New Bottle Modal
+    const [addBottleModal, setAddBottleModal] = useState(false);
+    const [newBottleName, setNewBottleName] = useState("");
+    const [newBottleCategory, setNewBottleCategory] = useState<BottleInfo["category"]>("Vodka");
+    const [newBottleSizeMl, setNewBottleSizeMl] = useState("750");
+    const [newBottleCost, setNewBottleCost] = useState("");
+    const [newBottleFullCount, setNewBottleFullCount] = useState("0");
+    const [newBottleSupplier, setNewBottleSupplier] = useState("");
+
+    // Inline edit bottle row
+    const [editingBottleId, setEditingBottleId] = useState<string | null>(null);
+    const [editBottleData, setEditBottleData] = useState<{ name: string; costPerBottle: number; fullBottles: number; supplier: string }>({ name: "", costPerBottle: 0, fullBottles: 0, supplier: "" });
 
     // Add New Food Ingredient Modal
     const [addFoodModal, setAddFoodModal] = useState(false);
@@ -123,6 +136,42 @@ export default function InventoryPage() {
         setEditRecipe(null);
     };
 
+    // Add New Bottle
+    const confirmAddBottle = () => {
+        if (!newBottleName.trim()) return;
+        const newB: BottleInfo = {
+            spiritId: `sp_custom_${Date.now()}`,
+            name: newBottleName.trim(),
+            sizeMl: parseInt(newBottleSizeMl) || 750,
+            fullBottles: parseInt(newBottleFullCount) || 0,
+            openBottleMl: 0,
+            costPerBottle: parseFloat(newBottleCost) || 0,
+            supplier: newBottleSupplier || "Manual",
+            category: newBottleCategory,
+        };
+        setBottles(prev => [...prev, newB]);
+        setAddBottleModal(false);
+        setNewBottleName(""); setNewBottleCost(""); setNewBottleFullCount("0"); setNewBottleSupplier("");
+        showToast(`✅ Added "${newB.name}" to inventory`);
+    };
+
+    // Inline bottle row edit
+    const startBottleEdit = (b: BottleInfo) => {
+        setEditingBottleId(b.spiritId);
+        setEditBottleData({ name: b.name, costPerBottle: b.costPerBottle, fullBottles: b.fullBottles, supplier: b.supplier });
+    };
+    const saveBottleEdit = () => {
+        if (!editingBottleId || !editBottleData.name.trim()) return;
+        setBottles(prev => prev.map(b => b.spiritId === editingBottleId ? { ...b, name: editBottleData.name.trim(), costPerBottle: editBottleData.costPerBottle, fullBottles: editBottleData.fullBottles, supplier: editBottleData.supplier } : b));
+        showToast(`✅ Updated "${editBottleData.name.trim()}"`);
+        setEditingBottleId(null);
+    };
+    const deleteBottle = (id: string, name: string) => {
+        if (!confirm(`Remove "${name}" from inventory?`)) return;
+        setBottles(prev => prev.filter(b => b.spiritId !== id));
+        showToast(`🗑️ Removed "${name}"`);
+    };
+
     // Add New Food Ingredient
     const confirmAddFood = () => {
         if (!newFoodName.trim()) return;
@@ -206,8 +255,12 @@ export default function InventoryPage() {
         return "OK";
     };
 
-    const filteredBottles = bottles.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()));
-    const filteredDrinkRecipes = recipes.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
+    const WINE_CATS = ["Wine", "Champagne"];
+    const filteredBottles = bottles.filter(b => {
+        if (drinkSubTab === "wine") { if (!WINE_CATS.includes(b.category)) return false; }
+        else { if (WINE_CATS.includes(b.category)) return false; }
+        return !search || b.name.toLowerCase().includes(search.toLowerCase());
+    });
     const filteredFoodIngredients = foodIngredients.filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
     const filteredFoodRecipes = FOOD_RECIPES.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -607,52 +660,89 @@ export default function InventoryPage() {
                 {activeTab === "Drink" && isDemo && (
                     <>
                         <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
-                            {(["bottles", "cocktails"] as const).map(st => (
+                            {(["liquor", "wine"] as const).map(st => (
                                 <button key={st} onClick={() => setDrinkSubTab(st)} style={{
                                     fontSize: 14, padding: "10px 20px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
                                     background: drinkSubTab === st ? "rgba(201,168,76,0.12)" : "rgba(255,255,255,0.02)",
                                     border: `1px solid ${drinkSubTab === st ? "rgba(201,168,76,0.25)" : "rgba(255,255,255,0.06)"}`,
                                     color: drinkSubTab === st ? "#E8C96E" : "rgba(255,255,255,0.4)", fontWeight: drinkSubTab === st ? 700 : 400,
                                 }}>
-                                    {st === "bottles" ? "Bottle Inventory" : "Cocktail Recipes"}
+                                    {st === "liquor" ? "Bottle Liquor" : "Bottle Wine"}
                                 </button>
                             ))}
-                            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ marginLeft: "auto", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none", width: 240 }} />
+                            <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+                                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 16px", fontSize: 14, color: "#fff", outline: "none", width: 200 }} />
+                                <button onClick={() => setAddBottleModal(true)} style={{ fontSize: 13, padding: "10px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700, whiteSpace: "nowrap" }}>+ Add Bottle</button>
+                            </div>
                         </div>
 
-                        {/* BOTTLE INVENTORY */}
-                        {drinkSubTab === "bottles" && (
-                            <>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
-                                    {[
-                                        { label: "Total Spirits", value: bottles.length, color: "#fff" },
-                                        { label: "In Stock", value: bottles.filter(b => getBottleStatus(b) === "OK").length, color: "#4ade80" },
-                                        { label: "Running Low", value: bottles.filter(b => getBottleStatus(b) === "Low").length, color: "#facc15" },
-                                        { label: "Out of Stock", value: bottles.filter(b => getBottleStatus(b) === "OUT").length, color: "#f87171" },
-                                    ].map(c => (
-                                        <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{c.label}</div>
-                                            <div style={{ fontSize: 28, fontWeight: 900, color: c.color }}>{c.value}</div>
-                                        </div>
-                                    ))}
+                        {/* BOTTLE STATS */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+                            {[
+                                { label: drinkSubTab === "wine" ? "Total Wines" : "Total Spirits", value: filteredBottles.length, color: "#fff" },
+                                { label: "In Stock", value: filteredBottles.filter(b => getBottleStatus(b) === "OK").length, color: "#4ade80" },
+                                { label: "Running Low", value: filteredBottles.filter(b => getBottleStatus(b) === "Low").length, color: "#facc15" },
+                                { label: "Out of Stock", value: filteredBottles.filter(b => getBottleStatus(b) === "OUT").length, color: "#f87171" },
+                            ].map(c => (
+                                <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{c.label}</div>
+                                    <div style={{ fontSize: 28, fontWeight: 900, color: c.color }}>{c.value}</div>
                                 </div>
+                            ))}
+                        </div>
 
-                                <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden" }}>
-                                    <table className="inv-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Spirit</th><th>Category</th><th>Status</th>
-                                                <th>Full Bottles</th><th>Open Bottle</th><th>Total</th>
-                                                <th>Today POS Usage</th><th>Used In</th><th>Cost</th><th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredBottles.map(b => {
-                                                const status = getBottleStatus(b);
-                                                const totalMl = getTotalMlRemaining(b);
-                                                const usedIn = getCocktailsUsing(b.spiritId);
-                                                return (
-                                                    <tr key={b.spiritId}>
+                        {/* BOTTLE TABLE */}
+                        <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden" }}>
+                            <table className="inv-table">
+                                <thead>
+                                    <tr>
+                                        <th>{drinkSubTab === "wine" ? "Wine" : "Spirit"}</th><th>Category</th><th>Status</th>
+                                        <th>Full Bottles</th><th>Open Bottle</th><th>Total</th>
+                                        <th>Cost</th><th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredBottles.map(b => {
+                                        const status = getBottleStatus(b);
+                                        const totalMl = getTotalMlRemaining(b);
+                                        return (
+                                            <tr key={b.spiritId} onClick={() => editingBottleId !== b.spiritId && startBottleEdit(b)} style={{ cursor: editingBottleId === b.spiritId ? "default" : "pointer", background: editingBottleId === b.spiritId ? "rgba(201,168,76,0.04)" : undefined, transition: "background 0.15s" }}>
+                                                {editingBottleId === b.spiritId ? (
+                                                    <>
+                                                        <td onClick={e => e.stopPropagation()}>
+                                                            <input autoFocus type="text" value={editBottleData.name} onChange={e => setEditBottleData(d => ({ ...d, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && saveBottleEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 13, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 180, fontWeight: 700 }} />
+                                                        </td>
+                                                        <td><span className="inv-badge inv-badge-blue">{b.category}</span></td>
+                                                        <td>
+                                                            <span className={`inv-badge ${status === "OK" ? "inv-badge-ok" : status === "Low" ? "inv-badge-low" : "inv-badge-out"}`}>
+                                                                {status === "OK" ? "In Stock" : status === "Low" ? "Low" : "OUT"}
+                                                            </span>
+                                                        </td>
+                                                        <td onClick={e => e.stopPropagation()}>
+                                                            <input type="number" value={editBottleData.fullBottles} onChange={e => setEditBottleData(d => ({ ...d, fullBottles: parseInt(e.target.value) || 0 }))} onKeyDown={e => e.key === 'Enter' && saveBottleEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 8px", fontSize: 14, fontWeight: 700, color: "#fff", outline: "none", fontFamily: "inherit", width: 60, textAlign: "right" }} />
+                                                        </td>
+                                                        <td style={{ fontSize: 13 }}>
+                                                            {b.openBottleMl > 0 ? <span style={{ color: "#60a5fa" }}>{b.openBottleMl}ml / {b.sizeMl}ml</span> : <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>}
+                                                        </td>
+                                                        <td style={{ fontWeight: 700, fontSize: 14, color: totalMl === 0 ? "#f87171" : totalMl < b.sizeMl * 2 ? "#facc15" : "#4ade80" }}>
+                                                            {totalMl > 0 ? `${(totalMl / 1000).toFixed(1)}L` : "0"}
+                                                        </td>
+                                                        <td onClick={e => e.stopPropagation()}>
+                                                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                                                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>$</span>
+                                                                <input type="number" step="0.5" value={editBottleData.costPerBottle} onChange={e => setEditBottleData(d => ({ ...d, costPerBottle: parseFloat(e.target.value) || 0 }))} onKeyDown={e => e.key === 'Enter' && saveBottleEdit()} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6, padding: "4px 6px", fontSize: 13, fontWeight: 700, color: "#E8C96E", outline: "none", fontFamily: "inherit", width: 55, textAlign: "right" }} />
+                                                            </div>
+                                                        </td>
+                                                        <td onClick={e => e.stopPropagation()}>
+                                                            <div style={{ display: "flex", gap: 4 }}>
+                                                                <button onClick={saveBottleEdit} style={{ fontSize: 11, padding: "5px 10px", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 6, color: "#4ade80", cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>✔ Save</button>
+                                                                <button onClick={() => setEditingBottleId(null)} style={{ fontSize: 11, padding: "5px 8px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                                                                <button onClick={() => deleteBottle(b.spiritId, b.name)} style={{ fontSize: 11, padding: "5px 8px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.15)", borderRadius: 6, color: "#f87171", cursor: "pointer", fontFamily: "inherit" }}>🗑</button>
+                                                            </div>
+                                                        </td>
+                                                    </>
+                                                ) : (
+                                                    <>
                                                         <td style={{ fontWeight: 700, color: status === "OUT" ? "#f87171" : "#fff", fontSize: 15 }}>
                                                             {status === "OUT" && <span style={{ marginRight: 6 }}>🚨</span>}
                                                             {status === "Low" && <span style={{ marginRight: 6 }}>⚠️</span>}
@@ -671,89 +761,68 @@ export default function InventoryPage() {
                                                         <td style={{ fontWeight: 700, fontSize: 14, color: totalMl === 0 ? "#f87171" : totalMl < b.sizeMl * 2 ? "#facc15" : "#4ade80" }}>
                                                             {totalMl > 0 ? `${(totalMl / 1000).toFixed(1)}L` : "0"}
                                                         </td>
-                                                        <td style={{ fontSize: 12, color: "#60a5fa" }}>
-                                                            {(() => { let used = 0; for (const sale of DEMO_DRINK_SALES) { const r = recipes.find(x => x.id === sale.recipeId); if (!r) continue; const ing = r.ingredients.find(x => x.spiritId === b.spiritId); if (ing) used += ing.amountMl * sale.sold; } return used > 0 ? <><span className="inv-badge-pos" style={{ marginRight: 4 }}>POS</span>{(used/1000).toFixed(1)}L</> : "—"; })()}
-                                                        </td>
-                                                        <td style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", maxWidth: 140 }}>
-                                                            {usedIn.length > 0 ? usedIn.slice(0, 2).map(r => r.name).join(", ") + (usedIn.length > 2 ? ` +${usedIn.length - 2}` : "") : "—"}
-                                                        </td>
                                                         <td style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${b.costPerBottle}</td>
                                                         <td>
-                                                            <div style={{ display: "flex", gap: 4 }}>
-                                                                <button onClick={() => openReceiveBottle(b, "add")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", color: "#4ade80", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+</button>
-                                                                <button onClick={() => openReceiveBottle(b, "remove")} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>−</button>
-                                                            </div>
+                                                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Click to edit</div>
                                                         </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-
-                        {/* COCKTAIL RECIPES */}
-                        {drinkSubTab === "cocktails" && (
-                            <>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
-                                    {[
-                                        { label: "Menu Cocktails", value: recipes.length, color: "#fff" },
-                                        { label: "Drinks Sold Today", value: DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0), color: "#60a5fa" },
-                                        { label: "Bar Revenue", value: `$${DEMO_DRINK_SALES.reduce((a, s) => { const r = recipes.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}`, color: "#4ade80" },
-                                        { label: "Unavailable", value: recipes.filter(r => getServingsRemaining(r, bottles) === 0).length, color: "#f87171" },
-                                    ].map(c => (
-                                        <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
-                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{c.label}</div>
-                                            <div style={{ fontSize: 28, fontWeight: 900, color: c.color }}>{c.value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden" }}>
-                                    <table className="inv-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Cocktail</th><th>Type</th><th>Menu Price</th>
-                                                <th>Ingredients</th><th>Pour Cost</th><th>Margin</th>
-                                                <th>Can Make</th><th>Sold Today</th><th>Edit</th>
+                                                    </>
+                                                )}
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredDrinkRecipes.map(r => {
-                                                const pourCost = getPourCost(r, bottles);
-                                                const servings = getServingsRemaining(r, bottles);
-                                                const margin = r.menuPrice > 0 ? Math.round(((r.menuPrice - pourCost) / r.menuPrice) * 100) : 0;
-                                                const sale = DEMO_DRINK_SALES.find(s => s.recipeId === r.id);
-                                                return (
-                                                    <tr key={r.id}>
-                                                        <td style={{ fontWeight: 700, color: servings === 0 ? "#f87171" : "#fff", fontSize: 15 }}>
-                                                            {servings === 0 && <span style={{ marginRight: 6 }}>🚨</span>}
-                                                            {r.name}
-                                                        </td>
-                                                        <td><span className={`inv-badge ${r.category === "Cocktail" ? "inv-badge-blue" : r.category === "Shot" ? "inv-badge-low" : "inv-badge-ok"}`}>{r.category}</span></td>
-                                                        <td style={{ fontWeight: 700, color: "#fff", fontSize: 15 }}>${r.menuPrice}</td>
-                                                        <td style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", maxWidth: 280, lineHeight: 1.6 }}>
-                                                            {r.ingredients.map(ing => {
-                                                                const bot = bottles.find(b => b.spiritId === ing.spiritId);
-                                                                return bot ? `${bot.name.split(" ")[0]} ${ing.amountMl}ml` : "?";
-                                                            }).join(" · ")}
-                                                        </td>
-                                                        <td style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>${pourCost.toFixed(2)}</td>
-                                                        <td style={{ fontWeight: 700, fontSize: 14, color: margin >= 80 ? "#4ade80" : margin >= 70 ? "#facc15" : "#f87171" }}>{margin}%</td>
-                                                        <td style={{ fontWeight: 700, fontSize: 15, color: servings === 0 ? "#f87171" : servings <= 10 ? "#facc15" : "#4ade80" }}>{servings}</td>
-                                                        <td style={{ fontWeight: 700, fontSize: 15, color: "#60a5fa" }}>{sale?.sold ?? 0}</td>
-                                                        <td><button onClick={() => openEditRecipe(r)} style={{ fontSize: 12, padding: "6px 12px", background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)", color: "#E8C96E", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>✏️ Edit</button></td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </>
                 )}
+
+            {/* ── ADD BOTTLE MODAL ── */}
+            {addBottleModal && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setAddBottleModal(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "32px 36px", width: 480, boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>+ Add Bottle</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Add a new bottle to your bar inventory</div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>NAME *</label>
+                            <input autoFocus type="text" value={newBottleName} onChange={e => setNewBottleName(e.target.value)} placeholder="e.g. Maker's Mark" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>CATEGORY</label>
+                                <select value={newBottleCategory} onChange={e => setNewBottleCategory(e.target.value as BottleInfo["category"])} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", fontFamily: "inherit" }}>
+                                    {["Vodka","Tequila","Gin","Bourbon","Rum","Whiskey","Wine","Champagne","Aperitif","Liqueur","Beer","Other"].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>BOTTLE SIZE (ml)</label>
+                                <input type="number" value={newBottleSizeMl} onChange={e => setNewBottleSizeMl(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 24 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>COST ($)</label>
+                                <input type="number" step="0.5" value={newBottleCost} onChange={e => setNewBottleCost(e.target.value)} placeholder="0" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>FULL BOTTLES</label>
+                                <input type="number" value={newBottleFullCount} onChange={e => setNewBottleFullCount(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>SUPPLIER</label>
+                                <input type="text" value={newBottleSupplier} onChange={e => setNewBottleSupplier(e.target.value)} placeholder="Optional" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setAddBottleModal(false)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={confirmAddBottle} disabled={!newBottleName.trim()} style={{ flex: 1, padding: "12px", background: newBottleName.trim() ? "linear-gradient(135deg,#22c55e,#4ade80)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 10, color: newBottleName.trim() ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: 800, cursor: newBottleName.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>✅ Add Bottle</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── RECIPE EDIT MODAL ── */}
             {editRecipe && (
