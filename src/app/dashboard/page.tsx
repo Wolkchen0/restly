@@ -54,36 +54,27 @@ export default function DashboardOverview() {
     }, []);
 
     const handleExportDashboard = () => {
-        showToast("Generating Executive Report...");
-        setTimeout(() => {
-            const headers = ["Metric", "Value", "Status"];
-            const rows = [
-                headers.join(","),
+        import("@/utils/pdf-export").then(({ exportToPDF }) => {
+            const metricRows: (string | number)[][] = [
                 ["Gross Sales Today", isDemo ? "$6,100" : "$0", "↑ 14.5%"],
                 ["Total Covers", isDemo ? "124" : "0", "↑ 8%"],
                 ["Avg Spend", isDemo ? "$49.19" : "$0.00", "↓ 2.1%"],
                 ["Labour Cost %", isDemo ? "28.4%" : "0%", "Optimal"],
                 ["", "", ""],
-                ["Hour", "Today Sales", "Yesterday Sales"]
+                ["Hourly Sales Breakdown", "", ""],
+                ...salesData.map(s => [s.time, `$${s.today}`, `$${s.yesterday}`]),
             ];
-
-            salesData.forEach(s => {
-                rows.push([s.time, s.today, s.yesterday].join(","));
+            exportToPDF({
+                title: "Executive Dashboard Overview",
+                subtitle: `${new Date().toLocaleDateString()} — Restly AI`,
+                headers: ["Metric", "Current", "Change / Yesterday"],
+                rows: metricRows,
+                sectionRows: [5],
+                orientation: "portrait",
+                fileName: `Restly_Overview_${new Date().toISOString().split('T')[0]}`,
             });
-
-            const csvContent = rows.join("\n");
-            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Restly_Executive_Overview_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showToast("Executive Overview downloaded as Excel.");
-        }, 1200);
+            showToast("📥 Overview PDF exported!");
+        });
     };
 
     return (

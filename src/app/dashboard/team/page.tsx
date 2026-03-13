@@ -82,29 +82,18 @@ export default function TeamPerformancePage() {
     };
 
     const handleExportStaff = () => {
-        showToast("Generating Staff Performance Report...");
-        setTimeout(() => {
-            const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
-            const headers = ["Rank", "Name", "Role", "Shifts", "Total Sales", "Check Avg", "Turn Time", "Tip %"];
-            const rows = [headers.join(",")];
-
-            data.forEach(s => {
-                rows.push([s.rank, s.name, s.role, s.daysWorked, `$${s.totalSales.toLocaleString()}`, `$${s.checkAvg}`, `${s.turnTime}m`, `${s.tipPct}%`].join(","));
+        const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
+        import("@/utils/pdf-export").then(({ exportToPDF }) => {
+            exportToPDF({
+                title: `Staff Performance — ${period.charAt(0).toUpperCase() + period.slice(1)}`,
+                subtitle: "Restly AI Restaurant Manager",
+                headers: ["Rank", "Name", "Role", "Shifts", "Total Sales", "Check Avg", "Turn Time", "Tip %"],
+                rows: data.map(s => [s.rank, s.name, s.role, s.daysWorked, `$${s.totalSales.toLocaleString()}`, `$${s.checkAvg}`, `${s.turnTime}m`, `${s.tipPct}%`]),
+                orientation: "landscape",
+                fileName: `Staff_Leaderboard_${period}_${new Date().toISOString().split('T')[0]}`,
             });
-
-            const csvContent = rows.join("\n");
-            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Restly_Staff_Leaderboard_${period}_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showToast("Leaderboard report downloaded.");
-        }, 1200);
+            showToast("📥 Staff PDF exported!");
+        });
     };
 
     const data = period === "today" ? DEMO_STAFF_TODAY : period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;

@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
 
 const FORM_TIME_ENTRY = "/forms/time-entry";
 const FORM_TIME_OFF = "/forms/time-off";
@@ -209,16 +208,15 @@ export default function SchedulePage() {
         return { onLeave: false };
     };
 
-    // Excel Export using SheetJS for proper .xlsx
-    const exportToExcel = () => {
-        const rows: (string | number)[][] = [];
-        // Header row
-        rows.push(["Employee", "Position", ...DAYS.map((d, i) => `${d} ${weekDates[i]}`), "Hours"]);
+    // PDF Export
+    const exportToPDF = () => {
+        const pdfRows: (string | number)[][] = [];
+        const sectionRows: number[] = [];
 
         departments.forEach(dept => {
-            // Department header
-            const deptLabel = dept === "Kitchen" ? "Kitchen" : dept === "FOH" ? "Front of House" : "Bar";
-            rows.push([deptLabel, "", "", "", "", "", "", "", ""]);
+            const deptLabel = dept === "Kitchen" ? "🍳 Kitchen" : dept === "FOH" ? "🍽️ Front of House" : "🍸 Bar";
+            sectionRows.push(pdfRows.length);
+            pdfRows.push([deptLabel, "", "", "", "", "", "", "", ""]);
 
             EMPLOYEES.filter(e => e.department === dept).forEach(emp => {
                 const shifts = schedule[emp.name] || [];
@@ -236,37 +234,27 @@ export default function SchedulePage() {
                     if (s.shift2Start && s.shift2End) {
                         let diff2 = parseT(s.shift2End) - parseT(s.shift2Start); if (diff2 < 0) diff2 += 24;
                         totalHrs += diff2;
-                        cellText += ` + ${s.shift2Start} - ${s.shift2End}`;
+                        cellText += `\n${s.shift2Start} - ${s.shift2End}`;
                     }
                     return cellText;
                 });
-                rows.push([emp.name, emp.position, ...dayCells, totalHrs > 0 ? Math.round(totalHrs) : 0]);
+                pdfRows.push([emp.name, emp.position, ...dayCells, totalHrs > 0 ? `${Math.round(totalHrs)}h` : "—"]);
             });
         });
 
-        const ws = XLSX.utils.aoa_to_sheet(rows);
-        // Set column widths
-        ws['!cols'] = [
-            { wch: 20 }, { wch: 16 },
-            ...DAYS.map(() => ({ wch: 18 })),
-            { wch: 8 }
-        ];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-
-        // Use XLSX.write with Blob for reliable browser download
-        const wbOut = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-        const blob = new Blob([wbOut], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const dateRange = `${weekDates[0].replace(/\//g, '-')}_to_${weekDates[6].replace(/\//g, '-')}`;
-        a.href = url;
-        a.download = `Schedule_${dateRange}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('📥 Schedule exported!');
+        // Dynamic import to avoid SSR issues
+        import("@/utils/pdf-export").then(({ exportToPDF: pdfExport }) => {
+            pdfExport({
+                title: `Weekly Schedule — ${weekDates[0]} to ${weekDates[6]}`,
+                subtitle: `Generated for Sample Rest. — Downtown`,
+                headers: ["Employee", "Position", ...DAYS.map((d, i) => `${d}\n${weekDates[i]}`),"Hours"],
+                rows: pdfRows,
+                sectionRows,
+                orientation: "landscape",
+                fileName: `Schedule_${weekDates[0].replace(/\//g, '-')}_to_${weekDates[6].replace(/\//g, '-')}`,
+            });
+            showToast('📥 Schedule PDF exported!');
+        });
     };
 
     function copyLink(url: string, key: string) {
@@ -411,7 +399,7 @@ export default function SchedulePage() {
                                     <div style={{ width: 10, height: 10, borderRadius: 3, background: "#000", border: "1px solid rgba(255,255,255,0.3)" }} />
                                     Approved Leave
                                 </div>
-                                <button onClick={exportToExcel} style={{ marginLeft: 12, padding: "6px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 8, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📥 Export Excel</button>
+                                <button onClick={exportToPDF} style={{ marginLeft: 12, padding: "6px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 8, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📥 Export PDF</button>
                             </div>
                         </div>
 

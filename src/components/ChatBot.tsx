@@ -146,6 +146,7 @@ export default function ChatBot() {
     const [history, setHistory] = useState<SavedMsg[]>([]);
     const [showHistory, setShowHistory] = useState(false);
     const [pulse, setPulse] = useState(true);
+    const [tooltipDismissed, setTooltipDismissed] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
@@ -204,16 +205,23 @@ export default function ChatBot() {
             {/* ── FLOATING BUTTON — bigger, more prominent ── */}
             {!open && (
                 <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                    {/* Tooltip nudge */}
+                    {/* Tooltip nudge — with dismiss button */}
+                    {!tooltipDismissed && (
                     <div style={{
                         background: "rgba(15,15,25,0.95)", border: "1px solid rgba(201,168,76,0.3)",
                         borderRadius: 14, padding: "10px 16px", backdropFilter: "blur(12px)",
                         animation: pulse ? "floatBadge 3s ease-in-out infinite" : "none",
-                        maxWidth: 200,
+                        maxWidth: 200, position: "relative",
                     }}>
+                        <button onClick={(e) => { e.stopPropagation(); setTooltipDismissed(true); }} style={{
+                            position: "absolute", top: 4, right: 6,
+                            background: "none", border: "none", color: "rgba(255,255,255,0.35)",
+                            fontSize: 14, cursor: "pointer", padding: "2px 4px", lineHeight: 1,
+                        }} title="Dismiss">✕</button>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 2 }}>✨ Restly AI</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>Your personal restaurant assistant. Ask me anything!</div>
                     </div>
+                    )}
                     <button
                         onClick={() => { setOpen(true); setPulse(false); }}
                         style={{

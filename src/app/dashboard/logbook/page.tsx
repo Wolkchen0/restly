@@ -22,31 +22,17 @@ export default function LogbookPage() {
     };
 
     const handleExportLog = () => {
-        showToast("Generating Shift Log CSV...");
-        setTimeout(() => {
-            const headers = ["ID", "Date", "Shift", "Manager", "Tags", "Notes"];
-            const rows = [headers.join(",")];
-
-            logs.forEach(l => {
-                // Must escape quotes and wrap in quotes to protect inner commas inside the long shift notes
-                const safeNotes = `"${l.notes.replace(/"/g, '""')}"`;
-                const safeTags = `"${l.tags.join(" | ")}"`;
-                rows.push([l.id, l.date, l.shift, l.manager, safeTags, safeNotes].join(","));
+        import("@/utils/pdf-export").then(({ exportToPDF }) => {
+            exportToPDF({
+                title: "Shift Logbook",
+                subtitle: `Exported ${new Date().toLocaleDateString()}`,
+                headers: ["Date", "Shift", "Manager", "Tags", "Notes"],
+                rows: logs.map(l => [l.date, l.shift, l.manager, l.tags.join(", "), l.notes]),
+                orientation: "landscape",
+                fileName: `Restly_Logbook_${new Date().toISOString().split('T')[0]}`,
             });
-
-            const csvContent = rows.join("\n");
-            const blob = new Blob([csvContent], { type: "application/vnd.ms-excel;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Restly_Shift_Logbook_${new Date().toISOString().split('T')[0]}.xls`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showToast("Logbook export downloaded successfully as Excel.");
-        }, 1200);
+            showToast("📥 Logbook PDF exported!");
+        });
     };
 
     const handleNewEntry = () => {
