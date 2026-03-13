@@ -132,9 +132,9 @@ export default function FinancePage() {
     // Pie chart data
     const pieData = [
         { name: "COGS", value: stats.cogs, color: "#ef4444" },
-        { name: "Labor", value: stats.labor, color: "#eab308" },
+        { name: "Labor", value: stats.labor, color: "#4ade80" },
         { name: "Operating", value: totalOpex, color: "#60a5fa" },
-        { name: "Profit", value: Math.max(0, netProfit), color: "#4ade80" },
+        { name: "Profit", value: Math.max(0, netProfit), color: "#E8C96E" },
     ];
 
     const handleExportPDF = () => {
@@ -192,8 +192,13 @@ export default function FinancePage() {
                         <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginTop: 12 }}>
                             {isDemo ? (
                                 <>
-                                    <span style={{ color: stats.profitMargin >= 15 ? "#4ade80" : "#facc15", fontWeight: 700 }}>{stats.profitMargin >= 0 ? "+" : ""}{stats.profitMargin.toFixed(1)}%</span> Profit Margin • Target: 15.0% •
-                                    <span style={{ marginLeft: 8, color: "#a78bfa", fontWeight: 600 }}>Prime Cost: {stats.primeCostPct.toFixed(1)}%</span>
+                                    <span style={{ color: stats.profitMargin >= 15 ? "#4ade80" : "#facc15", fontWeight: 700 }}>{stats.profitMargin >= 0 ? "+" : ""}{stats.profitMargin.toFixed(1)}%</span> Profit Margin
+                                    <span style={{ margin: "0 6px", color: "rgba(255,255,255,0.2)" }}>•</span>
+                                    <span style={{ color: "#ef4444", fontWeight: 600 }}>Food Cost: {stats.cogsRatio.toFixed(1)}%</span>
+                                    <span style={{ margin: "0 6px", color: "rgba(255,255,255,0.2)" }}>•</span>
+                                    <span style={{ color: "#4ade80", fontWeight: 600 }}>Labor: {stats.laborRatio.toFixed(1)}%</span>
+                                    <span style={{ margin: "0 6px", color: "rgba(255,255,255,0.2)" }}>•</span>
+                                    <span style={{ color: "#a78bfa", fontWeight: 600 }}>Prime: {stats.primeCostPct.toFixed(1)}%</span>
                                 </>
                             ) : (
                                 "Connect your POS and Payroll to see profit margins"
@@ -392,7 +397,7 @@ export default function FinancePage() {
                                                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.2)" fontSize={11} tickMargin={8} axisLine={false} tickLine={false} />
                                                 <YAxis stroke="rgba(255,255,255,0.2)" fontSize={11} tickFormatter={v => `$${v / 1000}k`} axisLine={false} tickLine={false} />
                                                 <Tooltip contentStyle={{ background: "#0d0d1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                                                <Bar dataKey="labor" stackId="a" fill="#eab308" radius={[0, 0, 4, 4]} />
+                                                <Bar dataKey="labor" stackId="a" fill="#4ade80" radius={[0, 0, 4, 4]} />
                                                 <Bar dataKey="cogs" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
