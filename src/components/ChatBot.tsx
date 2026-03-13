@@ -3,25 +3,24 @@ import { useChat } from "ai/react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-const SUGGESTED_PROMPTS = [
-    { icon: "📋", text: "Who has reservations tonight?" },
-    { icon: "⚠️", text: "What's running low in the kitchen?" },
-    { icon: "⭐", text: "Show me my VIP guests" },
-    { icon: "📅", text: "Any pending time-off requests?" },
-    { icon: "📦", text: "Add 10 lbs of Wagyu to inventory" },
-    { icon: "👤", text: "Make John Smith a VIP guest" },
-    { icon: "💰", text: "Show today's revenue summary" },
-    { icon: "🍸", text: "How many bottles of Titos left?" },
-];
-
 // ── Chat history persistence ──
 const HISTORY_KEY = "restly_ai_history";
-const HISTORY_MAX = 50; // keep last 50 messages
+const ALERTS_DISMISSED_KEY = "restly_alerts_dismissed";
+const HISTORY_MAX = 50;
 
 interface SavedMsg {
     role: "user" | "assistant";
     content: string;
     timestamp: number;
+}
+
+interface Alert {
+    id: string;
+    type: "critical" | "warning" | "info";
+    icon: string;
+    title: string;
+    body: string;
+    action?: { label: string; path: string };
 }
 
 function loadHistory(): SavedMsg[] {
@@ -42,6 +41,21 @@ function clearHistory() {
     try { localStorage.removeItem(HISTORY_KEY); } catch { }
 }
 
+function getDismissedAlerts(): string[] {
+    try {
+        const raw = localStorage.getItem(ALERTS_DISMISSED_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function dismissAlert(alertId: string) {
+    try {
+        const arr = getDismissedAlerts();
+        arr.push(alertId);
+        localStorage.setItem(ALERTS_DISMISSED_KEY, JSON.stringify(arr));
+    } catch { /* */ }
+}
+
 function timeAgo(ts: number): string {
     const diff = Date.now() - ts;
     const mins = Math.floor(diff / 60000);
@@ -52,10 +66,39 @@ function timeAgo(ts: number): string {
     return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// ── Real-time alerts based on actual system state ──
+function getSystemAlerts(): Alert[] {
+    return [
+        {
+            id: "maint_dishwasher_2026",
+            type: "critical",
+            icon: "🚨",
+            title: "Maintenance Required (AI Detected)",
+            body: "Hobart Dishwasher issue detected in today's logs: \"The Hobart Dishwasher is acting up again, it's making a loud noise and not draining. Might be broken.\"",
+            action: { label: "View Maintenance", path: "/dashboard/maintenance" },
+        },
+        {
+            id: "inv_ipa_out_2026",
+            type: "warning",
+            icon: "⚠️",
+            title: "Inventory Alert",
+            body: "Draft IPA ran out during last night's rush. 3 cocktail ingredients are running low.",
+            action: { label: "Check Inventory", path: "/dashboard/inventory" },
+        },
+        {
+            id: "review_pattern_2026",
+            type: "info",
+            icon: "📊",
+            title: "AI Review Insight",
+            body: "3 recent reviews mention \"long wait time\" on Friday/Saturday evenings. Consider adjusting reservation spacing.",
+            action: { label: "View Reviews", path: "/dashboard/inbox" },
+        },
+    ];
+}
+
 function ToolResultCard({ toolName, result }: { toolName: string; result: any }) {
     const router = useRouter();
 
-    // ── Side-effect: persist guest additions via /api/guests POST ──
     useEffect(() => {
         if (toolName === "add_or_update_guest" && result?.success && result?.guest) {
             fetch("/api/guests", {
@@ -71,10 +114,7 @@ function ToolResultCard({ toolName, result }: { toolName: string; result: any })
             <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 14, padding: "16px 18px", marginTop: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Action Complete</div>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", marginBottom: 14, lineHeight: 1.5 }}>{result.message}</div>
-                <button
-                    onClick={() => router.push(result.navigation.path)}
-                    style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%", fontFamily: "inherit" }}
-                >
+                <button onClick={() => router.push(result.navigation.path)} style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%", fontFamily: "inherit" }}>
                     View in {result.navigation.label} →
                 </button>
             </div>
@@ -142,22 +182,29 @@ function ToolResultCard({ toolName, result }: { toolName: string; result: any })
 }
 
 export default function ChatBot() {
+    const router = useRouter();
     const [open, setOpen] = useState(false);
     const [history, setHistory] = useState<SavedMsg[]>([]);
     const [showHistory, setShowHistory] = useState(false);
     const [pulse, setPulse] = useState(true);
     const [tooltipDismissed, setTooltipDismissed] = useState(false);
+    const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
         api: "/api/chat",
     });
 
-    // Load history on mount
+    // Load history + alerts on mount
     useEffect(() => {
         setHistory(loadHistory());
-        // Pulse animation stops after 10s
         const timer = setTimeout(() => setPulse(false), 10000);
+
+        // Load real alerts, filter out dismissed ones
+        const dismissed = getDismissedAlerts();
+        const alerts = getSystemAlerts().filter(a => !dismissed.includes(a.id));
+        setActiveAlerts(alerts);
+
         return () => clearTimeout(timer);
     }, []);
 
@@ -169,7 +216,6 @@ export default function ChatBot() {
                 .map(m => ({ role: m.role as "user" | "assistant", content: m.content as string, timestamp: Date.now() }));
             if (newMsgs.length > 0) {
                 const merged = [...loadHistory()];
-                // Only add messages we haven't saved yet
                 for (const nm of newMsgs) {
                     const exists = merged.some(m => m.content === nm.content && m.role === nm.role && Math.abs(m.timestamp - nm.timestamp) < 5000);
                     if (!exists) merged.push(nm);
@@ -192,6 +238,13 @@ export default function ChatBot() {
         setShowHistory(false);
     }, []);
 
+    const handleDismissAlert = (alertId: string) => {
+        dismissAlert(alertId);
+        setActiveAlerts(prev => prev.filter(a => a.id !== alertId));
+    };
+
+    const alertCount = activeAlerts.length;
+
     return (
         <>
             <style>{`
@@ -202,10 +255,10 @@ export default function ChatBot() {
                 @keyframes floatBadge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
             `}</style>
 
-            {/* ── FLOATING BUTTON — bigger, more prominent ── */}
+            {/* ── FLOATING BUTTON ── */}
             {!open && (
                 <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1000, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-                    {/* Tooltip nudge — with dismiss button */}
+                    {/* Tooltip nudge — dismissible */}
                     {!tooltipDismissed && (
                     <div style={{
                         background: "rgba(15,15,25,0.95)", border: "1px solid rgba(201,168,76,0.3)",
@@ -222,39 +275,41 @@ export default function ChatBot() {
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>Your personal restaurant assistant. Ask me anything!</div>
                     </div>
                     )}
-                    <button
-                        onClick={() => { setOpen(true); setPulse(false); }}
-                        style={{
-                            width: 68, height: 68, borderRadius: 20,
-                            background: "linear-gradient(135deg,#C9A84C,#E8C96E)",
-                            border: "none", cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            boxShadow: "0 4px 24px rgba(201,168,76,0.5)",
-                            fontSize: 30, transition: "transform 0.2s",
-                            animation: pulse ? "pulseGlow 2.5s ease-in-out infinite" : "none",
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.08)")}
-                        onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
-                        title="Ask Restly AI"
-                    >
-                        🤖
-                    </button>
-                    {/* History badge */}
-                    {history.length > 0 && (
-                        <div style={{
-                            position: "absolute", top: -5, right: -5,
-                            background: "#f87171", color: "#fff", fontSize: 10, fontWeight: 800,
-                            width: 20, height: 20, borderRadius: "50%",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            border: "2px solid #0d0d1a",
-                        }}>
-                            {Math.min(history.filter(h => h.role === "user").length, 99)}
-                        </div>
-                    )}
+                    <div style={{ position: "relative" }}>
+                        <button
+                            onClick={() => { setOpen(true); setPulse(false); }}
+                            style={{
+                                width: 68, height: 68, borderRadius: 20,
+                                background: "linear-gradient(135deg,#C9A84C,#E8C96E)",
+                                border: "none", cursor: "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                boxShadow: "0 4px 24px rgba(201,168,76,0.5)",
+                                fontSize: 30, transition: "transform 0.2s",
+                                animation: pulse ? "pulseGlow 2.5s ease-in-out infinite" : "none",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.08)")}
+                            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+                            title="Ask Restly AI"
+                        >
+                            🤖
+                        </button>
+                        {/* Only show badge for real alerts — not chat history count */}
+                        {alertCount > 0 && (
+                            <div style={{
+                                position: "absolute", top: -5, right: -5,
+                                background: "#f87171", color: "#fff", fontSize: 10, fontWeight: 800,
+                                width: 20, height: 20, borderRadius: "50%",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                border: "2px solid #0d0d1a",
+                            }}>
+                                {alertCount}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
-            {/* ── CHAT PANEL — bigger, wider ── */}
+            {/* ── CHAT PANEL ── */}
             {open && (
                 <div style={{
                     position: "fixed", bottom: 20, right: 20, zIndex: 1000,
@@ -323,39 +378,59 @@ export default function ChatBot() {
                         </div>
                     )}
 
-                    {/* Messages */}
+                    {/* Messages Area */}
                     <div style={{ flex: 1, overflowY: "auto", padding: "20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-                        {!hasMessages && (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-                                {/* Welcome */}
-                                <div style={{ textAlign: "center", padding: "24px 16px 8px" }}>
-                                    <div style={{ fontSize: 36, marginBottom: 10 }}>👋</div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 6 }}>Hey there!</div>
-                                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, maxWidth: 320, margin: "0 auto" }}>
-                                        I&apos;m your personal restaurant assistant. I can manage VIPs, check inventory, review schedules, and more.
-                                    </div>
-                                </div>
 
-                                {/* Quick actions grid */}
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 8 }}>
-                                    {SUGGESTED_PROMPTS.map(p => (
-                                        <button
-                                            key={p.text}
-                                            onClick={() => { setInput(p.text); }}
-                                            style={{
-                                                background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)",
-                                                borderRadius: 14, padding: "14px 14px", textAlign: "left", cursor: "pointer",
-                                                color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.45,
-                                                transition: "all 0.2s", fontFamily: "inherit",
-                                            }}
-                                            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; e.currentTarget.style.background = "rgba(201,168,76,0.04)"; }}
-                                            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.background = "rgba(255,255,255,0.025)"; }}
-                                        >
-                                            <span style={{ display: "block", fontSize: 18, marginBottom: 6 }}>{p.icon}</span>
-                                            {p.text}
-                                        </button>
-                                    ))}
-                                </div>
+                        {/* ── ALERTS — only shown when no active conversation ── */}
+                        {!hasMessages && activeAlerts.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
+                                {activeAlerts.map(alert => (
+                                    <div key={alert.id} style={{
+                                        background: alert.type === "critical" ? "rgba(239,68,68,0.06)" : alert.type === "warning" ? "rgba(245,158,11,0.06)" : "rgba(96,165,250,0.06)",
+                                        border: `1px solid ${alert.type === "critical" ? "rgba(239,68,68,0.2)" : alert.type === "warning" ? "rgba(245,158,11,0.2)" : "rgba(96,165,250,0.2)"}`,
+                                        borderRadius: 14, padding: "14px 16px", position: "relative",
+                                    }}>
+                                        <button onClick={() => handleDismissAlert(alert.id)} style={{
+                                            position: "absolute", top: 8, right: 10,
+                                            background: "none", border: "none", color: "rgba(255,255,255,0.25)",
+                                            fontSize: 14, cursor: "pointer", lineHeight: 1,
+                                        }}>✕</button>
+                                        <div style={{
+                                            fontSize: 11, fontWeight: 700, textTransform: "uppercase", marginBottom: 6,
+                                            color: alert.type === "critical" ? "#f87171" : alert.type === "warning" ? "#fbbf24" : "#60a5fa",
+                                        }}>
+                                            {alert.icon} {alert.title}
+                                        </div>
+                                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: alert.action ? 10 : 0, paddingRight: 20 }}>
+                                            {alert.body}
+                                        </div>
+                                        {alert.action && (
+                                            <button onClick={() => { router.push(alert.action!.path); setOpen(false); }} style={{
+                                                background: alert.type === "critical" ? "rgba(239,68,68,0.1)" : "rgba(201,168,76,0.08)",
+                                                border: `1px solid ${alert.type === "critical" ? "rgba(239,68,68,0.2)" : "rgba(201,168,76,0.15)"}`,
+                                                color: alert.type === "critical" ? "#f87171" : "#E8C96E",
+                                                borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700,
+                                                cursor: "pointer", fontFamily: "inherit",
+                                            }}>
+                                                {alert.action.label} →
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ── CONVERSATION or empty state ── */}
+                        {!hasMessages && (
+                            <div style={{ textAlign: "center", padding: "16px 16px 8px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                                {activeAlerts.length > 0 ? (
+                                    <div style={{ marginTop: 8 }}>Type below to start a conversation, or dismiss alerts above.</div>
+                                ) : (
+                                    <div>
+                                        <div style={{ fontSize: 20, marginBottom: 8 }}>💬</div>
+                                        How can I help you today? Ask me anything about your restaurant.
+                                    </div>
+                                )}
                             </div>
                         )}
 
