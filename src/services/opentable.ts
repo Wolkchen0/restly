@@ -228,7 +228,7 @@ export function getStats() {
   };
 }
 
-export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): Guest {
+export function addOrUpdateGuest(name: string, isVip?: boolean, notes?: string, dietaryNotes?: string, preferences?: string[]): Guest {
   const parts = name.trim().split(/\s+/);
   const firstName = parts[0] || name;
   const lastName = parts.slice(1).join(" ") || "";
@@ -241,8 +241,15 @@ export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): 
   );
   
   if (existing) {
-    existing.isVip = isVip;
+    // Only change VIP if explicitly provided
+    if (isVip !== undefined) existing.isVip = isVip;
     if (notes) existing.notes = notes;
+    if (dietaryNotes) existing.dietaryNotes = dietaryNotes;
+    if (preferences && preferences.length > 0) {
+      // Merge new preferences, avoiding duplicates
+      const merged = new Set([...existing.preferences, ...preferences]);
+      existing.preferences = [...merged];
+    }
     return existing;
   }
   
@@ -255,10 +262,10 @@ export function addOrUpdateGuest(name: string, isVip: boolean, notes?: string): 
     phone: "",
     visitCount: 1,
     lastVisit: new Date().toISOString().split("T")[0],
-    preferences: [],
-    dietaryNotes: "",
+    preferences: preferences || [],
+    dietaryNotes: dietaryNotes || "",
     averageSpend: 0,
-    isVip,
+    isVip: isVip ?? false,
     favoriteItems: [],
     specialOccasions: [],
     averagePartySize: 2,

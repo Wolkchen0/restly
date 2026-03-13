@@ -327,18 +327,26 @@ When users ask about connecting review platforms or social media, give them exac
                 }),
 
                 add_or_update_guest: tool({
-                    description: "Add a new guest or update VIP status/notes for an existing guest.",
+                    description: "Add a new guest or update their info. Use this for dietary preferences, seating preferences, notes, AND/OR VIP status. IMPORTANT: Only set isVip if the user explicitly asks to make someone VIP. For dietary notes, use the dietaryNotes field with the specific restriction — do NOT assume 'vegan' if they just say 'no red meat'.",
                     parameters: z.object({
                         name: z.string().describe("Full name of the guest"),
-                        isVip: z.boolean().default(true),
-                        notes: z.string().optional().describe("Special preferences, allergies, or notes"),
+                        isVip: z.boolean().optional().describe("Only set this if user explicitly wants to change VIP status. Leave undefined to keep current status unchanged."),
+                        notes: z.string().optional().describe("General notes about the guest"),
+                        dietaryNotes: z.string().optional().describe("Specific dietary restriction. Examples: 'No red meat', 'No pork', 'No shellfish', 'Vegetarian', 'Vegan', 'Halal', 'Kosher', 'Gluten-free', 'Dairy-free', 'Nut allergy'. Use the EXACT restriction mentioned by the user, do NOT generalize."),
+                        preferences: z.array(z.string()).optional().describe("Seating or service preferences, e.g. ['Window seat', 'Quiet table']"),
                     }),
-                    execute: async ({ name, isVip, notes }) => {
-                        const guest = addOrUpdateGuest(name, isVip, notes);
+                    execute: async ({ name, isVip, notes, dietaryNotes, preferences }) => {
+                        const guest = addOrUpdateGuest(name, isVip, notes, dietaryNotes, preferences);
+                        const updates: string[] = [];
+                        if (isVip !== undefined) updates.push(isVip ? "marked as VIP" : "removed from VIP");
+                        if (dietaryNotes) updates.push(`dietary: ${dietaryNotes}`);
+                        if (notes) updates.push(`notes updated`);
+                        if (preferences && preferences.length > 0) updates.push(`preferences: ${preferences.join(", ")}`);
+                        const summary = updates.length > 0 ? updates.join(", ") : "profile updated";
                         return {
                             success: true,
-                            message: `${guest.firstName} ${guest.lastName} updated in the system as ${isVip ? "VIP" : "Guest"}.`,
-                            guest: { id: guest.id, name: `${guest.firstName} ${guest.lastName}`, isVip: guest.isVip },
+                            message: `${guest.firstName} ${guest.lastName} — ${summary}.`,
+                            guest: { id: guest.id, name: `${guest.firstName} ${guest.lastName}`, isVip: guest.isVip, dietaryNotes: guest.dietaryNotes },
                             navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
                         };
                     },
