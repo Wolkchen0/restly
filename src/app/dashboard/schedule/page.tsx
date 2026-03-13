@@ -299,7 +299,8 @@ export default function SchedulePage() {
                     const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                     let diff = parseT(s.endTime) - parseT(s.startTime); if (diff < 0) diff += 24;
                     totalHrs += diff;
-                    let cellText = `${s.startTime} - ${s.endTime}`;
+                    const roleTag = s.role ? `[${s.role}] ` : "";
+                    let cellText = `${roleTag}${s.startTime} - ${s.endTime}`;
                     if (s.shift2Start && s.shift2End) {
                         let diff2 = parseT(s.shift2End) - parseT(s.shift2Start); if (diff2 < 0) diff2 += 24;
                         totalHrs += diff2;
@@ -459,9 +460,16 @@ export default function SchedulePage() {
                         {editShiftType !== "OFF" && (
                             <div style={{ marginBottom: 16 }}>
                                 <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Role / Annotation</label>
-                                <select value={editRole} onChange={e => setEditRole(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#E8C96E", fontFamily: "inherit" }}>
-                                    {ROLE_LABELS.map(r => <option key={r} value={r}>{r || "(none)"}</option>)}
-                                </select>
+                                <input
+                                    list="role-suggestions"
+                                    value={editRole}
+                                    onChange={e => setEditRole(e.target.value)}
+                                    placeholder="Type or select a role..."
+                                    style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#E8C96E", fontFamily: "inherit", outline: "none" }}
+                                />
+                                <datalist id="role-suggestions">
+                                    {ROLE_LABELS.filter(r => r).map(r => <option key={r} value={r} />)}
+                                </datalist>
                             </div>
                         )}
 

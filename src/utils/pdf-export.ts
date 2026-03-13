@@ -114,6 +114,12 @@ export function exportToPDF(opts: PDFExportOptions) {
                 } else if (data.column.index > 0 && data.column.index < data.table.columns.length - 1) {
                     // Shift time cells - center align
                     data.cell.styles.halign = "center";
+                    // Color cells that have role annotations [Role]
+                    if (val.startsWith("[")) {
+                        data.cell.styles.fillColor = [235, 245, 255]; // light blue tint for role-annotated shifts
+                        data.cell.styles.textColor = [30, 80, 160];
+                        data.cell.styles.fontStyle = "bold";
+                    }
                 }
                 // Hours column - last column
                 if (data.column.index === data.table.columns.length - 1 && !sectionSet.has(rowIdx)) {
