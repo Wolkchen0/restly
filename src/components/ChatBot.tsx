@@ -190,7 +190,17 @@ export default function ChatBot() {
     const [tooltipDismissed, setTooltipDismissed] = useState(false);
     const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
     const [showAlerts, setShowAlerts] = useState(true);
+    const [briefing, setBriefing] = useState<any>(null);
+    const [isListening, setIsListening] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const recognitionRef = useRef<any>(null);
+
+    // Fetch briefing whenever chat opens
+    useEffect(() => {
+        if (open && !briefing) {
+            fetch("/api/briefing").then(r => r.json()).then(setBriefing).catch(() => {});
+        }
+    }, [open]);
 
     const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
         api: "/api/chat",
@@ -242,6 +252,30 @@ export default function ChatBot() {
     const handleDismissAlert = (alertId: string) => {
         dismissAlert(alertId);
         setActiveAlerts(prev => prev.filter(a => a.id !== alertId));
+    };
+
+    const startVoice = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+        const recog = new SpeechRecognition();
+        recog.lang = "en-US";
+        recog.interimResults = false;
+        recog.maxAlternatives = 1;
+        recog.onresult = (e: any) => {
+            const text = e.results[0][0].transcript;
+            setInput(text);
+            setIsListening(false);
+        };
+        recog.onerror = () => setIsListening(false);
+        recog.onend = () => setIsListening(false);
+        recognitionRef.current = recog;
+        recog.start();
+        setIsListening(true);
+    };
+
+    const stopVoice = () => {
+        recognitionRef.current?.stop();
+        setIsListening(false);
     };
 
     const alertCount = activeAlerts.length;
@@ -432,14 +466,91 @@ export default function ChatBot() {
                             </div>
                         )}
 
-                        {/* ── CONVERSATION or empty state ── */}
+                        {/* ── PROACTIVE BRIEFING (replaces static empty state) ── */}
                         {!hasMessages && !showAlerts && (
-                            <div style={{ textAlign: "center", padding: "16px 16px 8px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-                                <div>
-                                    <div style={{ fontSize: 20, marginBottom: 8 }}>💬</div>
-                                    How can I help you today? Ask me anything about your restaurant.
-                                    {activeAlerts.length > 0 && <div style={{ marginTop: 8, fontSize: 12 }}>Tap 🔔 to view {activeAlerts.length} notification{activeAlerts.length > 1 ? "s" : ""}.</div>}
-                                </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                {briefing ? (
+                                    <>
+                                        {/* Greeting */}
+                                        <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
+                                            <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 4 }}>{briefing.greeting}</div>
+                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>Here's your daily briefing from Restly AI</div>
+                                        </div>
+
+                                        {/* KPI Grid */}
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                            {[
+                                                { label: "Reservations", val: briefing.kpis.reservations, sub: `${briefing.kpis.covers} covers`, color: "#60a5fa", icon: "📋" },
+                                                { label: "VIP Guests", val: briefing.kpis.vipCount, sub: "tonight", color: "#E8C96E", icon: "⭐" },
+                                                { label: "Yesterday Rev.", val: briefing.kpis.yesterdayRevenue, sub: briefing.kpis.profitMargin + " margin", color: "#4ade80", icon: "💰" },
+                                                { label: "Labor Cost", val: briefing.kpis.laborPercent, sub: "target: <33%", color: parseFloat(briefing.kpis.laborPercent) > 33 ? "#f87171" : "#4ade80", icon: "👥" },
+                                            ].map(k => (
+                                                <div key={k.label} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>{k.icon} {k.label}</div>
+                                                    <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.val}</div>
+                                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{k.sub}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* VIP Guests */}
+                                        {briefing.vipGuests.length > 0 && (
+                                            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "12px 14px" }}>
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "#E8C96E", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>⭐ VIP Guests Tonight</div>
+                                                {briefing.vipGuests.map((v: any) => (
+                                                    <div key={v.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                                        <div>
+                                                            <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{v.name}</span>
+                                                            {v.notes && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginLeft: 8 }}>— {v.notes}</span>}
+                                                        </div>
+                                                        <span style={{ fontSize: 12, color: "rgba(201,168,76,0.7)", fontWeight: 600 }}>{v.time} · {v.partySize}p</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Staff on Duty */}
+                                        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)", borderRadius: 12, padding: "12px 14px" }}>
+                                            <div style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>👥 {briefing.staff.shift} Shift — {briefing.staff.count} on duty</div>
+                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.8 }}>{briefing.staff.members.join(" · ")}</div>
+                                        </div>
+
+                                        {/* Critical Alerts */}
+                                        {briefing.alerts.criticalItems.length > 0 && (
+                                            <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 12, padding: "12px 14px" }}>
+                                                <div style={{ fontSize: 11, fontWeight: 700, color: "#f87171", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>🚨 Critical Alerts</div>
+                                                {briefing.alerts.criticalItems.map((a: string, i: number) => (
+                                                    <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "3px 0" }}>{a}</div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* AI Smart Tips */}
+                                        <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)", borderRadius: 12, padding: "12px 14px" }}>
+                                            <div style={{ fontSize: 11, fontWeight: 700, color: "#4ade80", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>🧠 AI Insights</div>
+                                            {briefing.aiTips.map((t: string, i: number) => (
+                                                <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", padding: "3px 0", lineHeight: 1.6 }}>{t}</div>
+                                            ))}
+                                        </div>
+
+                                        {/* Quick Actions */}
+                                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                            {["What's my labor cost today?", "Low stock items?", "Who's the top server?"].map(q => (
+                                                <button key={q} onClick={() => setInput(q)} style={{
+                                                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                                                    borderRadius: 20, padding: "7px 14px", fontSize: 11, color: "rgba(255,255,255,0.5)",
+                                                    cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                                                }} onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,168,76,0.3)"; e.currentTarget.style.color = "#E8C96E"; }}
+                                                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}>{q}</button>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div style={{ textAlign: "center", padding: "30px 16px", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                                        <div style={{ fontSize: 20, marginBottom: 8 }}>💬</div>
+                                        Loading your briefing...
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -491,21 +602,38 @@ export default function ChatBot() {
                     {/* Input Area */}
                     <form
                         onSubmit={handleSubmit}
-                        style={{ padding: "14px 18px 16px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 10, flexShrink: 0, background: "rgba(255,255,255,0.01)" }}
+                        style={{ padding: "14px 18px 16px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 8, flexShrink: 0, background: "rgba(255,255,255,0.01)" }}
                     >
                         <input
                             value={input}
                             onChange={handleInputChange}
-                            placeholder="Ask me anything about your restaurant..."
+                            placeholder={isListening ? "🎤 Listening..." : "Ask me anything about your restaurant..."}
                             style={{
-                                flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                                flex: 1, background: "rgba(255,255,255,0.04)", border: `1px solid ${isListening ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}`,
                                 borderRadius: 14, padding: "14px 18px", fontSize: 14, color: "#fff",
                                 outline: "none", fontFamily: "inherit",
                                 transition: "border-color 0.2s",
                             }}
-                            onFocus={e => (e.target.style.borderColor = "rgba(201,168,76,0.35)")}
-                            onBlur={e => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
+                            onFocus={e => (e.target.style.borderColor = isListening ? "rgba(239,68,68,0.4)" : "rgba(201,168,76,0.35)")}
+                            onBlur={e => (e.target.style.borderColor = isListening ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)")}
                         />
+                        <button
+                            type="button"
+                            onClick={isListening ? stopVoice : startVoice}
+                            style={{
+                                width: 44, height: 48,
+                                background: isListening ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)",
+                                border: `1px solid ${isListening ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.06)"}`,
+                                borderRadius: 12, cursor: "pointer",
+                                color: isListening ? "#f87171" : "rgba(255,255,255,0.35)", fontSize: 18,
+                                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                transition: "all 0.2s",
+                                animation: isListening ? "pulseGlow 1.5s ease-in-out infinite" : "none",
+                            }}
+                            title={isListening ? "Stop recording" : "Voice input"}
+                        >
+                            🎤
+                        </button>
                         <button
                             type="submit"
                             disabled={isLoading || !input.trim()}

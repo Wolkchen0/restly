@@ -130,6 +130,52 @@ export default function GuestsPage() {
 
                 {isDemo ? (
                     <>
+                        {/* AI GUEST INSIGHTS */}
+                        {(() => {
+                            const today = new Date();
+                            const lostGuests = guests.filter((g: any) => {
+                                if (!g.lastVisit) return false;
+                                const last = new Date(g.lastVisit);
+                                const daysSince = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+                                return daysSince > 30 && g.visitCount >= 3;
+                            });
+                            const upcomingOccasions = guests.filter((g: any) => g.specialOccasions && g.specialOccasions.length > 0).slice(0, 3);
+                            return (lostGuests.length > 0 || upcomingOccasions.length > 0) ? (
+                                <div style={{ display: "grid", gridTemplateColumns: lostGuests.length > 0 && upcomingOccasions.length > 0 ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 20 }}>
+                                    {lostGuests.length > 0 && (
+                                        <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 14, padding: "16px 20px" }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>⚠️ At Risk — Haven't visited in 30+ days</div>
+                                            {lostGuests.slice(0, 4).map((g: any) => {
+                                                const daysSince = Math.floor((today.getTime() - new Date(g.lastVisit).getTime()) / (1000 * 60 * 60 * 24));
+                                                return (
+                                                    <div key={g.id} onClick={() => setSelected(g)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer" }}>
+                                                        <div>
+                                                            <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{g.isVip ? "⭐ " : ""}{g.firstName} {g.lastName}</span>
+                                                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginLeft: 8 }}>{g.visitCount} visits · avg ${g.averageSpend}</span>
+                                                        </div>
+                                                        <span style={{ fontSize: 12, color: "#f87171", fontWeight: 600 }}>{daysSince}d ago</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>🧠 Tip: Send a personalized offer or "we miss you" email to re-engage these guests.</div>
+                                        </div>
+                                    )}
+                                    {upcomingOccasions.length > 0 && (
+                                        <div style={{ background: "rgba(201,168,76,0.04)", border: "1px solid rgba(201,168,76,0.12)", borderRadius: 14, padding: "16px 20px" }}>
+                                            <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>🎉 Special Occasions on File</div>
+                                            {upcomingOccasions.map((g: any) => (
+                                                <div key={g.id} onClick={() => setSelected(g)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)", cursor: "pointer" }}>
+                                                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{g.firstName} {g.lastName}</span>
+                                                    <span style={{ fontSize: 12, color: "#E8C96E" }}>🎂 {g.specialOccasions[0]}</span>
+                                                </div>
+                                            ))}
+                                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>🧠 Tip: Prepare a complimentary dessert or personalized greeting for these guests.</div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : null;
+                        })()}
+
                         <div className="grid-2" style={{ gap: 20, alignItems: "start" }}>
                             {/* Guest List */}
                             <div className="card">

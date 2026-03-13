@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
 import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining } from "@/services/drinks";
 
-type TabKey = "All" | "Main" | "Appetizer" | "Side" | "Dessert" | "Bread" | "Soup" | "Drinks";
+type TabKey = "All" | "Main" | "Appetizer" | "Side" | "Dessert" | "Bread" | "Soup" | "Drinks" | "BCG";
 
 // AI Agent: find the closest inventory match for a given ingredient name
 function aiFindInventoryMatch(name: string, inventory: FoodIngredient[]): FoodIngredient | null {
@@ -249,7 +249,24 @@ export default function RecipesPage() {
         { key: "Bread", label: "Bread", icon: "🍞" },
         { key: "Soup", label: "Soup", icon: "🍜" },
         { key: "Drinks", label: "Drinks", icon: "🍸" },
+        { key: "BCG", label: "Menu Engineering", icon: "🧠" },
     ];
+
+    // BCG Matrix classification
+    const bcgData = foodRecipes.map(r => {
+        const data = getFoodData(r);
+        return { ...r, ...data };
+    });
+    const avgSales = bcgData.length > 0 ? bcgData.reduce((a, r) => a + r.dailySales, 0) / bcgData.length : 0;
+    const avgMargin = bcgData.length > 0 ? bcgData.reduce((a, r) => a + r.margin, 0) / bcgData.length : 0;
+    const classifyBCG = (sales: number, margin: number): { label: string; color: string; bg: string; icon: string; advice: string } => {
+        const highSales = sales >= avgSales;
+        const highMargin = margin >= avgMargin;
+        if (highSales && highMargin) return { label: "Star", color: "#facc15", bg: "rgba(250,204,21,0.08)", icon: "⭐", advice: "Keep promoting — this is your golden item. Feature it prominently on the menu." };
+        if (highSales && !highMargin) return { label: "Cash Cow", color: "#4ade80", bg: "rgba(74,222,128,0.08)", icon: "🐄", advice: "High volume but low margin. Negotiate supplier prices or reduce portion size slightly." };
+        if (!highSales && highMargin) return { label: "Puzzle", color: "#60a5fa", bg: "rgba(96,165,250,0.08)", icon: "❓", advice: "Great margin but low sales. Train servers to upsell this item. Add to specials board." };
+        return { label: "Dog", color: "#f87171", bg: "rgba(248,113,113,0.08)", icon: "🐕", advice: "Low sales + low margin. Consider removing from menu or reworking the recipe." };
+    };
 
     return (
         <>
@@ -584,8 +601,86 @@ export default function RecipesPage() {
                         </table>
                     </div>
                 )}
+                {/* ── BCG MENU ENGINEERING MATRIX ── */}
+                {activeTab === "BCG" && (
+                    <div>
+                        {/* BCG Summary Cards */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+                            {[
+                                { label: "Stars", icon: "⭐", color: "#facc15", items: bcgData.filter(r => classifyBCG(r.dailySales, r.margin).label === "Star") },
+                                { label: "Cash Cows", icon: "🐄", color: "#4ade80", items: bcgData.filter(r => classifyBCG(r.dailySales, r.margin).label === "Cash Cow") },
+                                { label: "Puzzles", icon: "❓", color: "#60a5fa", items: bcgData.filter(r => classifyBCG(r.dailySales, r.margin).label === "Puzzle") },
+                                { label: "Dogs", icon: "🐕", color: "#f87171", items: bcgData.filter(r => classifyBCG(r.dailySales, r.margin).label === "Dog") },
+                            ].map(cat => (
+                                <div key={cat.label} style={{ background: `${cat.color}08`, border: `1px solid ${cat.color}25`, borderRadius: 14, padding: "18px 16px", textAlign: "center" }}>
+                                    <div style={{ fontSize: 24, marginBottom: 4 }}>{cat.icon}</div>
+                                    <div style={{ fontSize: 26, fontWeight: 900, color: cat.color }}>{cat.items.length}</div>
+                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{cat.label}</div>
+                                </div>
+                            ))}
+                        </div>
 
-                {filteredFood.length === 0 && filteredDrinks.length === 0 && (
+                        {/* BCG Info Banner */}
+                        <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "flex-start" }}>
+                            <span style={{ fontSize: 20 }}>🧠</span>
+                            <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8C96E", marginBottom: 4 }}>AI Menu Engineering Analysis</div>
+                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+                                    Items are classified based on daily sales (avg: {avgSales.toFixed(1)}/day) and profit margin (avg: {avgMargin.toFixed(0)}%).
+                                    <strong style={{ color: "#facc15" }}> Stars</strong> are your top performers.
+                                    <strong style={{ color: "#60a5fa" }}> Puzzles</strong> have high margin but need more visibility.
+                                    <strong style={{ color: "#f87171" }}> Dogs</strong> should be reconsidered.
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* BCG Table */}
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                                        <th style={thStyle}>Item</th>
+                                        <th style={thStyle}>Category</th>
+                                        <th style={thStyle}>Price</th>
+                                        <th style={thStyle}>Cost</th>
+                                        <th style={thStyle}>Margin</th>
+                                        <th style={thStyle}>Daily Sales</th>
+                                        <th style={thStyle}>BCG Class</th>
+                                        <th style={thStyle}>AI Recommendation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bcgData
+                                        .sort((a, b) => {
+                                            const order = { "Star": 0, "Cash Cow": 1, "Puzzle": 2, "Dog": 3 };
+                                            return (order[classifyBCG(a.dailySales, a.margin).label as keyof typeof order] || 0) - (order[classifyBCG(b.dailySales, b.margin).label as keyof typeof order] || 0);
+                                        })
+                                        .map(r => {
+                                            const bcg = classifyBCG(r.dailySales, r.margin);
+                                            return (
+                                                <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                                    <td style={{ ...tdStyle, fontWeight: 700, color: "#fff", fontSize: 13 }}>{r.name}</td>
+                                                    <td style={{ ...tdStyle, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{r.category}</td>
+                                                    <td style={{ ...tdStyle, fontSize: 13, color: "#fff", fontWeight: 600 }}>${r.menuPrice}</td>
+                                                    <td style={{ ...tdStyle, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>${r.cost.toFixed(2)}</td>
+                                                    <td style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: r.margin >= avgMargin ? "#4ade80" : "#f87171" }}>{r.margin}%</td>
+                                                    <td style={{ ...tdStyle, fontSize: 13, color: r.dailySales >= avgSales ? "#4ade80" : "rgba(255,255,255,0.5)" }}>{r.dailySales}/day</td>
+                                                    <td style={tdStyle}>
+                                                        <span style={{ background: bcg.bg, color: bcg.color, border: `1px solid ${bcg.color}30`, padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                                            {bcg.icon} {bcg.label}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ ...tdStyle, fontSize: 11, color: "rgba(255,255,255,0.45)", maxWidth: 220, lineHeight: 1.5 }}>{bcg.advice}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab !== "BCG" && filteredFood.length === 0 && filteredDrinks.length === 0 && (
                     <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.3)", fontSize: 15 }}>No recipes found for "{search}"</div>
                 )}
             </div>
