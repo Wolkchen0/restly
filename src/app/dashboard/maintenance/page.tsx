@@ -39,6 +39,7 @@ export default function MaintenancePage() {
 
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [detectedIssues, setDetectedIssues] = useState<string[]>([]);
+    const [confirmDeleteEq, setConfirmDeleteEq] = useState<{ id: string; name: string } | null>(null);
 
     const showToast = (msg: string) => {
         setToastMsg(msg);
@@ -146,6 +147,24 @@ export default function MaintenancePage() {
             {toastMsg && (
                 <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 100, background: "rgba(10, 10, 15, 0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 8, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
                     ✓ {toastMsg}
+                </div>
+            )}
+
+            {/* CONFIRM DELETE MODAL */}
+            {confirmDeleteEq && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setConfirmDeleteEq(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(180deg, #141424 0%, #0e0e1c 100%)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "28px 32px", width: "min(400px, 85vw)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 22 }}>⚠️</span> Remove Equipment
+                        </div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 24 }}>
+                            Remove <strong style={{ color: "#fff" }}>{confirmDeleteEq.name}</strong> from equipment list? This cannot be undone.
+                        </div>
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setConfirmDeleteEq(null)} style={{ flex: 1, padding: "12px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={() => { handleDeleteEquipment(confirmDeleteEq.id); setConfirmDeleteEq(null); }} style={{ flex: 1, padding: "12px 16px", background: "linear-gradient(135deg, rgba(239,68,68,0.8), rgba(220,38,38,0.9))", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -367,7 +386,7 @@ export default function MaintenancePage() {
                                                                         style={{ padding: "8px 18px", fontSize: 12, fontWeight: 700, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 8, color: "#60a5fa", cursor: "pointer", fontFamily: "inherit" }}>
                                                                         ✏️ Edit
                                                                     </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); if (confirm(`Remove "${eq.name}"?`)) handleDeleteEquipment(eq.id); }}
+                                                                    <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteEq({ id: eq.id, name: eq.name }); }}
                                                                         style={{ padding: "8px 18px", fontSize: 12, fontWeight: 700, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 8, color: "#f87171", cursor: "pointer", fontFamily: "inherit" }}>
                                                                         🗑 Remove
                                                                     </button>

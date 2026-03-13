@@ -156,6 +156,7 @@ export default function SchedulePage() {
     const [newEmpName, setNewEmpName] = useState("");
     const [newEmpDept, setNewEmpDept] = useState<"Kitchen" | "FOH" | "Bar">("FOH");
     const [newEmpPosition, setNewEmpPosition] = useState("");
+    const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
     const weekDates = getWeekDates(weekOffset);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
@@ -346,14 +347,18 @@ export default function SchedulePage() {
     };
 
     const removeEmployee = (empName: string) => {
-        if (!confirm(`Remove ${empName} from the schedule?`)) return;
-        setEmployees(prev => prev.filter(e => e.name !== empName));
+        setConfirmRemove(empName);
+    };
+    const doRemove = () => {
+        if (!confirmRemove) return;
+        setEmployees(prev => prev.filter(e => e.name !== confirmRemove));
         setSchedule(prev => {
             const u = { ...prev };
-            delete u[empName];
+            delete u[confirmRemove];
             return u;
         });
-        showToast(`🗑️ Removed ${empName}`);
+        showToast(`🗑️ Removed ${confirmRemove}`);
+        setConfirmRemove(null);
     };
 
     return (
@@ -372,6 +377,24 @@ export default function SchedulePage() {
 
             {toastMsg && (
                 <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 200, background: "rgba(10,10,15,0.95)", border: "1px solid #4ade80", color: "#4ade80", padding: "12px 24px", borderRadius: 12, fontSize: 14, fontWeight: 600, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>{toastMsg}</div>
+            )}
+
+            {/* CUSTOM CONFIRM MODAL */}
+            {confirmRemove && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setConfirmRemove(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(180deg, #141424 0%, #0e0e1c 100%)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "28px 32px", width: "min(400px, 85vw)", boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 22 }}>⚠️</span> Remove Employee
+                        </div>
+                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 24 }}>
+                            Are you sure you want to remove <strong style={{ color: "#fff" }}>{confirmRemove}</strong> from the schedule? This action cannot be undone.
+                        </div>
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setConfirmRemove(null)} style={{ flex: 1, padding: "12px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={doRemove} style={{ flex: 1, padding: "12px 16px", background: "linear-gradient(135deg, rgba(239,68,68,0.8), rgba(220,38,38,0.9))", border: "none", borderRadius: 12, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Remove</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* SHIFT EDIT MODAL */}

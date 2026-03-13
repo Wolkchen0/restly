@@ -477,6 +477,20 @@ export default function ChatBot() {
                                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>Here's your daily briefing from Restly AI</div>
                                         </div>
 
+                                        {/* Weather Card */}
+                                        {briefing.weather && (
+                                            <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.12)", borderRadius: 12, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                                                <div style={{ fontSize: 32 }}>{briefing.weather.icon}</div>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{briefing.weather.temp}°F · {briefing.weather.condition}</div>
+                                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                                                        Feels {briefing.weather.feelsLike}°F · 💧 {briefing.weather.rainChance}% rain · 💨 {briefing.weather.wind}mph
+                                                    </div>
+                                                </div>
+                                                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "right", maxWidth: 100, lineHeight: 1.3 }}>{briefing.weather.forecast}</div>
+                                            </div>
+                                        )}
+
                                         {/* KPI Grid */}
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                                             {[
