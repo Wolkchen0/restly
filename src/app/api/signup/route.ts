@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendWelcomeEmail } from "@/lib/email";
+import { generateVerificationCode, sendVerificationEmail } from "@/lib/verification-email";
 
 export async function POST(req: NextRequest) {
     try {
@@ -26,9 +27,16 @@ export async function POST(req: NextRequest) {
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
+        // Generate verification code
+        const verificationCode = generateVerificationCode();
+        const verificationExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+
         const restaurant = await prisma.restaurant.create({
             data: {
                 name, email, passwordHash, trialEndsAt, plan: "trial",
+                emailVerified: false,
+                verificationCode,
+                verificationExpiry,
                 // Create a default location for the new restaurant
                 locations: {
                     create: {
@@ -40,13 +48,19 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Send welcome email (non-blocking — don't fail signup if email fails)
+        // Send verification code email
+        sendVerificationEmail(email, verificationCode, name).catch(err =>
+            console.error("Verification email failed (non-fatal):", err)
+        );
+
+        // Send welcome email (non-blocking)
         sendWelcomeEmail({ restaurantName: name, email }).catch(err =>
             console.error("Welcome email failed (non-fatal):", err)
         );
 
         return NextResponse.json({
             success: true,
+            requiresVerification: true,
             restaurant: { id: restaurant.id, name: restaurant.name, email: restaurant.email },
         });
     } catch (err) {
@@ -54,3 +68,4 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }
+

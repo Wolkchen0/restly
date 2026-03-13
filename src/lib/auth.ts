@@ -102,6 +102,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     name: restaurant.name,
                     plan: restaurant.plan,
                     primaryColor: restaurant.primaryColor,
+                    emailVerified: restaurant.emailVerified,
                 };
             },
         }),
@@ -112,6 +113,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.id = user.id;
                 token.plan = (user as any).plan;
                 token.primaryColor = (user as any).primaryColor;
+                token.emailVerified = (user as any).emailVerified;
             }
             return token;
         },
@@ -120,6 +122,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.id = token.id as string;
                 (session.user as any).plan = token.plan;
                 (session.user as any).primaryColor = token.primaryColor;
+                (session.user as any).emailVerified = token.emailVerified;
             }
             return session;
         },

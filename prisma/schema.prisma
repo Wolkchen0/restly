@@ -23,6 +23,11 @@ model Restaurant {
   // AI (platform covers cost — optional custom key for high-volume)
   openaiKey    String?
 
+  // Email verification
+  emailVerified     Boolean  @default(false)
+  verificationCode  String?
+  verificationExpiry DateTime?
+
   trialEndsAt  DateTime?
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
