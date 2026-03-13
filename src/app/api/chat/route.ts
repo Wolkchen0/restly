@@ -211,11 +211,13 @@ When users ask about connecting review platforms or social media, give them exac
 - Navigate to → Settings → Locations & Integrations → scroll down to "Online Profiles & Reviews"
 
 ## HOW TO RESPOND
-- Write naturally and concisely. Skip filler.
+- Write naturally and concisely like ChatGPT. Skip filler and generic suggestions.
 - NEVER use ** or any markdown bold/italic markers in your responses. Keep text completely plain and clean.
 - Use bullet points (•) for lists and arrows (→) to show steps or navigation paths.
 - Use numbered lists for step-by-step instructions. Keep them simple and easy to scan.
-- When you perform an action (like updating inventory), confirm it clearly. The system will automatically show a navigation card — do NOT ask "Would you like me to take you there?" or similar follow-ups.
+- ALWAYS answer the user's question DIRECTLY with data. If they ask "what's my daily labor cost?", USE the get_financial_overview tool and give them the exact number. NEVER say "I don't have that information" or "you can check the P&L page" — you HAVE the tools to get the data, so USE them and respond with the answer.
+- NEVER ask follow-up questions like "Would you like me to take you there?" or "Shall I do that?" — just answer or act.
+- When you perform an action (like updating inventory), confirm it clearly. The system will automatically show a navigation card.
 - Refer to the restaurant as "${restaurantName}".`,
 
             messages,
@@ -396,12 +398,77 @@ When users ask about connecting review platforms or social media, give them exac
 
                 // ── ANALYTICS TOOLS ────────────────────────────────────────────────
                 get_financial_overview: tool({
-                    description: "Get P&L, Revenue, COGS, and Profit data.",
-                    parameters: z.object({}),
-                    execute: async () => ({
-                        revenue: "$176,000", cogs: "$51,300", profit: "$52,600", margin: "29.9%",
-                        navigation: { path: "/dashboard/finance", label: "P&L / Finance" }
+                    description: "Get comprehensive P&L, Revenue, COGS, Labor Cost, and Profit data. Returns daily, weekly, and monthly breakdowns so you can answer ANY finance question directly.",
+                    parameters: z.object({
+                        period: z.enum(["today", "week", "month", "all"]).default("all").describe("Time period to get data for")
                     }),
+                    execute: async ({ period }) => {
+                        // Daily baseline averages
+                        const daily = { revenue: 5867, cogs: 1710, labor: 1903, opex: 500 };
+                        daily.revenue = daily.revenue; // keep TS happy
+                        const dayOfWeek = new Date().getDay() || 7;
+                        const dayOfMonth = new Date().getDate();
+
+                        const periods: Record<string, any> = {
+                            today: {
+                                label: "Today",
+                                revenue: daily.revenue,
+                                cogs: daily.cogs,
+                                labor: daily.labor,
+                                opex: daily.opex,
+                                netProfit: daily.revenue - daily.cogs - daily.labor - daily.opex,
+                            },
+                            week: {
+                                label: `Week-to-Date (${dayOfWeek} days)`,
+                                revenue: daily.revenue * dayOfWeek,
+                                cogs: daily.cogs * dayOfWeek,
+                                labor: daily.labor * dayOfWeek,
+                                opex: daily.opex * dayOfWeek,
+                                netProfit: (daily.revenue - daily.cogs - daily.labor - daily.opex) * dayOfWeek,
+                            },
+                            month: {
+                                label: `Month-to-Date (${dayOfMonth} days)`,
+                                revenue: daily.revenue * dayOfMonth,
+                                cogs: daily.cogs * dayOfMonth,
+                                labor: daily.labor * dayOfMonth,
+                                opex: daily.opex * dayOfMonth,
+                                netProfit: (daily.revenue - daily.cogs - daily.labor - daily.opex) * dayOfMonth,
+                            },
+                        };
+
+                        // Add percentages
+                        for (const p of Object.values(periods)) {
+                            p.cogsPercent = p.revenue > 0 ? ((p.cogs / p.revenue) * 100).toFixed(1) + "%" : "0%";
+                            p.laborPercent = p.revenue > 0 ? ((p.labor / p.revenue) * 100).toFixed(1) + "%" : "0%";
+                            p.primeCostPercent = p.revenue > 0 ? (((p.cogs + p.labor) / p.revenue) * 100).toFixed(1) + "%" : "0%";
+                            p.profitMargin = p.revenue > 0 ? ((p.netProfit / p.revenue) * 100).toFixed(1) + "%" : "0%";
+                            // Format as dollars
+                            p.revenue = "$" + p.revenue.toLocaleString();
+                            p.cogs = "$" + p.cogs.toLocaleString();
+                            p.labor = "$" + p.labor.toLocaleString();
+                            p.opex = "$" + p.opex.toLocaleString();
+                            p.netProfit = "$" + p.netProfit.toLocaleString();
+                        }
+
+                        const result = period === "all" ? periods : { [period]: periods[period] };
+                        return {
+                            ...result,
+                            dailyAverages: {
+                                revenue: "$" + daily.revenue.toLocaleString(),
+                                cogs: "$" + daily.cogs.toLocaleString() + " (29.1%)",
+                                labor: "$" + daily.labor.toLocaleString() + " (32.4%)",
+                                opex: "$" + daily.opex.toLocaleString(),
+                                netProfit: "$" + (daily.revenue - daily.cogs - daily.labor - daily.opex).toLocaleString(),
+                            },
+                            benchmarks: {
+                                cogTarget: "Under 30%",
+                                laborTarget: "25-33%",
+                                primeCostTarget: "Under 65%",
+                                profitMarginTarget: "10-15%",
+                            },
+                            navigation: { path: "/dashboard/finance", label: "P&L / Finance" }
+                        };
+                    },
                 }),
 
                 analyze_social_reviews: tool({

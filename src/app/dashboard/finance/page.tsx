@@ -109,22 +109,40 @@ export default function FinancePage() {
     }, []);
 
     const totalOpex = opex.reduce((a, e) => a + e.amount, 0);
-    const laborTotal = laborOverride ? parseFloat(laborOverride) || 0 : 57100;
+
+    // Period multipliers based on daily averages
+    // Monthly baseline: Revenue=176000, COGS=51300, Labor=57100, OpEx=15000
+    // Daily baseline (30-day month): Revenue≈5867, COGS≈1710, Labor≈1903
+    const DAILY_BASE = { revenue: 5867, cogs: 1710, labor: 1903 };
+    const periodMultiplier: Record<string, number> = {
+        "Today": 1,
+        "Yesterday": 1,
+        "Week-to-Date": new Date().getDay() || 7, // days so far this week (1-7)
+        "Month-to-Date": new Date().getDate(),     // day of month (1-31)
+        "Last Month": 30,
+    };
+    const mult = periodMultiplier[period] || 30;
+
+    const periodRevenue = Math.round(DAILY_BASE.revenue * mult);
+    const periodCogs = Math.round(DAILY_BASE.cogs * mult);
+    const laborDefault = Math.round(DAILY_BASE.labor * mult);
+    const laborTotal = laborOverride ? parseFloat(laborOverride) || 0 : laborDefault;
+    const periodOpex = Math.round(totalOpex * (mult / 30)); // scale opex proportionally
 
     const stats = {
-        totalRevenue: 176000,
-        cogs: 51300,
-        cogsRatio: (51300 / 176000) * 100,
+        totalRevenue: periodRevenue,
+        cogs: periodCogs,
+        cogsRatio: periodRevenue > 0 ? (periodCogs / periodRevenue) * 100 : 0,
         labor: laborTotal,
-        laborRatio: (laborTotal / 176000) * 100,
-        opex: totalOpex,
-        opexRatio: (totalOpex / 176000) * 100,
-        primeCostPct: ((51300 + laborTotal) / 176000) * 100,
+        laborRatio: periodRevenue > 0 ? (laborTotal / periodRevenue) * 100 : 0,
+        opex: periodOpex,
+        opexRatio: periodRevenue > 0 ? (periodOpex / periodRevenue) * 100 : 0,
+        primeCostPct: periodRevenue > 0 ? ((periodCogs + laborTotal) / periodRevenue) * 100 : 0,
         profitMargin: 0,
     };
 
-    const netProfit = stats.totalRevenue - stats.cogs - stats.labor - totalOpex;
-    stats.profitMargin = (netProfit / stats.totalRevenue) * 100;
+    const netProfit = stats.totalRevenue - stats.cogs - stats.labor - periodOpex;
+    stats.profitMargin = periodRevenue > 0 ? (netProfit / periodRevenue) * 100 : 0;
 
     const aiInsights = getAIInsights(stats);
     const visibleInsights = showAllInsights ? aiInsights : aiInsights.slice(0, 3);
@@ -287,7 +305,7 @@ export default function FinancePage() {
                                             ) : (
                                                 <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>-${stats.labor.toLocaleString()}</div>
                                             )}
-                                            <button onClick={() => setLaborOverride(laborOverride ? "" : String(57100))} style={{ fontSize: 10, color: "#facc15", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.15)", padding: "2px 8px", borderRadius: 4, cursor: "pointer", marginTop: 4, fontFamily: "inherit", fontWeight: 600 }}>
+                                            <button onClick={() => setLaborOverride(laborOverride ? "" : String(laborDefault))} style={{ fontSize: 10, color: "#facc15", background: "rgba(250,204,21,0.06)", border: "1px solid rgba(250,204,21,0.15)", padding: "2px 8px", borderRadius: 4, cursor: "pointer", marginTop: 4, fontFamily: "inherit", fontWeight: 600 }}>
                                                 {laborOverride ? "✓ Use Default" : "✏️ Manual Entry"}
                                             </button>
                                         </div>
