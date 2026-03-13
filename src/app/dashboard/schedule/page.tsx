@@ -161,6 +161,42 @@ export default function SchedulePage() {
         setLocalRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     };
 
+    // Smart time auto-complete: "2" → "2:00 PM", "11" → "11:00 AM"
+    const autoCompleteTime = (value: string, context: "start" | "end", startRef?: string): string => {
+        const v = value.trim();
+        if (!v) return v;
+        // Already formatted
+        if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(v)) return v;
+        // Just a number like "2", "9", "11"
+        const numMatch = v.match(/^(\d{1,2})$/);
+        if (numMatch) {
+            let h = parseInt(numMatch[1]);
+            // Determine AM/PM based on context
+            if (context === "end" && startRef) {
+                const startMatch = startRef.match(/(\d+).*?(AM|PM)/i);
+                if (startMatch) {
+                    const startH = parseInt(startMatch[1]);
+                    const startPeriod = startMatch[2].toUpperCase();
+                    // If end hour < start hour and start is AM, end should be PM
+                    if (startPeriod === "AM" && h <= startH && h < 12) return `${h}:00 PM`;
+                    if (startPeriod === "PM") return `${h}:00 PM`;
+                    return `${h}:00 ${h >= 7 && h <= 11 ? "AM" : "PM"}`;
+                }
+            }
+            // Default: 6-11 is AM, rest is PM for start times
+            if (context === "start") return `${h}:00 ${h >= 6 && h <= 11 ? "AM" : "PM"}`;
+            return `${h}:00 PM`;
+        }
+        // Number with colon like "2:30" or "11:00"
+        const timeMatch = v.match(/^(\d{1,2}):(\d{2})$/);
+        if (timeMatch) {
+            const h = parseInt(timeMatch[1]);
+            if (context === "start") return `${v} ${h >= 6 && h <= 11 ? "AM" : "PM"}`;
+            return `${v} PM`;
+        }
+        return v;
+    };
+
     const openEditShift = (empName: string, dayIdx: number) => {
         const s = schedule[empName]?.[dayIdx];
         setEditCell({ empName, dayIdx });
@@ -173,15 +209,20 @@ export default function SchedulePage() {
     };
     const saveShift = () => {
         if (!editCell) return;
+        // Auto-complete times before saving
+        const finalStart = autoCompleteTime(editStart, "start");
+        const finalEnd = autoCompleteTime(editEnd, "end", finalStart);
+        const finalS2Start = autoCompleteTime(editShift2Start, "start");
+        const finalS2End = autoCompleteTime(editShift2End, "end", finalS2Start);
         setSchedule(prev => {
             const updated = { ...prev };
             const shifts = [...(updated[editCell.empName] || [])];
             shifts[editCell.dayIdx] = {
                 type: editShiftType,
-                startTime: editShiftType === "OFF" ? "" : editStart,
-                endTime: editShiftType === "OFF" ? "" : editEnd,
-                shift2Start: editShiftType === "OFF" || !showShift2 ? "" : editShift2Start,
-                shift2End: editShiftType === "OFF" || !showShift2 ? "" : editShift2End,
+                startTime: editShiftType === "OFF" ? "" : finalStart,
+                endTime: editShiftType === "OFF" ? "" : finalEnd,
+                shift2Start: editShiftType === "OFF" || !showShift2 ? "" : finalS2Start,
+                shift2End: editShiftType === "OFF" || !showShift2 ? "" : finalS2End,
             };
             updated[editCell.empName] = shifts;
             return updated;
@@ -214,7 +255,7 @@ export default function SchedulePage() {
         const sectionRows: number[] = [];
 
         departments.forEach(dept => {
-            const deptLabel = dept === "Kitchen" ? "🍳 Kitchen" : dept === "FOH" ? "🍽️ Front of House" : "🍸 Bar";
+            const deptLabel = dept === "Kitchen" ? "KITCHEN" : dept === "FOH" ? "FRONT OF HOUSE" : "BAR";
             sectionRows.push(pdfRows.length);
             pdfRows.push([deptLabel, "", "", "", "", "", "", "", ""]);
 
@@ -225,7 +266,7 @@ export default function SchedulePage() {
                     const leave = isOnLeave(emp.name, dayIdx);
                     if (leave.onLeave) return "LEAVE";
                     const s = shifts[dayIdx];
-                    if (!s || !s.type) return "—";
+                    if (!s || !s.type) return "";
                     if (s.type === "OFF") return "OFF";
                     const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                     let diff = parseT(s.endTime) - parseT(s.startTime); if (diff < 0) diff += 24;
@@ -308,11 +349,11 @@ export default function SchedulePage() {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
                                     <div>
                                         <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>Start</label>
-                                        <input type="text" value={editStart} onChange={e => setEditStart(e.target.value)} placeholder="11:00 AM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
+                                        <input type="text" value={editStart} onChange={e => setEditStart(e.target.value)} onBlur={e => setEditStart(autoCompleteTime(e.target.value, "start"))} placeholder="11:00 AM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#4ade80", outline: "none", fontFamily: "inherit" }} />
                                     </div>
                                     <div>
                                         <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>End</label>
-                                        <input type="text" value={editEnd} onChange={e => setEditEnd(e.target.value)} placeholder="4:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#60a5fa", outline: "none", fontFamily: "inherit" }} />
+                                        <input type="text" value={editEnd} onChange={e => setEditEnd(e.target.value)} onBlur={e => setEditEnd(autoCompleteTime(e.target.value, "end", editStart))} placeholder="4:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#60a5fa", outline: "none", fontFamily: "inherit" }} />
                                     </div>
                                 </div>
 
@@ -322,16 +363,16 @@ export default function SchedulePage() {
                                     <>
                                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                                             <div style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa", textTransform: "uppercase" }}>Shift 2 (Split)</div>
-                                            <button onClick={() => { setShowShift2(false); setEditShift2Start(""); setEditShift2End(""); }} style={{ fontSize: 10, background: "none", border: "none", color: "#f87171", cursor: "pointer", fontWeight: 700 }}>✕ Remove</button>
+                                            <button onClick={() => { setShowShift2(false); setEditShift2Start(""); setEditShift2End(""); }} style={{ fontSize: 12, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 6, color: "#f87171", cursor: "pointer", fontWeight: 700, padding: "4px 10px", fontFamily: "inherit" }}>✕ Remove Shift 2</button>
                                         </div>
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                                             <div>
                                                 <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>Start</label>
-                                                <input type="text" value={editShift2Start} onChange={e => setEditShift2Start(e.target.value)} placeholder="5:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
+                                                <input type="text" value={editShift2Start} onChange={e => setEditShift2Start(e.target.value)} onBlur={e => setEditShift2Start(autoCompleteTime(e.target.value, "start"))} placeholder="5:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
                                             </div>
                                             <div>
                                                 <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", display: "block", marginBottom: 6 }}>End</label>
-                                                <input type="text" value={editShift2End} onChange={e => setEditShift2End(e.target.value)} placeholder="10:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
+                                                <input type="text" value={editShift2End} onChange={e => setEditShift2End(e.target.value)} onBlur={e => setEditShift2End(autoCompleteTime(e.target.value, "end", editShift2Start))} placeholder="10:00 PM" style={{ width: "100%", boxSizing: "border-box", background: "rgba(167,139,250,0.04)", border: "1px solid rgba(167,139,250,0.15)", borderRadius: 10, padding: "12px 14px", fontSize: 15, fontWeight: 700, color: "#a78bfa", outline: "none", fontFamily: "inherit" }} />
                                             </div>
                                         </div>
                                     </>
@@ -437,7 +478,7 @@ export default function SchedulePage() {
                                         return [
                                             <tr key={`dept-${dept}`} className="dept-header">
                                                 <td colSpan={9} style={{ background: dc.headerBg, color: dc.text, borderLeft: `3px solid ${dc.text}` }}>
-                                                    {dept === "Kitchen" ? "🍳 Kitchen" : dept === "FOH" ? "🍽️ Front of House" : "🍸 Bar"} <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 8, opacity: 0.7 }}>({deptEmps.length} staff)</span>
+                                                    {dept === "Kitchen" ? "Kitchen" : dept === "FOH" ? "Front of House" : "Bar"} <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 8, opacity: 0.7 }}>({deptEmps.length} staff)</span>
                                                 </td>
                                             </tr>,
                                             ...deptEmps.map(emp => {

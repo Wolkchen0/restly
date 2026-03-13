@@ -241,11 +241,6 @@ export default function SocialInboxPage() {
                     {newAICount > 0 && <span style={{ marginLeft: 4, background: "rgba(167,139,250,0.15)", color: "#a78bfa", fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 10 }}>✨ {newAICount} AI</span>}
                 </div>
                 <div className="topbar-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {/* API Status indicator */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: connectedCount >= 3 ? "#4ade80" : connectedCount > 0 ? "#eab308" : "#f87171" }} />
-                        {connectedCount}/{Object.keys(apiStatus).length} APIs
-                    </div>
                     <button onClick={() => { setLoading(true); loadInboxData(); showToast("Refreshing inbox..."); }} style={{ fontSize: 12, padding: "8px 16px", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🔄 Refresh</button>
                     <button onClick={() => setFilter("ai")} style={{ fontSize: 12, padding: "8px 16px", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>✨ AI Scan</button>
                     <button className="btn-secondary" onClick={() => window.location.href = '/dashboard/settings'}>Manage Accounts</button>
@@ -255,8 +250,8 @@ export default function SocialInboxPage() {
             <div className="page-content fade-in" style={{ height: "calc(100vh - 70px)", padding: 0, overflow: "hidden" }}>
                 {loading ? (
                     <div style={{ padding: 48, textAlign: "center", color: "var(--text-muted)" }}>
-                        <div style={{ fontSize: 24, marginBottom: 12 }}>🔄</div>
-                        Connecting to APIs and loading inbox...
+                        <div style={{ fontSize: 24, marginBottom: 12 }}>📨</div>
+                        Loading messages...
                     </div>
                 ) : (
                     <div style={{ display: "flex", height: "100%", borderTop: "1px solid var(--border)" }}>
@@ -295,7 +290,6 @@ export default function SocialInboxPage() {
                                             </div>
                                             <div style={{ fontSize: 11, color: ps?.color || "#fff", marginBottom: 4, fontWeight: 600 }}>
                                                 {ps?.label || msg.platform} · {msg.type === "review" ? "Review" : msg.type === "mention" ? "Mention" : msg.type === "email" ? "Email" : "DM"}
-                                                {msg.apiSource && <span style={{ marginLeft: 6, fontSize: 9, padding: "1px 5px", borderRadius: 3, background: "rgba(74,222,128,0.08)", color: "#4ade80" }}>API</span>}
                                             </div>
                                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{msg.preview}</div>
                                         </button>
@@ -393,17 +387,6 @@ export default function SocialInboxPage() {
                                         ))}
                                     </div>
 
-                                    {/* API Status Bar */}
-                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 16, justifyContent: "space-around" }}>
-                                        {Object.entries(apiStatus).map(([key, val]) => (
-                                            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                                                <div style={{ width: 6, height: 6, borderRadius: "50%", background: val.connected ? "#4ade80" : "#f87171" }} />
-                                                <span style={{ color: "rgba(255,255,255,0.5)", textTransform: "capitalize" }}>{key}</span>
-                                                <span style={{ color: val.connected ? "#4ade80" : "#f87171", fontWeight: 700 }}>{val.connected ? `✓ ${val.count}` : "✗"}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
                                     {/* AI Mentions List */}
                                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                                         {aiMentions.map(m => (
@@ -427,34 +410,15 @@ export default function SocialInboxPage() {
                                     </div>
 
                                     <div style={{ textAlign: "center", padding: "20px 0", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-                                        Data sourced from API · Last refresh: just now · {connectedCount} APIs connected
+                                        AI scans every 6 hours · Last scan: just now
                                     </div>
                                 </div>
                             ) : (
-                                /* ── EMPTY STATE — API STATUS ── */
+                                /* ── EMPTY STATE ── */
                                 <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 40 }}>
-                                    <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.5 }}>📨</div>
+                                    <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>←</div>
                                     <h3 style={{ fontSize: 18, color: "var(--text-secondary)", marginBottom: 8 }}>Select a message</h3>
-                                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", marginBottom: 24 }}>Emails, DMs, reviews, and mentions — all in one place.</p>
-
-                                    {/* Live API Status */}
-                                    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: 20, maxWidth: 380, width: "100%" }}>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: "#E8C96E", marginBottom: 12, textTransform: "uppercase" }}>🔌 API Connection Status</div>
-                                        {Object.entries(apiStatus).map(([key, val]) => (
-                                            <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: val.connected ? "#4ade80" : "#f87171" }} />
-                                                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", textTransform: "capitalize" }}>{key}</span>
-                                                </div>
-                                                <div style={{ fontSize: 12, color: val.connected ? "#4ade80" : "#f87171", fontWeight: 600 }}>
-                                                    {val.connected ? `✓ Connected · ${val.count} items` : "✗ Not connected"}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 12, textAlign: "center" }}>
-                                            {connectedCount >= 3 ? "All APIs operational ✓" : "Some APIs need configuration"}
-                                        </div>
-                                    </div>
+                                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>Emails, DMs, reviews, and mentions — all in one place.</p>
                                 </div>
                             )}
                         </div>

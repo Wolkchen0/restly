@@ -80,7 +80,7 @@ export function exportToPDF(opts: PDFExportOptions) {
             const rowIdx = data.row.index;
             // Section/department headers
             if (data.section === "body" && sectionSet.has(rowIdx)) {
-                data.cell.styles.fillColor = [200, 50, 50];
+                data.cell.styles.fillColor = [40, 60, 80];
                 data.cell.styles.textColor = [255, 255, 255];
                 data.cell.styles.fontStyle = "bold";
                 data.cell.styles.fontSize = 9;
@@ -98,8 +98,8 @@ export function exportToPDF(opts: PDFExportOptions) {
             if (data.section === "body") {
                 const val = String(data.cell.raw || "");
                 if (val === "OFF") {
-                    data.cell.styles.fillColor = [255, 230, 230];
-                    data.cell.styles.textColor = [180, 50, 50];
+                    data.cell.styles.fillColor = [245, 240, 230];
+                    data.cell.styles.textColor = [140, 120, 90];
                     data.cell.styles.fontStyle = "bold";
                     data.cell.styles.halign = "center";
                 } else if (val === "LEAVE") {
@@ -109,7 +109,8 @@ export function exportToPDF(opts: PDFExportOptions) {
                     data.cell.styles.halign = "center";
                 } else if (val === "—" || val === "") {
                     data.cell.styles.halign = "center";
-                    data.cell.styles.textColor = [180, 180, 180];
+                    data.cell.styles.textColor = [200, 200, 200];
+                    data.cell.styles.fillColor = [250, 250, 250];
                 } else if (data.column.index > 0 && data.column.index < data.table.columns.length - 1) {
                     // Shift time cells - center align
                     data.cell.styles.halign = "center";
