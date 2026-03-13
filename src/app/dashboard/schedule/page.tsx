@@ -16,7 +16,8 @@ const DEMO_REQUESTS = [
 ];
 
 // ─── SCHEDULE DATA ──────────────────────────────────────────────────────────
-type ShiftType = "AM" | "PM" | "FULL" | "OFF" | "";
+// L = Lunch, D = Dinner — standard restaurant industry convention
+type ShiftType = "L" | "D" | "FULL" | "OFF" | "";
 interface Employee {
     name: string;
     position: string;
@@ -26,6 +27,7 @@ interface ShiftEntry {
     type: ShiftType;
     startTime: string;
     endTime: string;
+    role?: string; // e.g. "Junior Bar", "Freshman BAR", "OC" (On Call)
     shift2Start?: string;
     shift2End?: string;
 }
@@ -37,14 +39,23 @@ const DEPT_COLORS: Record<string, { bg: string; border: string; text: string; he
 };
 
 const SHIFT_COLORS: Record<ShiftType, { bg: string; text: string }> = {
-    AM: { bg: "rgba(74,222,128,0.12)", text: "#4ade80" },
-    PM: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa" },
+    L: { bg: "rgba(74,222,128,0.12)", text: "#4ade80" },
+    D: { bg: "rgba(96,165,250,0.12)", text: "#60a5fa" },
     FULL: { bg: "rgba(250,204,21,0.12)", text: "#facc15" },
     OFF: { bg: "rgba(248,113,113,0.08)", text: "#f87171" },
     "": { bg: "transparent", text: "rgba(255,255,255,0.15)" },
 };
 
-const EMPLOYEES: Employee[] = [
+// Restaurant industry positions
+const POSITION_OPTIONS: Record<string, string[]> = {
+    Kitchen: ["Head Chef", "Sous Chef", "Line Cook", "Prep Cook", "Dishwasher", "Pastry Chef", "Garde Manger"],
+    FOH: ["Server", "Hostess", "Busser", "Runner", "Expo", "Captain", "Host"],
+    Bar: ["Head Bartender", "Bartender", "Barback", "Junior Bar", "Freshman BAR", "Fresh BART."],
+};
+
+const ROLE_LABELS = ["", "Junior Bar", "Freshman BAR", "Fresh BART.", "OC"];
+
+const INITIAL_EMPLOYEES: Employee[] = [
     // Kitchen
     { name: "Marco Rossi", position: "Head Chef", department: "Kitchen" },
     { name: "David Chen", position: "Sous Chef", department: "Kitchen" },
@@ -63,27 +74,33 @@ const EMPLOYEES: Employee[] = [
     { name: "Marcus Torres", position: "Head Bartender", department: "Bar" },
     { name: "Alex Rivera", position: "Bartender", department: "Bar" },
     { name: "Nicole Adams", position: "Barback", department: "Bar" },
+    { name: "Deniz Taha", position: "Junior Bar", department: "Bar" },
+    { name: "Merve K.", position: "Fresh BART.", department: "Bar" },
+    { name: "Can", position: "Freshman BAR", department: "Bar" },
+    { name: "Onur", position: "Freshman BAR", department: "Bar" },
 ];
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function generateDefaultSchedule(): Record<string, ShiftEntry[]> {
+function generateDefaultSchedule(employees: Employee[]): Record<string, ShiftEntry[]> {
     const schedule: Record<string, ShiftEntry[]> = {};
-    EMPLOYEES.forEach(emp => {
+    employees.forEach(emp => {
         const shifts: ShiftEntry[] = DAYS.map((_, dayIdx) => {
-            // Give 2 random days off per week
             if (emp.department === "Kitchen") {
                 if (dayIdx === 0 || dayIdx === 1) return { type: "OFF" as ShiftType, startTime: "", endTime: "" };
-                return { type: "FULL" as ShiftType, startTime: "10:00 AM", endTime: "10:00 PM" };
+                return { type: "D" as ShiftType, startTime: "4:45 PM", endTime: "10:00 PM", role: "" };
             }
             if (emp.department === "FOH") {
                 if (dayIdx === 1 || dayIdx === 2) return { type: "OFF" as ShiftType, startTime: "", endTime: "" };
-                if (dayIdx <= 4) return { type: "AM" as ShiftType, startTime: "11:00 AM", endTime: "4:00 PM" };
-                return { type: "PM" as ShiftType, startTime: "4:00 PM", endTime: "11:00 PM" };
+                if (dayIdx <= 4) return { type: "L" as ShiftType, startTime: "11:00 AM", endTime: "3:00 PM", role: "" };
+                return { type: "D" as ShiftType, startTime: "4:45 PM", endTime: "10:00 PM", role: "" };
             }
             // Bar
             if (dayIdx === 0 || dayIdx === 3) return { type: "OFF" as ShiftType, startTime: "", endTime: "" };
-            return { type: "PM" as ShiftType, startTime: "4:00 PM", endTime: "2:00 AM" };
+            const role = emp.position.includes("Junior") ? "Junior Bar"
+                : emp.position.includes("Freshman") ? "Freshman BAR"
+                : emp.position.includes("Fresh") ? "Fresh BART." : "";
+            return { type: "D" as ShiftType, startTime: "4:45 PM", endTime: "10:00 PM", role };
         });
         schedule[emp.name] = shifts;
     });
@@ -121,16 +138,24 @@ export default function SchedulePage() {
     const [copied, setCopied] = useState<string | null>(null);
     const [locationId, setLocationId] = useState<string>("");
     const [isDemo, setIsDemo] = useState(true);
-    const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>(generateDefaultSchedule);
+    const [employees, setEmployees] = useState<Employee[]>([...INITIAL_EMPLOYEES]);
+    const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>(() => generateDefaultSchedule(INITIAL_EMPLOYEES));
     const [weekOffset, setWeekOffset] = useState(0);
     const [editCell, setEditCell] = useState<{ empName: string; dayIdx: number } | null>(null);
-    const [editShiftType, setEditShiftType] = useState<ShiftType>("AM");
+    const [editShiftType, setEditShiftType] = useState<ShiftType>("L");
     const [editStart, setEditStart] = useState("");
     const [editEnd, setEditEnd] = useState("");
+    const [editRole, setEditRole] = useState("");
     const [editShift2Start, setEditShift2Start] = useState("");
     const [editShift2End, setEditShift2End] = useState("");
     const [showShift2, setShowShift2] = useState(false);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    // Add / Remove employee
+    const [addEmpModal, setAddEmpModal] = useState(false);
+    const [newEmpName, setNewEmpName] = useState("");
+    const [newEmpDept, setNewEmpDept] = useState<"Kitchen" | "FOH" | "Bar">("FOH");
+    const [newEmpPosition, setNewEmpPosition] = useState("");
 
     const weekDates = getWeekDates(weekOffset);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
@@ -200,9 +225,10 @@ export default function SchedulePage() {
     const openEditShift = (empName: string, dayIdx: number) => {
         const s = schedule[empName]?.[dayIdx];
         setEditCell({ empName, dayIdx });
-        setEditShiftType(s?.type || "AM");
+        setEditShiftType(s?.type || "L");
         setEditStart(s?.startTime || "11:00 AM");
-        setEditEnd(s?.endTime || "4:00 PM");
+        setEditEnd(s?.endTime || "3:00 PM");
+        setEditRole(s?.role || "");
         setEditShift2Start(s?.shift2Start || "");
         setEditShift2End(s?.shift2End || "");
         setShowShift2(!!(s?.shift2Start && s?.shift2End));
@@ -221,6 +247,7 @@ export default function SchedulePage() {
                 type: editShiftType,
                 startTime: editShiftType === "OFF" ? "" : finalStart,
                 endTime: editShiftType === "OFF" ? "" : finalEnd,
+                role: editRole,
                 shift2Start: editShiftType === "OFF" || !showShift2 ? "" : finalS2Start,
                 shift2End: editShiftType === "OFF" || !showShift2 ? "" : finalS2End,
             };
@@ -259,7 +286,7 @@ export default function SchedulePage() {
             sectionRows.push(pdfRows.length);
             pdfRows.push([deptLabel, "", "", "", "", "", "", "", ""]);
 
-            EMPLOYEES.filter(e => e.department === dept).forEach(emp => {
+            employees.filter(e => e.department === dept).forEach(emp => {
                 const shifts = schedule[emp.name] || [];
                 let totalHrs = 0;
                 const dayCells: string[] = DAYS.map((_, dayIdx) => {
@@ -304,6 +331,31 @@ export default function SchedulePage() {
 
     const departments: ("Kitchen" | "FOH" | "Bar")[] = ["Kitchen", "FOH", "Bar"];
 
+    const addEmployee = () => {
+        if (!newEmpName.trim()) return;
+        const emp: Employee = { name: newEmpName.trim(), department: newEmpDept, position: newEmpPosition || POSITION_OPTIONS[newEmpDept][0] };
+        setEmployees(prev => [...prev, emp]);
+        // Create default schedule
+        setSchedule(prev => ({
+            ...prev,
+            [emp.name]: DAYS.map(() => ({ type: "" as ShiftType, startTime: "", endTime: "" })),
+        }));
+        setAddEmpModal(false);
+        setNewEmpName(""); setNewEmpPosition("");
+        showToast(`✅ Added ${emp.name} to ${emp.department}`);
+    };
+
+    const removeEmployee = (empName: string) => {
+        if (!confirm(`Remove ${empName} from the schedule?`)) return;
+        setEmployees(prev => prev.filter(e => e.name !== empName));
+        setSchedule(prev => {
+            const u = { ...prev };
+            delete u[empName];
+            return u;
+        });
+        showToast(`🗑️ Removed ${empName}`);
+    };
+
     return (
         <>
             <style>{`
@@ -332,13 +384,13 @@ export default function SchedulePage() {
                         <div style={{ marginBottom: 18 }}>
                             <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Shift Type</label>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-                                {(["AM", "PM", "FULL", "OFF"] as ShiftType[]).map(t => (
+                                {(["L", "D", "FULL", "OFF"] as ShiftType[]).map(t => (
                                     <button key={t} onClick={() => setEditShiftType(t)} style={{
                                         padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", borderRadius: 8, textAlign: "center",
                                         border: editShiftType === t ? `2px solid ${SHIFT_COLORS[t].text}` : "1px solid rgba(255,255,255,0.08)",
                                         background: editShiftType === t ? SHIFT_COLORS[t].bg : "rgba(255,255,255,0.02)",
                                         color: editShiftType === t ? SHIFT_COLORS[t].text : "rgba(255,255,255,0.4)",
-                                    }}>{t || "—"}</button>
+                                    }}>{t === "L" ? "L (Lunch)" : t === "D" ? "D (Dinner)" : t || "—"}</button>
                                 ))}
                             </div>
                         </div>
@@ -380,9 +432,56 @@ export default function SchedulePage() {
                             </>
                         )}
 
+                        {/* Role annotation */}
+                        {editShiftType !== "OFF" && (
+                            <div style={{ marginBottom: 16 }}>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Role / Annotation</label>
+                                <select value={editRole} onChange={e => setEditRole(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#E8C96E", fontFamily: "inherit" }}>
+                                    {ROLE_LABELS.map(r => <option key={r} value={r}>{r || "(none)"}</option>)}
+                                </select>
+                            </div>
+                        )}
+
                         <div style={{ display: "flex", gap: 10 }}>
                             <button onClick={() => setEditCell(null)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                             <button onClick={saveShift} style={{ flex: 1, padding: "12px", background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", borderRadius: 10, color: "#1a1000", fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>💾 Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ADD EMPLOYEE MODAL */}
+            {addEmpModal && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 150, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setAddEmpModal(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "#12121f", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 20, padding: "32px 36px", width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.7)" }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginBottom: 4 }}>+ Add Employee</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>Add a team member to the schedule</div>
+
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>NAME *</label>
+                            <input autoFocus type="text" value={newEmpName} onChange={e => setNewEmpName(e.target.value)} placeholder="e.g. John Smith" style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 15, color: "#fff", outline: "none", fontFamily: "inherit" }} />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>DEPARTMENT</label>
+                                <select value={newEmpDept} onChange={e => { setNewEmpDept(e.target.value as any); setNewEmpPosition(""); }} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", fontFamily: "inherit" }}>
+                                    <option value="Kitchen">Kitchen</option>
+                                    <option value="FOH">Front of House</option>
+                                    <option value="Bar">Bar</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>POSITION</label>
+                                <select value={newEmpPosition} onChange={e => setNewEmpPosition(e.target.value)} style={{ width: "100%", boxSizing: "border-box", background: "#1a1a2a", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, padding: "12px 14px", fontSize: 14, color: "#fff", fontFamily: "inherit" }}>
+                                    {POSITION_OPTIONS[newEmpDept].map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                            <button onClick={() => setAddEmpModal(false)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                            <button onClick={addEmployee} disabled={!newEmpName.trim()} style={{ flex: 1, padding: "12px", background: newEmpName.trim() ? "linear-gradient(135deg,#22c55e,#4ade80)" : "rgba(255,255,255,0.04)", border: "none", borderRadius: 10, color: newEmpName.trim() ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 14, fontWeight: 800, cursor: newEmpName.trim() ? "pointer" : "not-allowed", fontFamily: "inherit" }}>✅ Add Employee</button>
                         </div>
                     </div>
                 </div>
@@ -429,28 +528,29 @@ export default function SchedulePage() {
                                 <button onClick={() => setWeekOffset(p => p + 1)} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 14px", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "inherit", fontSize: 13 }}>Next →</button>
                                 {weekOffset !== 0 && <button onClick={() => setWeekOffset(0)} style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 8, padding: "8px 14px", color: "#E8C96E", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>Today</button>}
                             </div>
-                            <div style={{ display: "flex", gap: 8 }}>
-                                {(["AM", "PM", "FULL", "OFF"] as ShiftType[]).map(t => (
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                {(["L", "D", "FULL", "OFF"] as ShiftType[]).map(t => (
                                     <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: SHIFT_COLORS[t].text }}>
                                         <div style={{ width: 10, height: 10, borderRadius: 3, background: SHIFT_COLORS[t].bg, border: `1px solid ${SHIFT_COLORS[t].text}` }} />
-                                        {t === "AM" ? "Morning" : t === "PM" ? "Evening" : t === "FULL" ? "Full Day" : "Day Off"}
+                                        {t === "L" ? "Lunch" : t === "D" ? "Dinner" : t === "FULL" ? "Full Day" : "Day Off"}
                                     </div>
                                 ))}
                                 <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#fff" }}>
                                     <div style={{ width: 10, height: 10, borderRadius: 3, background: "#000", border: "1px solid rgba(255,255,255,0.3)" }} />
-                                    Approved Leave
+                                    Leave
                                 </div>
-                                <button onClick={exportToPDF} style={{ marginLeft: 12, padding: "6px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 8, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📥 Export PDF</button>
+                                <button onClick={exportToPDF} style={{ marginLeft: 8, padding: "6px 16px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)", borderRadius: 8, color: "#4ade80", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>📥 Export PDF</button>
+                                <button onClick={() => setAddEmpModal(true)} style={{ padding: "6px 16px", background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 8, color: "#E8C96E", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>+ Add Employee</button>
                             </div>
                         </div>
 
                         {/* Stats */}
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
                             {[
-                                { label: "Total Staff", value: EMPLOYEES.length, color: "#fff" },
-                                { label: "Kitchen", value: EMPLOYEES.filter(e => e.department === "Kitchen").length, color: "#f87171" },
-                                { label: "Front of House", value: EMPLOYEES.filter(e => e.department === "FOH").length, color: "#60a5fa" },
-                                { label: "Bar", value: EMPLOYEES.filter(e => e.department === "Bar").length, color: "#facc15" },
+                                { label: "Total Staff", value: employees.length, color: "#fff" },
+                                { label: "Kitchen", value: employees.filter((e: Employee) => e.department === "Kitchen").length, color: "#f87171" },
+                                { label: "Front of House", value: employees.filter((e: Employee) => e.department === "FOH").length, color: "#60a5fa" },
+                                { label: "Bar", value: employees.filter((e: Employee) => e.department === "Bar").length, color: "#facc15" },
                             ].map(c => (
                                 <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12, padding: "16px 20px" }}>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>{c.label}</div>
@@ -473,7 +573,7 @@ export default function SchedulePage() {
                                 </thead>
                                 <tbody>
                                     {departments.map(dept => {
-                                        const deptEmps = EMPLOYEES.filter(e => e.department === dept);
+                                        const deptEmps = employees.filter((e: Employee) => e.department === dept);
                                         const dc = DEPT_COLORS[dept];
                                         return [
                                             <tr key={`dept-${dept}`} className="dept-header">
@@ -481,14 +581,13 @@ export default function SchedulePage() {
                                                     {dept === "Kitchen" ? "Kitchen" : dept === "FOH" ? "Front of House" : "Bar"} <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 8, opacity: 0.7 }}>({deptEmps.length} staff)</span>
                                                 </td>
                                             </tr>,
-                                            ...deptEmps.map(emp => {
+                                            ...deptEmps.map((emp: Employee) => {
                                                 const shifts = schedule[emp.name] || [];
                                                 const parseT = (t: string) => { const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if (!m) return 0; let h = parseInt(m[1]); if (m[3].toUpperCase() === "PM" && h !== 12) h += 12; if (m[3].toUpperCase() === "AM" && h === 12) h = 0; return h + parseInt(m[2]) / 60; };
                                                 const totalHrs = shifts.reduce((acc, s) => {
                                                     if (s.type === "OFF" || !s.startTime || !s.endTime) return acc;
                                                     let diff = parseT(s.endTime) - parseT(s.startTime);
                                                     if (diff < 0) diff += 24;
-                                                    // Add shift2 hours
                                                     if (s.shift2Start && s.shift2End) {
                                                         let diff2 = parseT(s.shift2End) - parseT(s.shift2Start);
                                                         if (diff2 < 0) diff2 += 24;
@@ -499,8 +598,13 @@ export default function SchedulePage() {
                                                 return (
                                                     <tr key={emp.name}>
                                                         <td>
-                                                            <div style={{ fontWeight: 700, color: "#fff", fontSize: 13 }}>{emp.name}</div>
-                                                            <div style={{ fontSize: 10, color: dc.text, marginTop: 1 }}>{emp.position}</div>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                                <div style={{ flex: 1 }}>
+                                                                    <div style={{ fontWeight: 700, color: "#fff", fontSize: 13 }}>{emp.name}</div>
+                                                                    <div style={{ fontSize: 10, color: dc.text, marginTop: 1 }}>{emp.position}</div>
+                                                                </div>
+                                                                <button onClick={() => removeEmployee(emp.name)} title="Remove" style={{ fontSize: 9, padding: "2px 5px", background: "transparent", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 4, color: "rgba(255,255,255,0.15)", cursor: "pointer", fontFamily: "inherit", lineHeight: 1 }}>✕</button>
+                                                            </div>
                                                         </td>
                                                         {DAYS.map((_, dayIdx) => {
                                                             const leave = isOnLeave(emp.name, dayIdx);
@@ -517,6 +621,7 @@ export default function SchedulePage() {
                                                             const s = shifts[dayIdx] || { type: "" as ShiftType, startTime: "", endTime: "" };
                                                             const sc = SHIFT_COLORS[s.type || ""];
                                                             const hasSplit = !!(s.shift2Start && s.shift2End);
+                                                            const roleLabel = s.role ? `${s.type}-${s.role}` : s.type;
                                                             return (
                                                                 <td key={dayIdx}>
                                                                     <div className="shift-cell" style={{ background: sc.bg, color: sc.text, padding: hasSplit ? "2px 4px" : undefined }} onClick={() => openEditShift(emp.name, dayIdx)}>
@@ -528,9 +633,9 @@ export default function SchedulePage() {
                                                                                 </>
                                                                             ) : (
                                                                                 <>
-                                                                                    <span style={{ fontSize: 10, opacity: 0.7 }}>{s.type}</span>
-                                                                                    <span>{s.startTime}</span>
-                                                                                    <span style={{ fontSize: 9, opacity: 0.5 }}>to {s.endTime}</span>
+                                                                                    <span style={{ fontSize: 10, opacity: 0.7, fontWeight: 800 }}>{roleLabel}</span>
+                                                                                    <span style={{ fontSize: 9 }}>{s.startTime}</span>
+                                                                                    <span style={{ fontSize: 8, opacity: 0.5 }}>to {s.endTime}</span>
                                                                                 </>
                                                                             )
                                                                         ) : "—"}
