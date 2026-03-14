@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const POS_OPTIONS = [
     { id: "toast", name: "Toast POS", emoji: "🍞", color: "#FF6B35", helpUrl: "https://doc.toasttab.com/doc/devguide/devApiAccessCredentials.html", helpText: "Toast Web → Integrations → Toast API access → Manage credentials → Create credentials → Copy clientId & clientSecret. Requires Toast RMS Essentials plan.", fields: [{ key: "posApiKey", label: "Client ID", placeholder: "Enter Toast Client ID" }, { key: "posSecretKey", label: "Client Secret", placeholder: "Enter Toast Client Secret" }, { key: "posLocationId", label: "Restaurant GUID", placeholder: "e.g. abc123-def456-..." }] },
@@ -78,11 +78,14 @@ export default function SettingsPage() {
     const [verifyStep, setVerifyStep] = useState<"idle" | "sending" | "input" | "verifying" | "done">("idle");
     const [verifyCode, setVerifyCode] = useState("");
     const [verifyError, setVerifyError] = useState("");
-    const [pwStep, setPwStep] = useState<"closed" | "open" | "saving">("closed");
+    const [pwStep, setPwStep] = useState<"closed" | "open" | "verify" | "saving">("closed");
     const [pwCurrent, setPwCurrent] = useState("");
     const [pwNew, setPwNew] = useState("");
     const [pwConfirm, setPwConfirm] = useState("");
     const [pwError, setPwError] = useState("");
+    const [pwVerifyCode, setPwVerifyCode] = useState(["", "", "", "", "", ""]);
+    const [pwResendCooldown, setPwResendCooldown] = useState(0);
+    const pwCodeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [connectToken, setConnectToken] = useState("");
@@ -92,6 +95,57 @@ export default function SettingsPage() {
     const showToast = (text: string, type: "success" | "error" = "success") => {
         setToastMsg({ text, type });
         setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    // Password change resend cooldown timer
+    useEffect(() => {
+        if (pwResendCooldown <= 0) return;
+        const t = setTimeout(() => setPwResendCooldown(c => c - 1), 1000);
+        return () => clearTimeout(t);
+    }, [pwResendCooldown]);
+
+    // Send verification code for password change
+    const handlePwSendCode = async () => {
+        setPwError("");
+        if (!pwCurrent) { setPwError("Enter your current password"); return; }
+        if (pwNew.length < 8) { setPwError("New password must be at least 8 characters"); return; }
+        if (pwNew !== pwConfirm) { setPwError("Passwords do not match"); return; }
+        setPwStep("saving");
+        try {
+            // First validate current password, then send verification code
+            const res = await fetch("/api/restaurant", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "send_pw_verification", currentPassword: pwCurrent }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setPwError(data.error || "Failed to verify"); setPwStep("open"); return; }
+            setPwStep("verify");
+            setPwResendCooldown(60);
+            setPwVerifyCode(["", "", "", "", "", ""]);
+            setTimeout(() => pwCodeRefs.current[0]?.focus(), 100);
+        } catch { setPwError("Network error"); setPwStep("open"); }
+    };
+
+    // Submit verification code + change password
+    const handlePwVerifySubmit = async (code: string) => {
+        setPwError("");
+        setPwStep("saving");
+        try {
+            const res = await fetch("/api/restaurant", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew, verificationCode: code }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast("✅ Password changed successfully!");
+                setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); setPwVerifyCode(["", "", "", "", "", ""]);
+            } else {
+                setPwError(data.error || "Failed to change password");
+                setPwStep("verify");
+            }
+        } catch { setPwError("Network error"); setPwStep("verify"); }
     };
 
     const handleConnectApp = (appName: string, keyName: string) => {
@@ -496,25 +550,64 @@ export default function SettingsPage() {
                                         <div className="f-label">Confirm New Password</div>
                                         <input className="s-input" type="password" placeholder="Repeat new password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} />
                                     </div>
-                                    <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                                        <button className="btn-gold" style={{ fontSize: 13, padding: "10px 20px", opacity: pwStep === "saving" ? 0.6 : 1 }}
-                                            disabled={pwStep === "saving"}
-                                            onClick={async () => {
-                                                setPwError("");
-                                                if (!pwCurrent) { setPwError("Enter your current password"); return; }
-                                                if (pwNew.length < 8) { setPwError("New password must be at least 8 characters"); return; }
-                                                if (pwNew !== pwConfirm) { setPwError("Passwords do not match"); return; }
-                                                setPwStep("saving");
-                                                try {
-                                                    const res = await fetch("/api/restaurant", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }) });
-                                                    const data = await res.json();
-                                                    if (res.ok) { showToast("✅ Password changed successfully!"); setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); }
-                                                    else { setPwError(data.error || "Failed to change password"); setPwStep("open"); }
-                                                } catch { setPwError("Network error"); setPwStep("open"); }
-                                            }}
-                                        >{pwStep === "saving" ? "Saving..." : "Update Password"}</button>
-                                        <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => { setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); setPwError(""); }}>Cancel</button>
-                                    </div>
+                                    {pwStep === "verify" ? (
+                                        /* Email verification step */
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                            <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+                                                <div style={{ fontSize: 20, marginBottom: 6 }}>📧</div>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8C96E", marginBottom: 4 }}>Verification Code Sent</div>
+                                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Enter the 6-digit code sent to your email</div>
+                                            </div>
+                                            <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                                                {pwVerifyCode.map((digit, i) => (
+                                                    <input
+                                                        key={i}
+                                                        ref={el => { pwCodeRefs.current[i] = el; }}
+                                                        type="text" inputMode="numeric" maxLength={1} value={digit}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (!/^\d?$/.test(val)) return;
+                                                            const nc = [...pwVerifyCode]; nc[i] = val; setPwVerifyCode(nc); setPwError("");
+                                                            if (val && i < 5) pwCodeRefs.current[i + 1]?.focus();
+                                                            if (val && i === 5 && nc.every(c => c)) {
+                                                                // Auto-submit
+                                                                const code = nc.join("");
+                                                                handlePwVerifySubmit(code);
+                                                            }
+                                                        }}
+                                                        onKeyDown={e => { if (e.key === "Backspace" && !pwVerifyCode[i] && i > 0) pwCodeRefs.current[i - 1]?.focus(); }}
+                                                        onPaste={i === 0 ? (e => {
+                                                            const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+                                                            if (pasted.length === 6) { e.preventDefault(); const nc = pasted.split(""); setPwVerifyCode(nc); pwCodeRefs.current[5]?.focus(); handlePwVerifySubmit(pasted); }
+                                                        }) : undefined}
+                                                        style={{ width: 40, height: 48, textAlign: "center", fontSize: 20, fontWeight: 800, background: digit ? "rgba(201,168,76,0.08)" : "rgba(255,255,255,0.04)", border: `2px solid ${digit ? "rgba(201,168,76,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: "#E8C96E", outline: "none", fontFamily: "inherit" }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 4 }}>
+                                                <button className="btn-gold" style={{ fontSize: 13, padding: "10px 20px" }}
+                                                    disabled={pwVerifyCode.some(c => !c)}
+                                                    onClick={() => handlePwVerifySubmit(pwVerifyCode.join(""))}
+                                                >Verify & Change Password</button>
+                                                <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => { setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); setPwError(""); setPwVerifyCode(["", "", "", "", "", ""]); }}>Cancel</button>
+                                            </div>
+                                            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.35)" }}>
+                                                {pwResendCooldown > 0 ? (
+                                                    <span>Resend in {pwResendCooldown}s</span>
+                                                ) : (
+                                                    <button onClick={handlePwSendCode} style={{ background: "none", border: "none", color: "#E8C96E", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}>Resend Code</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                                            <button className="btn-gold" style={{ fontSize: 13, padding: "10px 20px", opacity: pwStep === "saving" ? 0.6 : 1 }}
+                                                disabled={pwStep === "saving"}
+                                                onClick={handlePwSendCode}
+                                            >{pwStep === "saving" ? "Saving..." : "Update Password"}</button>
+                                            <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => { setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); setPwError(""); }}>Cancel</button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

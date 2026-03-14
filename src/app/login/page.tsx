@@ -30,7 +30,11 @@ function LoginForm() {
         try {
             const result = await signIn("credentials", { email, password, redirect: false });
             if (result?.error) {
-                setError("Invalid email or password. Try the demo credentials below.");
+                if (result.error.includes("EMAIL_NOT_VERIFIED")) {
+                    setError("Your email is not verified. Please check your inbox for the verification code and complete signup.");
+                } else {
+                    setError("Invalid email or password. Try the demo credentials below.");
+                }
                 setLoading(false);
                 return;
             }

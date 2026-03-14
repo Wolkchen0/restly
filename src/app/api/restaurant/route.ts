@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { generateVerificationCode, sendVerificationEmail } from "@/lib/verification-email";
 
-// PATCH /api/restaurant — change password
+// PATCH /api/restaurant — change password (with email verification)
 export async function PATCH(req: NextRequest) {
     try {
         const session = await auth();
@@ -11,14 +12,11 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { currentPassword, newPassword } = await req.json();
+        const body = await req.json();
+        const { action, currentPassword, newPassword, verificationCode } = body;
 
-        if (!currentPassword || !newPassword) {
-            return NextResponse.json({ error: "Current and new password are required" }, { status: 400 });
-        }
-
-        if (newPassword.length < 8) {
-            return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+        if (!currentPassword) {
+            return NextResponse.json({ error: "Current password is required" }, { status: 400 });
         }
 
         const restaurant = await prisma.restaurant.findUnique({ where: { id: session.user.id } });
@@ -32,11 +30,41 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
         }
 
-        // Hash new password and update
+        // Step 1: Send verification code
+        if (action === "send_pw_verification") {
+            const code = generateVerificationCode();
+            const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+            await prisma.restaurant.update({
+                where: { id: session.user.id },
+                data: { verificationCode: code, verificationExpiry: expiry },
+            });
+            await sendVerificationEmail(restaurant.email, code, restaurant.name);
+            return NextResponse.json({ success: true, message: "Verification code sent" });
+        }
+
+        // Step 2: Verify code and change password
+        if (!newPassword || newPassword.length < 8) {
+            return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+        }
+
+        if (!verificationCode) {
+            return NextResponse.json({ error: "Verification code is required" }, { status: 400 });
+        }
+
+        // Check verification code
+        if (restaurant.verificationCode !== verificationCode) {
+            return NextResponse.json({ error: "Invalid verification code" }, { status: 400 });
+        }
+
+        if (restaurant.verificationExpiry && new Date() > restaurant.verificationExpiry) {
+            return NextResponse.json({ error: "Verification code expired. Please request a new one." }, { status: 400 });
+        }
+
+        // Hash new password and update, clear verification code
         const newHash = await bcrypt.hash(newPassword, 12);
         await prisma.restaurant.update({
             where: { id: session.user.id },
-            data: { passwordHash: newHash },
+            data: { passwordHash: newHash, verificationCode: null, verificationExpiry: null },
         });
 
         return NextResponse.json({ success: true, message: "Password updated" });

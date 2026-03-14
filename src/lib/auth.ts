@@ -96,6 +96,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 );
                 if (!valid) return null;
 
+                // Block unverified users from logging in
+                if (!restaurant.emailVerified) {
+                    throw new Error("EMAIL_NOT_VERIFIED");
+                }
+
                 return {
                     id: restaurant.id,
                     email: restaurant.email,

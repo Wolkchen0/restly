@@ -43,7 +43,14 @@ function SignupForm() {
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Signup failed"); setLoading(false); return; }
 
-            // Auto sign-in and go to dashboard
+            // Show verification screen — do NOT auto sign-in yet
+            if (data.requiresVerification) {
+                setStep("verify");
+                setLoading(false);
+                return;
+            }
+
+            // Fallback: if no verification needed (shouldn't happen), sign in
             await signIn("credentials", { email: form.email, password: form.password, redirect: false });
             router.push("/dashboard");
         } catch {
