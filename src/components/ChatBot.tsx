@@ -2,6 +2,7 @@
 import { useChat } from "ai/react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useIsDemo } from "@/lib/use-demo";
 
 // ── Chat history persistence ──
 const HISTORY_KEY = "restly_ai_history";
@@ -211,13 +212,24 @@ export default function ChatBot() {
         setHistory(loadHistory());
         const timer = setTimeout(() => setPulse(false), 10000);
 
-        // Load real alerts, filter out dismissed ones
+        // Load real alerts only for demo accounts, filter out dismissed ones
         const dismissed = getDismissedAlerts();
-        const alerts = getSystemAlerts().filter(a => !dismissed.includes(a.id));
-        setActiveAlerts(alerts);
+        // Alerts will be set after isDemo check
+        setActiveAlerts([]);
 
         return () => clearTimeout(timer);
     }, []);
+
+    const isDemo = useIsDemo();
+    useEffect(() => {
+        if (isDemo) {
+            const dismissed = getDismissedAlerts();
+            const alerts = getSystemAlerts().filter(a => !dismissed.includes(a.id));
+            setActiveAlerts(alerts);
+        } else {
+            setActiveAlerts([]);
+        }
+    }, [isDemo]);
 
     // Save messages to history
     useEffect(() => {

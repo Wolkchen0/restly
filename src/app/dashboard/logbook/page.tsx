@@ -13,10 +13,10 @@ const INITIAL_LOGS = [
 export default function LogbookPage() {
     const isDemo = useIsDemo();
     const userPrefix = useUserPrefix();
-    const [logs, setLogs] = useState(INITIAL_LOGS);
+    const [logs, setLogs] = useState<any[]>([]);
 
     // Load/save logs per user — non-demo starts empty
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "logbook"); if (saved) setLogs(saved); else if (!isDemo) setLogs([]); } }, [userPrefix, isDemo]);
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "logbook"); if (saved) setLogs(saved); else if (isDemo) setLogs(INITIAL_LOGS); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "logbook", logs); }, [logs, userPrefix]);
 
     const [logModalOpen, setLogModalOpen] = useState(false);
@@ -135,7 +135,7 @@ export default function LogbookPage() {
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: 15, color: "rgba(255,255,255,0.9)", lineHeight: 1.6 }}>"{log.notes}"</div>
                                             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-                                                {log.tags.map(t => (
+                                                {log.tags.map((t: string) => (
                                                     <span key={t} style={{ fontSize: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", padding: "4px 8px", borderRadius: 4, textTransform: "uppercase" }}>{t}</span>
                                                 ))}
                                             </div>

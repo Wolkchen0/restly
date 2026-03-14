@@ -41,9 +41,9 @@ function aiFindBottleMatch(name: string, bottles: BottleInfo[]): BottleInfo | nu
 
 export default function RecipesPage() {
     const [activeTab, setActiveTab] = useState<TabKey>("All");
-    const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([...FOOD_INGREDIENTS]);
-    const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([...FOOD_RECIPES]);
-    const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([...DRINK_RECIPES]);
+    const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([]);
+    const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([]);
+    const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([]);
     const [bottles] = useState<BottleInfo[]>([...BOTTLE_INVENTORY]);
     const isDemo = useIsDemo();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -76,11 +76,11 @@ export default function RecipesPage() {
         const savedDrink = userLoad<DrinkRecipe[]>(userPrefix, "drink_recipes");
         const savedIngredients = userLoad<FoodIngredient[]>(userPrefix, "food_ingredients");
         if (savedFood) { setFoodRecipes(savedFood); }
-        else if (!isDemo) { setFoodRecipes([]); }
+        else if (isDemo) { setFoodRecipes([...FOOD_RECIPES]); }
         if (savedDrink) { setDrinkRecipes(savedDrink); }
-        else if (!isDemo) { setDrinkRecipes([]); }
+        else if (isDemo) { setDrinkRecipes([...DRINK_RECIPES]); }
         if (savedIngredients) { setFoodIngredients(savedIngredients); }
-        else if (!isDemo) { setFoodIngredients([]); }
+        else if (isDemo) { setFoodIngredients([...FOOD_INGREDIENTS]); }
     }, [userPrefix, isDemo]);
 
     // Persist recipes to localStorage whenever they change

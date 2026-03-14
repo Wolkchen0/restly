@@ -20,12 +20,12 @@ export default function MaintenancePage() {
     const [actioned, setActioned] = useState<string | null>(null);
     const isDemo = useIsDemo();
     const userPrefix = useUserPrefix();
-    const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
+    const [equipmentList, setEquipmentList] = useState<any[]>([]);
     const [aiDispatched, setAiDispatched] = useState(false);
     const [expandedEq, setExpandedEq] = useState<string | null>(null);
 
     // Load/save equipment per user — non-demo starts empty
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "equipment"); if (saved) setEquipmentList(saved); else if (!isDemo) setEquipmentList([]); } }, [userPrefix, isDemo]);
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "equipment"); if (saved) setEquipmentList(saved); else if (isDemo) setEquipmentList(INITIAL_EQUIPMENT); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "equipment", equipmentList); }, [equipmentList, userPrefix]);
 
     // Modal State

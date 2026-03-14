@@ -141,8 +141,8 @@ export default function SchedulePage() {
     const [locationId, setLocationId] = useState<string>("");
     const isDemo = useIsDemo();
     const userPrefix = useUserPrefix();
-    const [employees, setEmployees] = useState<Employee[]>([...INITIAL_EMPLOYEES]);
-    const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>(() => generateDefaultSchedule(INITIAL_EMPLOYEES));
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>({});
     const [weekOffset, setWeekOffset] = useState(0);
     const [editCell, setEditCell] = useState<{ empName: string; dayIdx: number } | null>(null);
     const [editShiftType, setEditShiftType] = useState<ShiftType>("L");
@@ -165,7 +165,7 @@ export default function SchedulePage() {
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
     // Per-user persistence for employees and schedule — non-demo starts empty
-    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); else if (!isDemo) setEmployees([]); const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); else if (!isDemo) setSchedule({}); } }, [userPrefix, isDemo]);
+    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); else if (isDemo) { setEmployees([...INITIAL_EMPLOYEES]); setSchedule(generateDefaultSchedule(INITIAL_EMPLOYEES)); } const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "schedule_employees", employees); }, [employees, userPrefix]);
     useEffect(() => { userSave(userPrefix, "schedule_data", schedule); }, [schedule, userPrefix]);
 

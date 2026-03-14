@@ -22,11 +22,11 @@ const INITIAL_TICKETS = [
 export default function KDSPage() {
     const isDemo = useIsDemo();
     const userPrefix = useUserPrefix();
-    const [tickets, setTickets] = useState(INITIAL_TICKETS);
+    const [tickets, setTickets] = useState<any[]>([]);
     const [escalatedId, setEscalatedId] = useState<string | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "kds_tickets"); if (saved) setTickets(saved); else if (!isDemo) setTickets([]); } }, [userPrefix, isDemo]);
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "kds_tickets"); if (saved) setTickets(saved); else if (isDemo) setTickets(INITIAL_TICKETS); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "kds_tickets", tickets); }, [tickets, userPrefix]);
 
     const showToast = (msg: string) => {
