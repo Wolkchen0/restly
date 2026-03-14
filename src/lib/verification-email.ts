@@ -14,7 +14,7 @@ export async function sendVerificationEmail(email: string, code: string, restaur
 
     try {
         const { data, error } = await resend.emails.send({
-            from: "Restly <onboarding@resend.dev>",
+            from: "Restly <noreply@restly.pro>",
             to: email,
             subject: `${code} — Your Restly Verification Code`,
             html: `
