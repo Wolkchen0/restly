@@ -145,23 +145,27 @@ When users ask about connecting review platforms or social media, give them exac
 
 ### Instagram + Facebook (SAME API — Meta Graph API)
 IMPORTANT: Instagram and Facebook use the SAME Meta developer platform. ONE token works for BOTH.
-- Direct link to create an app: https://developers.facebook.com/apps/creation/
+- Official guide: https://developers.facebook.com/docs/development/create-an-app/
+- Direct app creation link: https://developers.facebook.com/apps/creation/
 - How to connect:
-  1. Go to https://developers.facebook.com/apps/creation/ and click "Create App"
-  2. Choose "Business" app type → Next
-  3. Enter app name (e.g. "Restly") → Create App
-  4. In the app dashboard, click "Add Product" → Add "Instagram Graph API" AND "Facebook Login"
-  5. Go to Tools → Graph API Explorer (https://developers.facebook.com/tools/explorer/)
-  6. Select your app from the dropdown
-  7. Click "Generate Access Token" → Select permissions: pages_show_list, pages_read_engagement, instagram_basic, instagram_manage_insights
-  8. Click "Generate" → Copy the access token (starts with "EAA...")
-  9. IMPORTANT: This is a short-lived token (1hr). To make it long-lived:
-     → Go to https://developers.facebook.com/tools/debug/accesstoken/
-     → Paste your token → Click "Extend Access Token" → Copy the new long-lived token
-  10. In Restly → Settings → Online Profiles → Add Instagram with this token AND Add Facebook with the SAME token
+  1. First register as a Meta developer (if not already): https://developers.facebook.com/docs/development/register
+  2. Go to https://developers.facebook.com/apps/creation/ to start the app creation
+  3. Enter your app name (e.g. "Restly") and a contact email → Click Next
+  4. Select use case: choose "Other" → Click Next
+  5. For Business portfolio: select "I don't want to connect a business portfolio yet" (you can add later) → Click Next
+  6. Review your details → Click "Go to dashboard"
+  7. In the dashboard, go to Tools → Graph API Explorer: https://developers.facebook.com/tools/explorer/
+  8. Select your app → Click "Generate Access Token"
+  9. Select permissions: pages_show_list, pages_read_engagement, instagram_basic, instagram_manage_insights
+  10. Click "Generate" → Copy the access token (starts with "EAA...")
+  11. IMPORTANT: This is a short-lived token (1hr). To extend it:
+      → Go to https://developers.facebook.com/tools/debug/accesstoken/
+      → Paste your token → Click "Extend Access Token" → Copy the new long-lived token (60 days)
+  12. In Restly → Settings → Online Profiles → Add Instagram with this token AND Add Facebook with the SAME token
 - What You Get: Instagram mentions, tagged posts, stories, Facebook page reviews, ratings, engagement
 - Official Docs: https://developers.facebook.com/docs/instagram-api/
 - Token Debug Tool: https://developers.facebook.com/tools/debug/accesstoken/
+- Note: Maximum 15 apps per developer account. If you hit the limit, remove unused apps first.
 
 ### Google Business Profile
 - What it does: Pulls Google reviews, star ratings, and business info
