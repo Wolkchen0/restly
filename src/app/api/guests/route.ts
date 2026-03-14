@@ -1,7 +1,22 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAllGuests, getStats, getTodayReservations, getVipGuests, addOrUpdateGuest } from "@/services/opentable";
+import { auth } from "@/lib/auth";
 
 export async function GET() {
+    const session = await auth();
+    const email = (session?.user as any)?.email || "";
+    const isDemoAccount = email === "demo@restly.com";
+
+    if (!isDemoAccount) {
+        // Real users get empty guest data — this will come from POS/OpenTable when connected
+        return NextResponse.json({
+            guests: [],
+            stats: { totalGuests: 0, vipGuests: 0, coversToday: 0, reservationsToday: 0, avgSpend: 0 },
+            todayReservations: [],
+            vipGuests: []
+        });
+    }
+
     const guests = getAllGuests();
     const stats = getStats();
     const todayRes = getTodayReservations();

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 interface Message {
@@ -83,11 +84,12 @@ export default function SocialInboxPage() {
     });
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
+    const isDemo = useIsDemo();
 
     // ── Fetch all data from API routes ──────────────────────────────────────
     const loadInboxData = useCallback(async () => {
         setLoading(true);
-        const allMessages: Message[] = [...SOCIAL_DMS];
+        const allMessages: Message[] = isDemo ? [...SOCIAL_DMS] : [];
         const newStatus = { ...apiStatus };
 
         // 1. Fetch Emails (real API call)
@@ -197,8 +199,8 @@ export default function SocialInboxPage() {
                     isNew: i < 3,
                     engagement: { likes: Math.floor(Math.random() * 500), comments: Math.floor(Math.random() * 50), shares: Math.floor(Math.random() * 30) },
                 }));
-                setAiMentions(mentions);
-                newStatus.social = { connected: true, count: mentions.length, source: "jsonplaceholder.typicode.com" };
+                setAiMentions(isDemo ? mentions : []);
+                newStatus.social = { connected: isDemo, count: isDemo ? mentions.length : 0, source: isDemo ? "Demo" : "" };
             }
         } catch (e) {
             console.warn("Social mentions fetch failed:", e);
@@ -207,7 +209,7 @@ export default function SocialInboxPage() {
         setMessages(allMessages);
         setApiStatus(newStatus);
         setLoading(false);
-    }, []);
+    }, [isDemo]);
 
     useEffect(() => { loadInboxData(); }, [loadInboxData]);
 
