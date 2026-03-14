@@ -67,6 +67,30 @@ function timeAgo(ts: number): string {
     return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// ── Render text with clickable links ──
+function renderTextWithLinks(text: string) {
+    const urlRegex = /(https?:\/\/[^\s,)]+)/g;
+    const parts = text.split(urlRegex);
+    if (parts.length === 1) return text;
+    return parts.map((part, i) => {
+        if (urlRegex.test(part)) {
+            // Reset lastIndex since we're reusing the regex
+            urlRegex.lastIndex = 0;
+            // Clean display: show domain + path without protocol
+            const displayUrl = part.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            return (
+                <a key={i} href={part} target="_blank" rel="noopener noreferrer" 
+                   style={{ color: "#E8C96E", textDecoration: "none", fontWeight: 600, borderBottom: "1px solid rgba(201,168,76,0.3)" }}
+                   onMouseEnter={e => { e.currentTarget.style.borderBottomColor = "#E8C96E"; }}
+                   onMouseLeave={e => { e.currentTarget.style.borderBottomColor = "rgba(201,168,76,0.3)"; }}>
+                    🔗 {displayUrl.length > 45 ? displayUrl.substring(0, 45) + '...' : displayUrl}
+                </a>
+            );
+        }
+        return part;
+    });
+}
+
 // ── Real-time alerts based on actual system state ──
 function getSystemAlerts(): Alert[] {
     return [
@@ -599,7 +623,7 @@ export default function ChatBot() {
                                                 borderRadius: "6px 18px 18px 18px",
                                                 padding: "14px 18px", fontSize: 14, color: "rgba(255,255,255,0.85)", lineHeight: 1.65, whiteSpace: "pre-wrap",
                                             }}>
-                                                {m.content as string}
+                                                {renderTextWithLinks(m.content as string)}
                                             </div>
                                         )}
                                         {(m as any).toolInvocations?.map((inv: any, j: number) => (
