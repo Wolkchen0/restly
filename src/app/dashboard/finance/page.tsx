@@ -92,9 +92,6 @@ export default function FinancePage() {
     const [laborOverride, setLaborOverride] = useState<string>("");
     const [editingOpex, setEditingOpex] = useState(false);
     const [showAllInsights, setShowAllInsights] = useState(false);
-    const [weeklyReportModal, setWeeklyReportModal] = useState(false);
-    const [reportEmail, setReportEmail] = useState("");
-    const [reportSending, setReportSending] = useState(false);
 
     const showToast = (msg: string) => {
         setToastMsg(msg);
@@ -186,6 +183,49 @@ export default function FinancePage() {
         });
     };
 
+    const handleDownloadCSV = () => {
+        const rows = [
+            ["Restly — Weekly P&L Report"],
+            [`Period: ${period}`],
+            [`Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`],
+            [],
+            ["=== FINANCIAL SUMMARY ==="],
+            ["Category", "Amount", "% of Sales"],
+            ["Gross Revenue", `$${stats.totalRevenue.toLocaleString()}`, "100%"],
+            ["COGS", `-$${stats.cogs.toLocaleString()}`, `${stats.cogsRatio.toFixed(1)}%`],
+            ["Labor", `-$${stats.labor.toLocaleString()}`, `${stats.laborRatio.toFixed(1)}%`],
+            ["Operating Expenses", `-$${totalOpex.toLocaleString()}`, `${(totalOpex / stats.totalRevenue * 100).toFixed(1)}%`],
+            ["Net Profit", `$${netProfit.toLocaleString()}`, `${stats.profitMargin.toFixed(1)}%`],
+            [],
+            ["=== DAILY REVENUE ==="],
+            ["Day", "Revenue", "Orders"],
+            ...DAILY_REVENUE.map(d => [d.day, `$${d.revenue.toLocaleString()}`, String(d.orders)]),
+            [],
+            ["=== WEEKLY TREND ==="],
+            ["Week", "Revenue", "COGS", "Labor", "Profit"],
+            ...WEEKLY_DATA.map(w => [w.name, `$${w.revenue.toLocaleString()}`, `$${w.cogs.toLocaleString()}`, `$${w.labor.toLocaleString()}`, `$${w.profit.toLocaleString()}`]),
+            [],
+            ["=== OPERATING EXPENSES ==="],
+            ["Item", "Amount", "Type"],
+            ...opex.map(e => [e.label, `$${e.amount.toLocaleString()}`, e.category]),
+            [],
+            ["=== KEY METRICS ==="],
+            ["Prime Cost %", `${stats.primeCostPct.toFixed(1)}%`],
+            ["Food Cost %", `${stats.cogsRatio.toFixed(1)}%`],
+            ["Labor Cost %", `${stats.laborRatio.toFixed(1)}%`],
+            ["Avg Check", `$${Math.round(stats.totalRevenue / 1300)}`],
+        ];
+        const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Restly_PL_Report_${period.replace(/\s/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("📥 Report downloaded!");
+    };
+
     return (
         <>
             <div className="topbar">
@@ -199,7 +239,7 @@ export default function FinancePage() {
                         <option style={{ background: "#0d0d1a", color: "#fff" }}>Last Month</option>
                     </select>
                     <button className="btn-primary" style={{ fontSize: 13 }} onClick={handleExportPDF}>Export PDF ↗</button>
-                    <button className="btn-primary" style={{ fontSize: 13, background: "rgba(96,165,250,0.12)", border: "1px solid rgba(96,165,250,0.25)", color: "#60a5fa" }} onClick={() => setWeeklyReportModal(true)}>📧 Weekly Report</button>
+                    <button className="btn-primary" style={{ fontSize: 13, background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", color: "#4ade80" }} onClick={handleDownloadCSV}>📥 Download Report</button>
                 </div>
             </div>
 
@@ -597,43 +637,7 @@ export default function FinancePage() {
                 </div>
             )}
 
-            {/* WEEKLY REPORT MODAL */}
-            {weeklyReportModal && (
-                <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }} onClick={() => setWeeklyReportModal(false)}>
-                    <div onClick={e => e.stopPropagation()} style={{ background: "#0e0e1c", border: "1px solid rgba(96,165,250,0.2)", borderRadius: 20, padding: 32, width: "min(480px, 90vw)", boxShadow: "0 24px 80px rgba(0,0,0,0.6)" }}>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 6 }}>📧 Weekly Report</div>
-                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>Send a comprehensive weekly P&L summary to your inbox</div>
-                        
-                        <div style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.12)", borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", marginBottom: 10, textTransform: "uppercase" }}>Report includes:</div>
-                            {["Revenue, COGS, Labor, Net Profit breakdown", "Staff performance top 3 leaderboard", "Inventory alerts (low stock, out of stock)", "Equipment maintenance status", "AI recommendations for next week", "Menu engineering highlights (BCG Matrix)"].map((item, i) => (
-                                <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", padding: "3px 0" }}>✓ {item}</div>
-                            ))}
-                        </div>
 
-                        <input
-                            type="email"
-                            value={reportEmail}
-                            onChange={e => setReportEmail(e.target.value)}
-                            placeholder="owner@restaurant.com"
-                            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "12px 16px", fontSize: 14, color: "#fff", outline: "none", marginBottom: 16, fontFamily: "inherit", boxSizing: "border-box" }}
-                        />
-
-                        <div style={{ display: "flex", gap: 10 }}>
-                            <button onClick={() => setWeeklyReportModal(false)} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                            <button onClick={() => {
-                                setReportSending(true);
-                                fetch("/api/reports/weekly", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: reportEmail }) })
-                                    .then(r => r.json())
-                                    .then(() => { showToast("📧 Weekly report sent!"); setWeeklyReportModal(false); setReportSending(false); })
-                                    .catch(() => { showToast("Report generation complete (email requires SMTP setup)"); setWeeklyReportModal(false); setReportSending(false); });
-                            }} disabled={reportSending} style={{ flex: 2, padding: "12px", background: "linear-gradient(135deg, #60a5fa, #3b82f6)", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: reportSending ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: reportSending ? 0.6 : 1 }}>
-                                {reportSending ? "Sending..." : "Send Report 📧"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }

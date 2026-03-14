@@ -132,16 +132,18 @@ function LoginForm() {
                     </button>
                 </form>
 
-                <div style={{ marginTop: 24, textAlign: "center", fontSize: 14, color: "var(--text-muted)" }}>
-                    Don&apos;t have an account?{" "}
-                    <Link href="/signup" style={{ color: "var(--gold-light)", fontWeight: 600, textDecoration: "none" }}>
-                        Start free trial
+                <div style={{ marginTop: 24, textAlign: "center" }}>
+                    <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 12 }}>
+                        Don&apos;t have an account?
+                    </div>
+                    <Link href="/signup" style={{ display: "block", width: "100%", padding: "12px", background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 10, color: "#E8C96E", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center", fontFamily: "inherit", cursor: "pointer", transition: "all 0.15s" }}>
+                        Sign Up — Start Free Trial →
                     </Link>
                 </div>
 
                 {/* Demo hint (non-demo mode) */}
                 {!isDemo && (
-                    <div style={{ marginTop: 24, padding: "14px 16px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                    <div style={{ marginTop: 16, padding: "14px 16px", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 10 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "var(--gold)", marginBottom: 6 }}>🎯 Want to explore first?</div>
                         <button
                             onClick={handleDemoLogin}

@@ -43,15 +43,9 @@ function SignupForm() {
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Signup failed"); setLoading(false); return; }
 
-            if (data.requiresVerification) {
-                setStep("verify");
-                setResendCooldown(60);
-                setLoading(false);
-                setTimeout(() => inputRefs.current[0]?.focus(), 100);
-            } else {
-                await signIn("credentials", { email: form.email, password: form.password, redirect: false });
-                router.push("/dashboard");
-            }
+            // Auto sign-in and go to dashboard
+            await signIn("credentials", { email: form.email, password: form.password, redirect: false });
+            router.push("/dashboard");
         } catch {
             setError("Something went wrong. Please try again.");
             setLoading(false);
