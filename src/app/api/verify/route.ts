@@ -77,9 +77,18 @@ export async function PUT(req: NextRequest) {
             data: { verificationCode: code, verificationExpiry: expiry },
         });
 
-        await sendVerificationEmail(email, code, restaurant.name);
+        const sendResult = await sendVerificationEmail(email, code, restaurant.name);
 
-        return NextResponse.json({ success: true, message: "New code sent" });
+        if (sendResult.skipped) {
+            // No real email service — return code in logs for dev, tell user
+            return NextResponse.json({ success: true, message: "Verification code generated. Check server logs if in development." });
+        }
+
+        if (!sendResult.success) {
+            return NextResponse.json({ error: "Failed to send email. Please try again or contact support." }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, message: "Verification code sent to your email" });
     } catch (err) {
         console.error("Resend code error:", err);
         return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -75,6 +75,9 @@ export default function SettingsPage() {
     const [connectingApp, setConnectingApp] = useState<string | null>(null);
     const [posStatus, setPosStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
     const [posMessage, setPosMessage] = useState("");
+    const [verifyStep, setVerifyStep] = useState<"idle" | "sending" | "input" | "verifying" | "done">("idle");
+    const [verifyCode, setVerifyCode] = useState("");
+    const [verifyError, setVerifyError] = useState("");
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [connectToken, setConnectToken] = useState("");
@@ -345,14 +348,61 @@ export default function SettingsPage() {
                 tab === "account" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                         {/* Verification Banner */}
-                        {!info.emailVerified && info.email && (
-                            <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-                                <div style={{ fontSize: 26 }}>📧</div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", marginBottom: 2 }}>Email not verified</div>
-                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Verify your email to unlock all features and secure your account.</div>
-                                </div>
-                                <button className="btn-gold" style={{ fontSize: 12, padding: "8px 16px", whiteSpace: "nowrap" }}>Verify Now</button>
+                        {!info.emailVerified && info.email && verifyStep !== "done" && (
+                            <div style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 14, padding: "16px 20px" }}>
+                                {verifyStep === "idle" || verifyStep === "sending" ? (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                        <div style={{ fontSize: 26 }}>📧</div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", marginBottom: 2 }}>Email not verified</div>
+                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>We'll send a 6-digit code to <strong style={{ color: "#fff" }}>{info.email}</strong></div>
+                                        </div>
+                                        <button className="btn-gold" style={{ fontSize: 12, padding: "8px 16px", whiteSpace: "nowrap", opacity: verifyStep === "sending" ? 0.6 : 1 }}
+                                            disabled={verifyStep === "sending"}
+                                            onClick={async () => {
+                                                setVerifyStep("sending"); setVerifyError("");
+                                                try {
+                                                    const res = await fetch("/api/verify", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: info.email }) });
+                                                    const data = await res.json();
+                                                    if (res.ok) { setVerifyStep("input"); } else { setVerifyError(data.error || "Failed to send code"); setVerifyStep("idle"); }
+                                                } catch { setVerifyError("Network error"); setVerifyStep("idle"); }
+                                            }}
+                                        >{verifyStep === "sending" ? "Sending..." : "Send Verification Code"}</button>
+                                    </div>
+                                ) : verifyStep === "input" || verifyStep === "verifying" ? (
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", marginBottom: 8 }}>Enter verification code</div>
+                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>We sent a 6-digit code to <strong style={{ color: "#fff" }}>{info.email}</strong></div>
+                                        {verifyError && <div style={{ fontSize: 12, color: "#f87171", marginBottom: 8 }}>⚠ {verifyError}</div>}
+                                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                            <input
+                                                type="text" maxLength={6} value={verifyCode}
+                                                onChange={e => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                                                placeholder="000000"
+                                                style={{ width: 140, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "10px 14px", fontSize: 18, fontWeight: 800, color: "#fff", textAlign: "center", letterSpacing: 6, fontFamily: "monospace", outline: "none" }}
+                                            />
+                                            <button className="btn-gold" style={{ fontSize: 12, padding: "10px 20px", opacity: verifyStep === "verifying" ? 0.6 : 1 }}
+                                                disabled={verifyCode.length !== 6 || verifyStep === "verifying"}
+                                                onClick={async () => {
+                                                    setVerifyStep("verifying"); setVerifyError("");
+                                                    try {
+                                                        const res = await fetch("/api/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: info.email, code: verifyCode }) });
+                                                        const data = await res.json();
+                                                        if (res.ok) { setVerifyStep("done"); setInfo(prev => ({ ...prev, emailVerified: true })); showToast("✅ Email verified!"); }
+                                                        else { setVerifyError(data.error || "Invalid code"); setVerifyStep("input"); }
+                                                    } catch { setVerifyError("Network error"); setVerifyStep("input"); }
+                                                }}
+                                            >{verifyStep === "verifying" ? "Verifying..." : "Verify →"}</button>
+                                            <button style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setVerifyStep("idle"); setVerifyCode(""); setVerifyError(""); }}>Cancel</button>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+                        {info.emailVerified && (
+                            <div style={{ background: "rgba(74,222,128,0.04)", border: "1px solid rgba(74,222,128,0.15)", borderRadius: 14, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+                                <div style={{ fontSize: 20 }}>✅</div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: "#4ade80" }}>Email verified — your account is secure.</div>
                             </div>
                         )}
 
@@ -405,14 +455,14 @@ export default function SettingsPage() {
                             <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 4 }}>📊 Your Data</h2>
                             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Each user has their own encrypted data. Your restaurant data is isolated and private.</p>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                                <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(96,165,250,0.04)", borderRadius: 12, border: "1px solid rgba(96,165,250,0.1)" }}>
+                                <button onClick={() => setTab("locations")} style={{ textAlign: "center", padding: "16px 8px", background: "rgba(96,165,250,0.04)", borderRadius: 12, border: "1px solid rgba(96,165,250,0.1)", cursor: "pointer", fontFamily: "inherit" }}>
                                     <div style={{ fontSize: 22, fontWeight: 800, color: "#60a5fa" }}>{locations.length}</div>
-                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Locations</div>
-                                </div>
-                                <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(74,222,128,0.04)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.1)" }}>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{locations.length === 0 ? "Add Location →" : "Locations"}</div>
+                                </button>
+                                <button onClick={() => setTab("locations")} style={{ textAlign: "center", padding: "16px 8px", background: "rgba(74,222,128,0.04)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.1)", cursor: "pointer", fontFamily: "inherit" }}>
                                     <div style={{ fontSize: 22, fontWeight: 800, color: "#4ade80" }}>{connectedApps.length}</div>
-                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Connected Apps</div>
-                                </div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>{connectedApps.length === 0 ? "Connect Apps →" : "Connected Apps"}</div>
+                                </button>
                                 <div style={{ textAlign: "center", padding: "16px 8px", background: "rgba(201,168,76,0.04)", borderRadius: 12, border: "1px solid rgba(201,168,76,0.1)" }}>
                                     <div style={{ fontSize: 22, fontWeight: 800, color: "#E8C96E" }}>🔒</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>Encrypted</div>
