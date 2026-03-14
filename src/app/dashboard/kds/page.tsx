@@ -26,7 +26,7 @@ export default function KDSPage() {
     const [escalatedId, setEscalatedId] = useState<string | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "kds_tickets"); if (saved) setTickets(saved); } }, [userPrefix]);
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "kds_tickets"); if (saved) setTickets(saved); else if (!isDemo) setTickets([]); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "kds_tickets", tickets); }, [tickets, userPrefix]);
 
     const showToast = (msg: string) => {

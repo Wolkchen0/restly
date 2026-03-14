@@ -69,15 +69,19 @@ export default function RecipesPage() {
     const userPrefix = useUserPrefix();
 
     // Load saved recipes from localStorage on mount (user-specific)
+    // Non-demo users start with empty lists; demo users get demo data
     useEffect(() => {
         if (!userPrefix) return;
         const savedFood = userLoad<FoodRecipe[]>(userPrefix, "food_recipes");
         const savedDrink = userLoad<DrinkRecipe[]>(userPrefix, "drink_recipes");
         const savedIngredients = userLoad<FoodIngredient[]>(userPrefix, "food_ingredients");
-        if (savedFood) setFoodRecipes(savedFood);
-        if (savedDrink) setDrinkRecipes(savedDrink);
-        if (savedIngredients) setFoodIngredients(savedIngredients);
-    }, [userPrefix]);
+        if (savedFood) { setFoodRecipes(savedFood); }
+        else if (!isDemo) { setFoodRecipes([]); }
+        if (savedDrink) { setDrinkRecipes(savedDrink); }
+        else if (!isDemo) { setDrinkRecipes([]); }
+        if (savedIngredients) { setFoodIngredients(savedIngredients); }
+        else if (!isDemo) { setFoodIngredients([]); }
+    }, [userPrefix, isDemo]);
 
     // Persist recipes to localStorage whenever they change
     useEffect(() => { userSave(userPrefix, "food_recipes", foodRecipes); }, [foodRecipes, userPrefix]);

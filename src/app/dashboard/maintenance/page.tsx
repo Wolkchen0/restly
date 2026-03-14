@@ -24,8 +24,8 @@ export default function MaintenancePage() {
     const [aiDispatched, setAiDispatched] = useState(false);
     const [expandedEq, setExpandedEq] = useState<string | null>(null);
 
-    // Load/save equipment per user
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "equipment"); if (saved) setEquipmentList(saved); } }, [userPrefix]);
+    // Load/save equipment per user — non-demo starts empty
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "equipment"); if (saved) setEquipmentList(saved); else if (!isDemo) setEquipmentList([]); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "equipment", equipmentList); }, [equipmentList, userPrefix]);
 
     // Modal State

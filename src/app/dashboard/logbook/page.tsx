@@ -15,8 +15,8 @@ export default function LogbookPage() {
     const userPrefix = useUserPrefix();
     const [logs, setLogs] = useState(INITIAL_LOGS);
 
-    // Load/save logs per user
-    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "logbook"); if (saved) setLogs(saved); } }, [userPrefix]);
+    // Load/save logs per user — non-demo starts empty
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "logbook"); if (saved) setLogs(saved); else if (!isDemo) setLogs([]); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "logbook", logs); }, [logs, userPrefix]);
 
     const [logModalOpen, setLogModalOpen] = useState(false);

@@ -164,8 +164,8 @@ export default function SchedulePage() {
     const weekDates = getWeekDates(weekOffset);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
-    // Per-user persistence for employees and schedule
-    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); } }, [userPrefix]);
+    // Per-user persistence for employees and schedule — non-demo starts empty
+    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); else if (!isDemo) setEmployees([]); const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); else if (!isDemo) setSchedule({}); } }, [userPrefix, isDemo]);
     useEffect(() => { userSave(userPrefix, "schedule_employees", employees); }, [employees, userPrefix]);
     useEffect(() => { userSave(userPrefix, "schedule_data", schedule); }, [schedule, userPrefix]);
 
