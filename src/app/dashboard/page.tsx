@@ -36,7 +36,9 @@ export default function DashboardOverview() {
             .then(r => r.json())
             .then(d => {
                 const restaurantName = d.restaurantName || "No Location Setup";
-                setIsDemo(!!restaurantName); // Universal demo/sample mode for all brands for now
+                // Only show demo data for the actual demo/sample account
+                const isDemoAccount = d.email === "demo@restly.com" || restaurantName.toLowerCase().includes("sample");
+                setIsDemo(isDemoAccount);
                 if (d.locations?.length > 0) {
                     const savedId = localStorage.getItem("restly_active_location");
                     const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];

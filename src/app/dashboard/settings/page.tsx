@@ -165,8 +165,16 @@ export default function SettingsPage() {
         fetch("/api/locations")
             .then(r => r.json())
             .then(d => {
+                // Always set user info, even if no locations
+                setInfo({
+                    restaurantName: d.restaurantName || "",
+                    plan: d.plan || "trial",
+                    email: d.email || "",
+                    emailVerified: d.emailVerified ?? false,
+                    createdAt: d.createdAt || ""
+                });
+
                 if (d.locations?.length) {
-                    setInfo({ restaurantName: d.restaurantName || "", plan: d.plan || "trial", email: d.email || "", emailVerified: d.emailVerified ?? false, createdAt: d.createdAt || "" });
                     setLocations(d.locations);
                     const saved = localStorage.getItem("restly_active_location");
                     const def = d.locations.find((l: LocationData) => l.id === saved)
