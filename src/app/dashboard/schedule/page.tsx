@@ -180,6 +180,12 @@ export default function SchedulePage() {
                     setLocalRequests([...newFromDB, ...DEMO_REQUESTS]);
                 }).catch(() => { setData({ requests: DEMO_REQUESTS }); setLocalRequests(DEMO_REQUESTS); });
             } else {
+                // Real user — use their actual location ID
+                if (d.locations?.length > 0) {
+                    const savedId = localStorage.getItem("restly_active_location");
+                    const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];
+                    setLocationId(loc.id);
+                }
                 fetch("/api/timeoff").then(res => res.json()).then(tData => { setData(tData); setLocalRequests(tData.requests ?? []); });
             }
         }).catch(() => { });
@@ -522,9 +528,11 @@ export default function SchedulePage() {
 
             <div className="topbar">
                 <div className="topbar-title">Schedule & Forms</div>
-                <div className="topbar-right">
-                    <a href={`${FORM_TIME_ENTRY}?locId=${locationId || 'DEMO_RESTLY_12345'}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Entry Fix ↗</a>
-                    <a href={`${FORM_TIME_OFF}?locId=${locationId || 'DEMO_RESTLY_12345'}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Off Request ↗</a>
+                <div className="topbar-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <a href={`${FORM_TIME_ENTRY}?locId=${locationId}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Entry Fix ↗</a>
+                    <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${FORM_TIME_ENTRY}?locId=${locationId}`); setCopied("entry"); setTimeout(() => setCopied(null), 2000); }}>{copied === "entry" ? "✓ Copied!" : "📋"}</button>
+                    <a href={`${FORM_TIME_OFF}?locId=${locationId}`} target="_blank" rel="noopener" className="btn-ghost" style={{ fontSize: 12, textDecoration: "none" }}>Time Off Request ↗</a>
+                    <button className="btn-ghost" style={{ fontSize: 11, padding: "6px 10px" }} onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${FORM_TIME_OFF}?locId=${locationId}`); setCopied("off"); setTimeout(() => setCopied(null), 2000); }}>{copied === "off" ? "✓ Copied!" : "📋"}</button>
                 </div>
             </div>
 
