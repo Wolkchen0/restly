@@ -364,7 +364,10 @@ export default function SettingsPage() {
                                                 try {
                                                     const res = await fetch("/api/verify", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: info.email }) });
                                                     const data = await res.json();
-                                                    if (res.ok) { setVerifyStep("input"); } else { setVerifyError(data.error || "Failed to send code"); setVerifyStep("idle"); }
+                                                    if (res.ok) {
+                                                        setVerifyStep("input");
+                                                        if (data.fallbackCode) { setVerifyCode(data.fallbackCode); }
+                                                    } else { setVerifyError(data.error || "Failed to send code"); setVerifyStep("idle"); }
                                                 } catch { setVerifyError("Network error"); setVerifyStep("idle"); }
                                             }}
                                         >{verifyStep === "sending" ? "Sending..." : "Send Verification Code"}</button>

@@ -18,7 +18,14 @@ export async function POST(req: NextRequest) {
 
         const existing = await prisma.restaurant.findUnique({ where: { email } });
         if (existing) {
-            return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+            if (existing.emailVerified) {
+                // Verified account — cannot re-register
+                return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+            }
+            // Unverified account — delete it and allow fresh registration
+            // First delete related records (locations, etc.)
+            await prisma.location.deleteMany({ where: { restaurantId: existing.id } });
+            await prisma.restaurant.delete({ where: { id: existing.id } });
         }
 
         const passwordHash = await bcrypt.hash(password, 12);
