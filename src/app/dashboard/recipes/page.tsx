@@ -66,21 +66,42 @@ export default function RecipesPage() {
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
+    // Load saved recipes from localStorage on mount
+    useEffect(() => {
+        try {
+            const savedFood = localStorage.getItem("restly_food_recipes");
+            const savedDrink = localStorage.getItem("restly_drink_recipes");
+            const savedIngredients = localStorage.getItem("restly_food_ingredients");
+            if (savedFood) setFoodRecipes(JSON.parse(savedFood));
+            if (savedDrink) setDrinkRecipes(JSON.parse(savedDrink));
+            if (savedIngredients) setFoodIngredients(JSON.parse(savedIngredients));
+        } catch { /* ignore parse errors */ }
+    }, []);
 
+    // Persist recipes to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem("restly_food_recipes", JSON.stringify(foodRecipes));
+    }, [foodRecipes]);
+    useEffect(() => {
+        localStorage.setItem("restly_drink_recipes", JSON.stringify(drinkRecipes));
+    }, [drinkRecipes]);
+    useEffect(() => {
+        localStorage.setItem("restly_food_ingredients", JSON.stringify(foodIngredients));
+    }, [foodIngredients]);
 
     // Calculate cost & servings for each food recipe
     const getFoodData = (r: FoodRecipe) => {
         const cost = getFoodCost(r, foodIngredients);
         const servings = getFoodServingsRemaining(r, foodIngredients);
         const margin = r.menuPrice > 0 ? Math.round((1 - cost / r.menuPrice) * 100) : 0;
-        const dailySales = DEMO_FOOD_SALES.find(s => s.recipeId === r.id)?.sold || 0;
+        const dailySales = isDemo ? (DEMO_FOOD_SALES.find(s => s.recipeId === r.id)?.sold || 0) : 0;
         const daysSupply = dailySales > 0 ? Math.floor(servings / dailySales) : null;
         return { cost, servings, margin, dailySales, daysSupply };
     };
 
-    // AI Auto-Deduction: simulate POS end-of-day deduction from food inventory
+    // AI Auto-Deduction: simulate POS end-of-day deduction from food inventory (demo only)
     useEffect(() => {
-        if (aiDeducted) return;
+        if (aiDeducted || !isDemo) return;
         // After 2 seconds, auto-deduct today's sales from inventory (simulated)
         const timer = setTimeout(() => {
             setFoodIngredients(prev => {
@@ -114,7 +135,7 @@ export default function RecipesPage() {
     const getDrinkData = (r: DrinkRecipe) => {
         const cost = getPourCost(r, bottles);
         const margin = r.menuPrice > 0 ? Math.round((1 - cost / r.menuPrice) * 100) : 0;
-        const dailySales = DEMO_DRINK_SALES.find(s => s.recipeId === r.id)?.sold || 0;
+        const dailySales = isDemo ? (DEMO_DRINK_SALES.find(s => s.recipeId === r.id)?.sold || 0) : 0;
         const servings = getServingsRemaining(r, bottles);
         return { cost, margin, dailySales, servings };
     };
@@ -134,7 +155,7 @@ export default function RecipesPage() {
     const totalRecipes = foodRecipes.length + drinkRecipes.length;
     const lowStockRecipes = foodRecipes.filter(r => getFoodServingsRemaining(r, foodIngredients) <= 5).length;
     const avgMarginFood = foodRecipes.length > 0 ? Math.round(foodRecipes.reduce((a, r) => a + getFoodData(r).margin, 0) / foodRecipes.length) : 0;
-    const totalDailySales = DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0);
+    const totalDailySales = isDemo ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0) : 0;
 
     const openEdit = (r: FoodRecipe) => {
         setEditModal(r);
@@ -171,8 +192,9 @@ export default function RecipesPage() {
     const saveEdit = () => {
         if (!editModal) return;
         const updatedIngredients = editIngredients.map(({ matched, ...rest }) => rest);
-        setFoodRecipes(prev => prev.map(r => r.id === editModal.id ? { ...r, ingredients: updatedIngredients } : r));
-        showToast(`✅ Recipe "${editModal.name}" updated — AI will sync with inventory`);
+        const updated = foodRecipes.map(r => r.id === editModal.id ? { ...r, ingredients: updatedIngredients } : r);
+        setFoodRecipes(updated);
+        showToast(`✅ Recipe "${editModal.name}" saved!`);
         setEditModal(null);
     };
 
@@ -211,8 +233,9 @@ export default function RecipesPage() {
     const saveDrinkEdit = () => {
         if (!drinkEditModal) return;
         const updatedIngs = drinkEditIngredients.map(({ name, matched, ...rest }) => rest);
-        setDrinkRecipes(prev => prev.map(r => r.id === drinkEditModal.id ? { ...r, ingredients: updatedIngs } : r));
-        showToast(`✅ Cocktail "${drinkEditModal.name}" updated — AI synced with bottle inventory`);
+        const updated = drinkRecipes.map(r => r.id === drinkEditModal.id ? { ...r, ingredients: updatedIngs } : r);
+        setDrinkRecipes(updated);
+        showToast(`✅ Cocktail "${drinkEditModal.name}" saved!`);
         setDrinkEditModal(null);
     };
 
