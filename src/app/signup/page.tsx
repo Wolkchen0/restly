@@ -120,13 +120,27 @@ function SignupForm() {
     async function resendCode() {
         if (resendCooldown > 0) return;
         setResendCooldown(60);
+        setVerifyError("");
+        setCode(["", "", "", "", "", ""]);
         try {
-            await fetch("/api/verify", {
+            const res = await fetch("/api/verify", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: form.email }),
             });
-        } catch { /* ignore */ }
+            const data = await res.json();
+            if (res.ok && data.sent) {
+                setVerifyError("✅ New code sent! Check your inbox (and spam folder).");
+            } else if (res.ok && !data.sent && data.fallbackCode) {
+                setVerifyError(`Code: ${data.fallbackCode}`);
+            } else {
+                setVerifyError("Failed to resend code. Please try again.");
+                setResendCooldown(0);
+            }
+        } catch {
+            setVerifyError("Network error. Please try again.");
+            setResendCooldown(0);
+        }
     }
 
     if (step === "verify") {
