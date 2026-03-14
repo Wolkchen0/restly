@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 
 const FORM_TIME_ENTRY = "/forms/time-entry";
 const FORM_TIME_OFF = "/forms/time-off";
@@ -139,6 +140,7 @@ export default function SchedulePage() {
     const [copied, setCopied] = useState<string | null>(null);
     const [locationId, setLocationId] = useState<string>("");
     const isDemo = useIsDemo();
+    const userPrefix = useUserPrefix();
     const [employees, setEmployees] = useState<Employee[]>([...INITIAL_EMPLOYEES]);
     const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>(() => generateDefaultSchedule(INITIAL_EMPLOYEES));
     const [weekOffset, setWeekOffset] = useState(0);
@@ -161,6 +163,11 @@ export default function SchedulePage() {
 
     const weekDates = getWeekDates(weekOffset);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
+
+    // Per-user persistence for employees and schedule
+    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); } }, [userPrefix]);
+    useEffect(() => { userSave(userPrefix, "schedule_employees", employees); }, [employees, userPrefix]);
+    useEffect(() => { userSave(userPrefix, "schedule_data", schedule); }, [schedule, userPrefix]);
 
     useEffect(() => {
         window.scrollTo(0, 0);

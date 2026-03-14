@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
 import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining } from "@/services/drinks";
 
@@ -65,29 +66,23 @@ export default function RecipesPage() {
     const [addSpiritMl, setAddSpiritMl] = useState("");
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
+    const userPrefix = useUserPrefix();
 
-    // Load saved recipes from localStorage on mount
+    // Load saved recipes from localStorage on mount (user-specific)
     useEffect(() => {
-        try {
-            const savedFood = localStorage.getItem("restly_food_recipes");
-            const savedDrink = localStorage.getItem("restly_drink_recipes");
-            const savedIngredients = localStorage.getItem("restly_food_ingredients");
-            if (savedFood) setFoodRecipes(JSON.parse(savedFood));
-            if (savedDrink) setDrinkRecipes(JSON.parse(savedDrink));
-            if (savedIngredients) setFoodIngredients(JSON.parse(savedIngredients));
-        } catch { /* ignore parse errors */ }
-    }, []);
+        if (!userPrefix) return;
+        const savedFood = userLoad<FoodRecipe[]>(userPrefix, "food_recipes");
+        const savedDrink = userLoad<DrinkRecipe[]>(userPrefix, "drink_recipes");
+        const savedIngredients = userLoad<FoodIngredient[]>(userPrefix, "food_ingredients");
+        if (savedFood) setFoodRecipes(savedFood);
+        if (savedDrink) setDrinkRecipes(savedDrink);
+        if (savedIngredients) setFoodIngredients(savedIngredients);
+    }, [userPrefix]);
 
     // Persist recipes to localStorage whenever they change
-    useEffect(() => {
-        localStorage.setItem("restly_food_recipes", JSON.stringify(foodRecipes));
-    }, [foodRecipes]);
-    useEffect(() => {
-        localStorage.setItem("restly_drink_recipes", JSON.stringify(drinkRecipes));
-    }, [drinkRecipes]);
-    useEffect(() => {
-        localStorage.setItem("restly_food_ingredients", JSON.stringify(foodIngredients));
-    }, [foodIngredients]);
+    useEffect(() => { userSave(userPrefix, "food_recipes", foodRecipes); }, [foodRecipes, userPrefix]);
+    useEffect(() => { userSave(userPrefix, "drink_recipes", drinkRecipes); }, [drinkRecipes, userPrefix]);
+    useEffect(() => { userSave(userPrefix, "food_ingredients", foodIngredients); }, [foodIngredients, userPrefix]);
 
     // Calculate cost & servings for each food recipe
     const getFoodData = (r: FoodRecipe) => {

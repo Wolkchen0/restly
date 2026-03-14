@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 
 const INITIAL_LOGS = [
     { id: 1, date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector dropped by, everything passed (98/100). Need to order more degreaser. Slow lunch, about $1400 total.", tags: ["Audit", "Slow"] },
@@ -18,9 +19,14 @@ const INITIAL_EQUIPMENT = [
 export default function MaintenancePage() {
     const [actioned, setActioned] = useState<string | null>(null);
     const isDemo = useIsDemo();
+    const userPrefix = useUserPrefix();
     const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
     const [aiDispatched, setAiDispatched] = useState(false);
     const [expandedEq, setExpandedEq] = useState<string | null>(null);
+
+    // Load/save equipment per user
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "equipment"); if (saved) setEquipmentList(saved); } }, [userPrefix]);
+    useEffect(() => { userSave(userPrefix, "equipment", equipmentList); }, [equipmentList, userPrefix]);
 
     // Modal State
     const [eqModalOpen, setEqModalOpen] = useState(false);

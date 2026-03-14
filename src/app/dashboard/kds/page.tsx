@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 
 const STATION_DATA = [
@@ -20,9 +21,13 @@ const INITIAL_TICKETS = [
 
 export default function KDSPage() {
     const isDemo = useIsDemo();
+    const userPrefix = useUserPrefix();
     const [tickets, setTickets] = useState(INITIAL_TICKETS);
     const [escalatedId, setEscalatedId] = useState<string | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "kds_tickets"); if (saved) setTickets(saved); } }, [userPrefix]);
+    useEffect(() => { userSave(userPrefix, "kds_tickets", tickets); }, [tickets, userPrefix]);
 
     const showToast = (msg: string) => {
         setToastMsg(msg);

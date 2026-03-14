@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 
 const INITIAL_LOGS = [
     { id: 1, date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector dropped by, everything passed (98/100). Need to order more degreaser. Slow lunch, about $1400 total.", tags: ["Audit", "Slow"] },
@@ -11,7 +12,12 @@ const INITIAL_LOGS = [
 
 export default function LogbookPage() {
     const isDemo = useIsDemo();
+    const userPrefix = useUserPrefix();
     const [logs, setLogs] = useState(INITIAL_LOGS);
+
+    // Load/save logs per user
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "logbook"); if (saved) setLogs(saved); } }, [userPrefix]);
+    useEffect(() => { userSave(userPrefix, "logbook", logs); }, [logs, userPrefix]);
 
     const [logModalOpen, setLogModalOpen] = useState(false);
     const [newNote, setNewNote] = useState("");

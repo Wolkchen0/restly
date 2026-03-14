@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Legend } from "recharts";
 
 const WEEKLY_DATA = [
@@ -88,11 +89,16 @@ const INSIGHT_STYLES = {
 export default function FinancePage() {
     const [period, setPeriod] = useState("Month-to-Date");
     const isDemo = useIsDemo();
+    const userPrefix = useUserPrefix();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [opex, setOpex] = useState(DEFAULT_OPEX);
     const [laborOverride, setLaborOverride] = useState<string>("");
     const [editingOpex, setEditingOpex] = useState(false);
     const [showAllInsights, setShowAllInsights] = useState(false);
+
+    useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "finance_opex"); if (saved) setOpex(saved); const lab = userLoad<string>(userPrefix, "finance_labor"); if (lab) setLaborOverride(lab); } }, [userPrefix]);
+    useEffect(() => { userSave(userPrefix, "finance_opex", opex); }, [opex, userPrefix]);
+    useEffect(() => { userSave(userPrefix, "finance_labor", laborOverride); }, [laborOverride, userPrefix]);
 
     const showToast = (msg: string) => {
         setToastMsg(msg);
