@@ -103,11 +103,35 @@ export default function SettingsPage() {
         if (!connectModalApp) return;
         const appName = connectModalApp.name;
         const keyName = connectModalApp.keyName;
+        const token = connectToken.trim();
 
-        if (!connectToken.trim()) {
+        if (!token) {
             showToast("Connection cancelled. A valid token is required.", "error");
             setConnectModalApp(null);
             return;
+        }
+
+        // Basic format validation per platform
+        const validations: Record<string, { minLen: number; hint: string; pattern?: RegExp }> = {
+            googleBusinessToken: { minLen: 20, hint: "Google API keys are usually 39+ characters starting with 'AIza'", pattern: /^AIza/ },
+            yelpApiKey: { minLen: 20, hint: "Yelp API keys are 128-character strings" },
+            opentableRestaurantId: { minLen: 3, hint: "OpenTable Restaurant ID is a numeric ID (e.g. 12345)" },
+            xToken: { minLen: 20, hint: "X (Twitter) Bearer tokens are long alphanumeric strings" },
+            instagramToken: { minLen: 20, hint: "Instagram tokens are long alphanumeric strings starting with 'IGQV' or 'EAA'" },
+            facebookToken: { minLen: 20, hint: "Facebook tokens start with 'EAA' and are 100+ characters", pattern: /^EAA/ },
+            tiktokToken: { minLen: 20, hint: "TikTok tokens are long alphanumeric strings" },
+        };
+
+        const rule = validations[keyName];
+        if (rule) {
+            if (token.length < rule.minLen) {
+                showToast(`❌ Invalid ${appName} token — too short. ${rule.hint}`, "error");
+                return; // Don't close modal, let user retry
+            }
+            if (rule.pattern && !rule.pattern.test(token)) {
+                showToast(`❌ Invalid ${appName} token format. ${rule.hint}`, "error");
+                return;
+            }
         }
 
         setConnectModalApp(null);
@@ -119,13 +143,13 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     locationId: activeLocId,
-                    [keyName]: connectToken
+                    [keyName]: token
                 })
             });
 
             if (res.ok) {
                 setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
-                showToast(`${appName} connected successfully!`);
+                showToast(`✅ ${appName} connected successfully!`);
             } else {
                 showToast(`Failed to connect ${appName}.`, "error");
             }
