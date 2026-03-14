@@ -68,6 +68,7 @@ model Location {
   instagramToken        String?
   facebookToken         String?
   tiktokToken           String?
+  xToken                String?
   googleBusinessToken   String?
   yelpApiKey            String?
 
