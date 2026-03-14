@@ -78,6 +78,11 @@ export default function SettingsPage() {
     const [verifyStep, setVerifyStep] = useState<"idle" | "sending" | "input" | "verifying" | "done">("idle");
     const [verifyCode, setVerifyCode] = useState("");
     const [verifyError, setVerifyError] = useState("");
+    const [pwStep, setPwStep] = useState<"closed" | "open" | "saving">("closed");
+    const [pwCurrent, setPwCurrent] = useState("");
+    const [pwNew, setPwNew] = useState("");
+    const [pwConfirm, setPwConfirm] = useState("");
+    const [pwError, setPwError] = useState("");
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [connectToken, setConnectToken] = useState("");
@@ -444,13 +449,50 @@ export default function SettingsPage() {
                         {/* Security Card */}
                         <div className="s-card">
                             <h2 style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 20 }}>🔒 Security</h2>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
-                                <div>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 2 }}>Password</div>
-                                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>••••••••••</div>
+                            {pwStep === "closed" ? (
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                                    <div>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 2 }}>Password</div>
+                                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)" }}>••••••••••</div>
+                                    </div>
+                                    <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => setPwStep("open")}>Change Password</button>
                                 </div>
-                                <button className="btn-ghost" style={{ fontSize: 12 }}>Change Password</button>
-                            </div>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                                    {pwError && <div style={{ fontSize: 12, color: "#f87171", background: "rgba(248,113,113,0.06)", padding: "8px 12px", borderRadius: 8 }}>⚠ {pwError}</div>}
+                                    <div>
+                                        <div className="f-label">Current Password</div>
+                                        <input className="s-input" type="password" placeholder="Enter current password" value={pwCurrent} onChange={e => setPwCurrent(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <div className="f-label">New Password</div>
+                                        <input className="s-input" type="password" placeholder="Min 8 characters" value={pwNew} onChange={e => setPwNew(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <div className="f-label">Confirm New Password</div>
+                                        <input className="s-input" type="password" placeholder="Repeat new password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} />
+                                    </div>
+                                    <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                                        <button className="btn-gold" style={{ fontSize: 13, padding: "10px 20px", opacity: pwStep === "saving" ? 0.6 : 1 }}
+                                            disabled={pwStep === "saving"}
+                                            onClick={async () => {
+                                                setPwError("");
+                                                if (!pwCurrent) { setPwError("Enter your current password"); return; }
+                                                if (pwNew.length < 8) { setPwError("New password must be at least 8 characters"); return; }
+                                                if (pwNew !== pwConfirm) { setPwError("Passwords do not match"); return; }
+                                                setPwStep("saving");
+                                                try {
+                                                    const res = await fetch("/api/restaurant", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }) });
+                                                    const data = await res.json();
+                                                    if (res.ok) { showToast("✅ Password changed successfully!"); setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); }
+                                                    else { setPwError(data.error || "Failed to change password"); setPwStep("open"); }
+                                                } catch { setPwError("Network error"); setPwStep("open"); }
+                                            }}
+                                        >{pwStep === "saving" ? "Saving..." : "Update Password"}</button>
+                                        <button className="btn-ghost" style={{ fontSize: 12 }} onClick={() => { setPwStep("closed"); setPwCurrent(""); setPwNew(""); setPwConfirm(""); setPwError(""); }}>Cancel</button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Data Card */}

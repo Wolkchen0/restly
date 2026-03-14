@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Legend } from "recharts";
 
 const WEEKLY_DATA = [
@@ -86,7 +87,7 @@ const INSIGHT_STYLES = {
 
 export default function FinancePage() {
     const [period, setPeriod] = useState("Month-to-Date");
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [opex, setOpex] = useState(DEFAULT_OPEX);
     const [laborOverride, setLaborOverride] = useState<string>("");
@@ -98,15 +99,7 @@ export default function FinancePage() {
         setTimeout(() => setToastMsg(null), 3000);
     };
 
-    useEffect(() => {
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(!!restName);
-            })
-            .catch(() => { });
-    }, []);
+
 
     const totalOpex = opex.reduce((a, e) => a + e.amount, 0);
 

@@ -1,12 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 
 export default function GuestsPage() {
     const [data, setData] = useState<any>(null);
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<any>(null);
     const [consent, setConsent] = useState(false);
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
 
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsConnected, setReviewsConnected] = useState<boolean>(false);
@@ -16,13 +17,7 @@ export default function GuestsPage() {
         // Check if consent was already given this session
         setConsent(sessionStorage.getItem("guests_consent") === "true");
 
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(!!restName);
-            })
-            .catch(() => { });
+
 
         fetch("/api/reviews")
             .then(r => r.json())

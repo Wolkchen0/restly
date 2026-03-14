@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 
 const DEMO_STAFF_TODAY = [
     { rank: 1, name: "Lisa Park", role: "Bartender", daysWorked: 1, totalSales: 1420, foodSales: 280, drinkSales: 1140, checkAvg: 102, turnTime: 28, tipPct: 26.5, trend: "up", topItems: ["Espresso Martini", "Negroni"], upsellRate: 82 },
@@ -62,18 +63,9 @@ function getAIRecommendation(staff: any, allStaff: any[]) {
 
 export default function TeamPerformancePage() {
     const [period, setPeriod] = useState<"today" | "month" | "year">("today");
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
 
-    useEffect(() => {
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(!!restName);
-            })
-            .catch(() => { });
-    }, []);
 
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const showToast = (msg: string) => {

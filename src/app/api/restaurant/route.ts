@@ -1,60 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
-// GET /api/restaurant — fetch current tenant's brand profile
-export async function GET() {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const r = await prisma.restaurant.findUnique({
-        where: { id: session.user.id },
-        select: {
-            id: true, name: true, email: true, plan: true,
-            primaryColor: true, openaiKey: true,
-            trialEndsAt: true, isActive: true, createdAt: true,
-            // Include default location info
-            locations: {
-                where: { isDefault: true },
-                take: 1,
-                select: { timezone: true, city: true },
-            },
-        },
-    });
-
-    if (!r) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    // Flatten first location's timezone for backward compat
-    const defaultLoc = r.locations?.[0];
-    return NextResponse.json({
-        ...r,
-        timezone: defaultLoc?.timezone || "America/Los_Angeles",
-        city: defaultLoc?.city || null,
-        locations: undefined,
-    });
-}
-
-// PATCH /api/restaurant — update brand-level settings
+// PATCH /api/restaurant — change password
 export async function PATCH(req: NextRequest) {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     try {
-        const body = await req.json();
-        const allowed = ["name", "primaryColor", "openaiKey"] as const;
-        const data: Record<string, string> = {};
-        for (const key of allowed) {
-            if (body[key] !== undefined) data[key] = body[key];
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const updated = await prisma.restaurant.update({
+        const { currentPassword, newPassword } = await req.json();
+
+        if (!currentPassword || !newPassword) {
+            return NextResponse.json({ error: "Current and new password are required" }, { status: 400 });
+        }
+
+        if (newPassword.length < 8) {
+            return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+        }
+
+        const restaurant = await prisma.restaurant.findUnique({ where: { id: session.user.id } });
+        if (!restaurant) {
+            return NextResponse.json({ error: "Account not found" }, { status: 404 });
+        }
+
+        // Verify current password
+        const isValid = await bcrypt.compare(currentPassword, restaurant.passwordHash);
+        if (!isValid) {
+            return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
+        }
+
+        // Hash new password and update
+        const newHash = await bcrypt.hash(newPassword, 12);
+        await prisma.restaurant.update({
             where: { id: session.user.id },
-            data,
+            data: { passwordHash: newHash },
         });
 
-        return NextResponse.json({ success: true, name: updated.name, primaryColor: updated.primaryColor });
+        return NextResponse.json({ success: true, message: "Password updated" });
     } catch (err) {
-        console.error(err);
-        return NextResponse.json({ error: "Update failed" }, { status: 500 });
+        console.error("Change password error:", err);
+        return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 
 const STATION_DATA = [
@@ -18,7 +19,7 @@ const INITIAL_TICKETS = [
 ];
 
 export default function KDSPage() {
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [tickets, setTickets] = useState(INITIAL_TICKETS);
     const [escalatedId, setEscalatedId] = useState<string | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -33,15 +34,7 @@ export default function KDSPage() {
         showToast(`Ticket ${id} has been escalated to the Kitchen Manager via SMS/Push.`);
     };
 
-    useEffect(() => {
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(!!restName);
-            })
-            .catch(() => { });
-    }, []);
+
 
     return (
         <>

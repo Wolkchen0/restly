@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
 import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining } from "@/services/drinks";
 
@@ -43,7 +44,7 @@ export default function RecipesPage() {
     const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([...FOOD_RECIPES]);
     const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([...DRINK_RECIPES]);
     const [bottles] = useState<BottleInfo[]>([...BOTTLE_INVENTORY]);
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
     const [editModal, setEditModal] = useState<FoodRecipe | null>(null);
@@ -65,9 +66,7 @@ export default function RecipesPage() {
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
-    useEffect(() => {
-        fetch("/api/locations").then(r => r.json()).then(d => setIsDemo(!!d.restaurantName)).catch(() => { });
-    }, []);
+
 
     // Calculate cost & servings for each food recipe
     const getFoodData = (r: FoodRecipe) => {

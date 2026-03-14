@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 
 const FORM_TIME_ENTRY = "/forms/time-entry";
 const FORM_TIME_OFF = "/forms/time-off";
@@ -137,7 +138,7 @@ export default function SchedulePage() {
     const [activeTab, setActiveTab] = useState<"schedule" | "timeoff" | "timeentry">("schedule");
     const [copied, setCopied] = useState<string | null>(null);
     const [locationId, setLocationId] = useState<string>("");
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [employees, setEmployees] = useState<Employee[]>([...INITIAL_EMPLOYEES]);
     const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>(() => generateDefaultSchedule(INITIAL_EMPLOYEES));
     const [weekOffset, setWeekOffset] = useState(0);
@@ -167,8 +168,9 @@ export default function SchedulePage() {
         if (loc) setLocationId(loc);
         fetch("/api/locations").then(r => r.json()).then(d => {
             const restName = d.restaurantName || "";
-            setIsDemo(!!restName);
-            if (!!restName) {
+            const email = d.email || "";
+            const isDemoAccount = email === "demo@restly.com" || restName.toLowerCase().includes("sample");
+            if (isDemoAccount) {
                 setLocationId("DEMO_RESTLY_12345");
                 fetch("/api/timeoff?locId=DEMO_RESTLY_12345").then(res => res.json()).then(tData => {
                     const dbRequests = (tData.requests ?? []).map((r: any) => ({ ...r, formSource: r.type === "TIMEOFF" ? 2 : 1 }));

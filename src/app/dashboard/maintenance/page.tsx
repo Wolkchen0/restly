@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 
 const INITIAL_LOGS = [
     { id: 1, date: "2026-03-05", shift: "AM", manager: "Sarah J.", notes: "Health inspector dropped by, everything passed (98/100). Need to order more degreaser. Slow lunch, about $1400 total.", tags: ["Audit", "Slow"] },
@@ -16,7 +17,7 @@ const INITIAL_EQUIPMENT = [
 
 export default function MaintenancePage() {
     const [actioned, setActioned] = useState<string | null>(null);
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [equipmentList, setEquipmentList] = useState(INITIAL_EQUIPMENT);
     const [aiDispatched, setAiDispatched] = useState(false);
     const [expandedEq, setExpandedEq] = useState<string | null>(null);
@@ -46,22 +47,14 @@ export default function MaintenancePage() {
         setTimeout(() => setToastMsg(null), 3000);
     };
 
-    useEffect(() => {
-        fetch("/api/locations")
-            .then(r => r.json())
-            .then(d => {
-                const restName = d.restaurantName || "";
-                setIsDemo(!!restName);
-            })
-            .catch(() => { });
 
+    useEffect(() => {
         // AI Logic: Scan logs for maintenance issues
         const issues: string[] = [];
         const keywords = ["broken", "not working", "fails", "arizali", "bozuk", "tamir", "leak", "noise"];
         INITIAL_LOGS.forEach(log => {
             const lowerNote = log.notes.toLowerCase();
             if (keywords.some(k => lowerNote.includes(k))) {
-                // Try to find which equipment is mentioned
                 INITIAL_EQUIPMENT.forEach(eq => {
                     if (lowerNote.includes(eq.name.toLowerCase().split(' ')[0])) {
                         issues.push(`${eq.name} issue detected in today's logs: "${log.notes}"`);

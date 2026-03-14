@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useIsDemo } from "@/lib/use-demo";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 // Dummy live sales data for the chart
@@ -17,7 +18,7 @@ const salesData = [
 export default function DashboardOverview() {
     const [activeLoc, setActiveLoc] = useState<string>("Loading...");
     const [currentTime, setCurrentTime] = useState("");
-    const [isDemo, setIsDemo] = useState<boolean>(true);
+    const isDemo = useIsDemo();
     const [isSyncing, setIsSyncing] = useState(false);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -36,13 +37,10 @@ export default function DashboardOverview() {
             .then(r => r.json())
             .then(d => {
                 const restaurantName = d.restaurantName || "No Location Setup";
-                // Only show demo data for the actual demo/sample account
-                const isDemoAccount = d.email === "demo@restly.com" || restaurantName.toLowerCase().includes("sample");
-                setIsDemo(isDemoAccount);
                 if (d.locations?.length > 0) {
                     const savedId = localStorage.getItem("restly_active_location");
                     const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];
-                    setActiveLoc(loc.name.split("— ").pop() || loc.name); // only branch name
+                    setActiveLoc(loc.name.split("— ").pop() || loc.name);
                 } else {
                     setActiveLoc(restaurantName);
                 }

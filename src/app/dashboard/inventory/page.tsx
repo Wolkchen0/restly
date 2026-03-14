@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useIsDemo } from "@/lib/use-demo";
 import { BOTTLE_INVENTORY, DRINK_RECIPES, DEMO_DRINK_SALES, getTotalMlRemaining, getServingsRemaining, getPourCost, getCocktailsUsing, type BottleInfo, type DrinkRecipe } from "@/services/drinks";
 import { FOOD_INGREDIENTS, FOOD_RECIPES, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, getRecipesUsing, type FoodIngredient } from "@/services/food-recipes";
 
@@ -7,7 +8,7 @@ export default function InventoryPage() {
     const [data, setData] = useState<any>(null);
     const [search, setSearch] = useState("");
     const [activeTab, setActiveTab] = useState<"Food" | "Drink">("Food");
-    const [isDemo, setIsDemo] = useState(true);
+    const isDemo = useIsDemo();
     const [loading, setLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState<string>("");
     const [syncCountdown, setSyncCountdown] = useState(600);
@@ -222,7 +223,6 @@ export default function InventoryPage() {
             try {
                 const locRes = await fetch("/api/locations");
                 const locData = await locRes.json();
-                setIsDemo(!!locData.restaurantName);
                 const invRes = await fetch("/api/inventory");
                 const invData = await invRes.json();
                 setData(invData);
