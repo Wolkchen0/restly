@@ -1,23 +1,61 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+
+const GUEST_PATCHES_KEY = "restly_guest_patches";
+
+function loadPatches(): Record<string, any> {
+    try {
+        const raw = sessionStorage.getItem(GUEST_PATCHES_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+}
+
+function savePatch(guestName: string, updates: any) {
+    try {
+        const patches = loadPatches();
+        const key = guestName.toLowerCase().trim();
+        patches[key] = { ...(patches[key] || {}), ...updates };
+        sessionStorage.setItem(GUEST_PATCHES_KEY, JSON.stringify(patches));
+    } catch { /* storage full */ }
+}
+
+function applyPatches(guests: any[]): any[] {
+    const patches = loadPatches();
+    return guests.map(g => {
+        const key = `${g.firstName} ${g.lastName}`.toLowerCase().trim();
+        const patch = patches[key];
+        if (patch) {
+            return { ...g, ...patch };
+        }
+        return g;
+    });
+}
 
 export default function GuestsPage() {
     const [data, setData] = useState<any>(null);
     const [search, setSearch] = useState("");
     const [selected, setSelected] = useState<any>(null);
     const [consent, setConsent] = useState(false);
+    const [editingNotes, setEditingNotes] = useState(false);
+    const [editedNotes, setEditedNotes] = useState("");
+    const [editingContact, setEditingContact] = useState(false);
+    const [editedPhone, setEditedPhone] = useState("");
+    const [editedEmail, setEditedEmail] = useState("");
     const isDemo = useIsDemo();
 
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsConnected, setReviewsConnected] = useState<boolean>(false);
+    const [sentimentScore, setSentimentScore] = useState(0);
 
     useEffect(() => {
-        fetch("/api/guests").then(r => r.json()).then(setData);
-        // Check if consent was already given this session
+        // Load guests from API, then apply any session patches
+        fetch("/api/guests").then(r => r.json()).then(apiData => {
+            const patchedGuests = applyPatches(apiData?.guests ?? []);
+            setData({ ...apiData, guests: patchedGuests });
+        }).catch(() => {});
+
         setConsent(sessionStorage.getItem("guests_consent") === "true");
-
-
 
         fetch("/api/reviews")
             .then(r => r.json())
@@ -25,9 +63,51 @@ export default function GuestsPage() {
                 if (d.connected) {
                     setReviewsConnected(true);
                     setReviews(d.reviews || []);
+                    setSentimentScore(d.sentimentScore || 0);
                 }
             })
             .catch(() => { });
+
+        // Listen for chatbot guest updates — apply directly to local state
+        const handleGuestUpdated = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (!detail?.name) return;
+
+            // Build the patch from chatbot data
+            const patch: any = {};
+            if (detail.dietaryNotes !== undefined) patch.dietaryNotes = detail.dietaryNotes;
+            if (detail.isVip !== undefined) patch.isVip = detail.isVip;
+            if (detail.notes !== undefined) patch.notes = detail.notes;
+            if (detail.preferences) patch.preferences = detail.preferences;
+            if (detail.specialOccasions) patch.specialOccasions = detail.specialOccasions;
+            if (detail.favoriteItems) patch.favoriteItems = detail.favoriteItems;
+            if (detail.phone !== undefined) patch.phone = detail.phone;
+            if (detail.email !== undefined) patch.email = detail.email;
+
+            // Save to sessionStorage for persistence across navigation
+            savePatch(detail.name, patch);
+
+            // Apply immediately to local React state
+            setData((prev: any) => {
+                if (!prev) return prev;
+                const updatedGuests = prev.guests.map((g: any) => {
+                    const fullName = `${g.firstName} ${g.lastName}`.toLowerCase().trim();
+                    if (fullName === detail.name.toLowerCase().trim()) {
+                        const updated = { ...g, ...patch };
+                        // Also update selected guest if it's the same
+                        setSelected((sel: any) => sel && sel.id === g.id ? updated : sel);
+                        return updated;
+                    }
+                    return g;
+                });
+                return { ...prev, guests: updatedGuests };
+            });
+        };
+        window.addEventListener("guest-updated", handleGuestUpdated);
+
+        return () => {
+            window.removeEventListener("guest-updated", handleGuestUpdated);
+        };
     }, []);
 
     function giveConsent() {
@@ -279,11 +359,86 @@ export default function GuestsPage() {
                                                 ))}
                                             </div>
 
-                                            {/* Contact */}
+                                            {/* Contact - Editable */}
                                             <div>
-                                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Contact</div>
-                                                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.phone}</div>
-                                                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.email}</div>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1 }}>Contact</div>
+                                                    {!editingContact ? (
+                                                        <button
+                                                            onClick={() => { setEditingContact(true); setEditedPhone(selected.phone || ""); setEditedEmail(selected.email || ""); }}
+                                                            style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 11, padding: "3px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                                        >
+                                                            ✏️ Edit
+                                                        </button>
+                                                    ) : (
+                                                        <div style={{ display: "flex", gap: 6 }}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const updatedGuest = { ...selected, phone: editedPhone, email: editedEmail };
+                                                                    savePatch(`${selected.firstName} ${selected.lastName}`, { phone: editedPhone, email: editedEmail });
+                                                                    setSelected(updatedGuest);
+                                                                    setData((prev: any) => {
+                                                                        if (!prev) return prev;
+                                                                        const updatedGuests = prev.guests.map((g: any) =>
+                                                                            g.id === selected.id ? { ...g, phone: editedPhone, email: editedEmail } : g
+                                                                        );
+                                                                        return { ...prev, guests: updatedGuests };
+                                                                    });
+                                                                    setEditingContact(false);
+                                                                }}
+                                                                style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 6, color: "var(--green)", fontSize: 11, padding: "3px 10px", cursor: "pointer" }}
+                                                            >
+                                                                ✓ Save
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingContact(false)}
+                                                                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, padding: "3px 10px", cursor: "pointer" }}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {editingContact ? (
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <span style={{ fontSize: 12, color: "var(--text-muted)", width: 50, flexShrink: 0 }}>📞</span>
+                                                            <input
+                                                                value={editedPhone}
+                                                                onChange={e => setEditedPhone(e.target.value)}
+                                                                placeholder="Phone number"
+                                                                style={{
+                                                                    flex: 1, fontSize: 13, color: "var(--text-primary)",
+                                                                    background: "var(--bg-secondary)", borderRadius: 8, padding: "8px 12px",
+                                                                    border: "1px solid var(--gold)", outline: "none", fontFamily: "inherit",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <span style={{ fontSize: 12, color: "var(--text-muted)", width: 50, flexShrink: 0 }}>✉️</span>
+                                                            <input
+                                                                value={editedEmail}
+                                                                onChange={e => setEditedEmail(e.target.value)}
+                                                                placeholder="Email address"
+                                                                style={{
+                                                                    flex: 1, fontSize: 13, color: "var(--text-primary)",
+                                                                    background: "var(--bg-secondary)", borderRadius: 8, padding: "8px 12px",
+                                                                    border: "1px solid var(--gold)", outline: "none", fontFamily: "inherit",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        onClick={() => { setEditingContact(true); setEditedPhone(selected.phone || ""); setEditedEmail(selected.email || ""); }}
+                                                        style={{ cursor: "pointer", border: "1px solid transparent", borderRadius: 8, padding: "2px 0", transition: "border-color 0.15s" }}
+                                                        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                                        onMouseLeave={e => (e.currentTarget.style.borderColor = "transparent")}
+                                                    >
+                                                        <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.phone || "No phone"}</div>
+                                                        <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{selected.email || "No email"}</div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Preferences */}
@@ -326,15 +481,76 @@ export default function GuestsPage() {
                                                 </div>
                                             )}
 
-                                            {/* Notes */}
-                                            {selected.notes && (
-                                                <div>
-                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Manager Notes</div>
-                                                    <div style={{ fontSize: 13, color: "var(--text-secondary)", background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px", lineHeight: 1.6 }}>
-                                                        {selected.notes}
-                                                    </div>
+                                            {/* Notes - Editable */}
+                                            <div>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                                                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 1 }}>Manager Notes</div>
+                                                    {!editingNotes ? (
+                                                        <button
+                                                            onClick={() => { setEditingNotes(true); setEditedNotes(selected.notes || ""); }}
+                                                            style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", fontSize: 11, padding: "3px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                                                        >
+                                                            ✏️ Edit
+                                                        </button>
+                                                    ) : (
+                                                        <div style={{ display: "flex", gap: 6 }}>
+                                                            <button
+                                                                onClick={() => {
+                                                                    // Save edited notes locally
+                                                                    const updatedGuest = { ...selected, notes: editedNotes };
+                                                                    savePatch(`${selected.firstName} ${selected.lastName}`, { notes: editedNotes });
+                                                                    setSelected(updatedGuest);
+                                                                    setData((prev: any) => {
+                                                                        if (!prev) return prev;
+                                                                        const updatedGuests = prev.guests.map((g: any) =>
+                                                                            g.id === selected.id ? { ...g, notes: editedNotes } : g
+                                                                        );
+                                                                        return { ...prev, guests: updatedGuests };
+                                                                    });
+                                                                    setEditingNotes(false);
+                                                                }}
+                                                                style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 6, color: "var(--green)", fontSize: 11, padding: "3px 10px", cursor: "pointer" }}
+                                                            >
+                                                                ✓ Save
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setEditingNotes(false)}
+                                                                style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-muted)", fontSize: 11, padding: "3px 10px", cursor: "pointer" }}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
+                                                {editingNotes ? (
+                                                    <textarea
+                                                        value={editedNotes}
+                                                        onChange={e => setEditedNotes(e.target.value)}
+                                                        placeholder="Add manager notes..."
+                                                        style={{
+                                                            width: "100%", minHeight: 80, fontSize: 13, color: "var(--text-primary)",
+                                                            background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px",
+                                                            lineHeight: 1.6, border: "1px solid var(--gold)", outline: "none",
+                                                            resize: "vertical", fontFamily: "inherit",
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        onClick={() => { setEditingNotes(true); setEditedNotes(selected.notes || ""); }}
+                                                        style={{
+                                                            fontSize: 13, color: selected.notes ? "var(--text-secondary)" : "var(--text-muted)",
+                                                            background: "var(--bg-secondary)", borderRadius: 10, padding: "10px 14px",
+                                                            lineHeight: 1.6, cursor: "pointer", whiteSpace: "pre-wrap",
+                                                            minHeight: 36, border: "1px solid transparent",
+                                                            transition: "border-color 0.15s",
+                                                        }}
+                                                        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border)")}
+                                                        onMouseLeave={e => (e.currentTarget.style.borderColor = "transparent")}
+                                                    >
+                                                        {selected.notes || "Click to add notes..."}
+                                                    </div>
+                                                )}
+                                            </div>
 
                                             {/* Last visit */}
                                             <div style={{ fontSize: 12, color: "var(--text-muted)", borderTop: "1px solid var(--border)", paddingTop: 14 }}>
@@ -352,7 +568,7 @@ export default function GuestsPage() {
                                 <span className="card-title">Daily Reviews & Sentiment Intelligence</span>
                                 {reviewsConnected && (
                                     <span style={{ fontSize: 13, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)", color: "var(--gold-light)", padding: "4px 10px", borderRadius: 12, fontWeight: 700 }}>
-                                        🧠 AI Sentiment: 85% Positive
+                                    🧠 AI Sentiment: {sentimentScore}% Positive
                                     </span>
                                 )}
                             </div>

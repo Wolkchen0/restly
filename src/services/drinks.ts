@@ -220,3 +220,49 @@ export function formatBottleRemaining(bottle: BottleInfo): string {
 export function getCocktailsUsing(spiritId: string): DrinkRecipe[] {
     return DRINK_RECIPES.filter(r => r.ingredients.some(i => i.spiritId === spiritId));
 }
+
+// ─── ML ↔ OZ CONVERSION ─────────────────────────────────────────────────────
+// US fluid ounce = 29.5735 ml
+const ML_PER_OZ = 29.5735;
+
+/** Convert ml to oz */
+export function mlToOz(ml: number): number {
+    return Math.round((ml / ML_PER_OZ) * 100) / 100;
+}
+
+/** Convert oz to ml */
+export function ozToMl(oz: number): number {
+    return Math.round(oz * ML_PER_OZ * 100) / 100;
+}
+
+/** Format ml amount with oz equivalent: "60ml (2oz)" */
+export function formatMlOz(ml: number): string {
+    const oz = mlToOz(ml);
+    // Use clean fractions for common bar measurements
+    const ozStr = formatOzFraction(oz);
+    return `${ml}ml (${ozStr})`;
+}
+
+/** Format oz as clean fractions used in bars (½, ¾, 1½, 2, etc.) */
+export function formatOzFraction(oz: number): string {
+    const whole = Math.floor(oz);
+    const frac = oz - whole;
+    let fracStr = "";
+    if (frac >= 0.4 && frac < 0.6) fracStr = "½";
+    else if (frac >= 0.2 && frac < 0.4) fracStr = "¼";
+    else if (frac >= 0.7 && frac < 0.9) fracStr = "¾";
+    else if (frac >= 0.1 && frac < 0.2) fracStr = "⅛";
+    if (whole === 0 && fracStr) return `${fracStr}oz`;
+    if (whole > 0 && fracStr) return `${whole}${fracStr}oz`;
+    return `${oz.toFixed(oz % 1 === 0 ? 0 : 1)}oz`;
+}
+
+/** Format bottle remaining with oz: "4 bottles + 320ml (10.8oz)" */
+export function formatBottleRemainingOz(bottle: BottleInfo): string {
+    if (bottle.fullBottles === 0 && bottle.openBottleMl === 0) return "OUT OF STOCK";
+    const parts: string[] = [];
+    if (bottle.fullBottles > 0) parts.push(`${bottle.fullBottles} bottle${bottle.fullBottles > 1 ? "s" : ""}`);
+    if (bottle.openBottleMl > 0) parts.push(`${bottle.openBottleMl}ml (${mlToOz(bottle.openBottleMl)}oz) open`);
+    return parts.join(" + ");
+}
+

@@ -73,3 +73,35 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
 }
+
+// PUT /api/restaurant — update brand settings (name, color)
+export async function PUT(req: NextRequest) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const { name, primaryColor } = body;
+
+        const data: any = {};
+        if (name && name.trim()) data.name = name.trim();
+        if (primaryColor) data.primaryColor = primaryColor;
+
+        if (Object.keys(data).length === 0) {
+            return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+        }
+
+        const updated = await prisma.restaurant.update({
+            where: { id: session.user.id },
+            data,
+            select: { name: true, primaryColor: true },
+        });
+
+        return NextResponse.json({ success: true, restaurant: updated });
+    } catch (err) {
+        console.error("Update brand error:", err);
+        return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+}

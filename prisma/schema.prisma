@@ -35,6 +35,7 @@ model Restaurant {
 
   // Relations
   locations    Location[]
+  guests       Guest[]
 }
 
 // ─── LOCATION (individual branch/outlet) ─────────────────────────────────────
@@ -93,4 +94,32 @@ model TimeRequest {
   type         String   @default("TIMEOFF") // TIMEOFF or TIMEENTRY
   
   createdAt    DateTime @default(now())
+}
+
+// ─── GUEST PROFILE (per-restaurant customer data) ────────────────────────────
+model Guest {
+  id             String   @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  firstName      String
+  lastName       String    @default("")
+  email          String    @default("")
+  phone          String    @default("")
+  visitCount     Int       @default(1)
+  lastVisit      String?   // ISO date string
+  preferences    String[]  @default([])
+  dietaryNotes   String    @default("")
+  averageSpend   Float     @default(0)
+  isVip          Boolean   @default(false)
+  favoriteItems  String[]  @default([])
+  specialOccasions String[] @default([])
+  averagePartySize Int     @default(2)
+  notes          String    @default("")
+  source         String    @default("manual") // manual | opentable | chatbot
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([restaurantId, firstName, lastName])
 }

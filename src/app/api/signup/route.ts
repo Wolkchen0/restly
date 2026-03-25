@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         if (existing) {
             if (existing.emailVerified) {
                 // Verified account — cannot re-register
-                return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+                return NextResponse.json({ error: "This email is already registered. Please log in instead." }, { status: 409 });
             }
             // Unverified account — delete it and allow fresh registration
             // First delete related records (locations, etc.)
@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
 
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Trial: 14 days from now
+        // Trial: 30 days from now (1 ay ücretsiz)
         const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 14);
+        trialEndsAt.setDate(trialEndsAt.getDate() + 30);
 
         // Generate verification code
         const verificationCode = generateVerificationCode();

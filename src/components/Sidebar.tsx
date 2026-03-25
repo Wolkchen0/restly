@@ -9,6 +9,7 @@ const NAV = [
     { href: "/dashboard/finance", label: "P&L / Finance", icon: "📈" },
     { href: "/dashboard/kds", label: "Kitchen Performance", icon: "🍳" },
     { href: "/dashboard/recipes", label: "Chef & Recipes", icon: "🍽️" },
+    { href: "/dashboard/pricing", label: "Dynamic Pricing", icon: "💲" },
     { href: "/dashboard/inventory", label: "Inventory", icon: "📦" },
     { href: "/dashboard/maintenance", label: "Maintenance", icon: "🔧" },
     { href: "/dashboard/guests", label: "Guests & VIPs", icon: "👤" },
@@ -266,7 +267,7 @@ export default function Sidebar({ restaurantName, plan }: Props) {
                     <div style={{ fontSize: 11, color: "var(--green)", marginBottom: 12 }}>✓ CCPA/CPRA Compliant</div>
 
                     <button
-                        onClick={() => signOut({ callbackUrl: "/" })}
+                        onClick={() => { try { sessionStorage.removeItem("demo_session_start"); sessionStorage.removeItem("guests_consent"); sessionStorage.removeItem("restly_guest_patches"); } catch {} signOut({ callbackUrl: "/" }); }}
                         style={{ width: "100%", background: "transparent", border: "1px solid var(--border)", color: "var(--text-muted)", fontSize: 13, padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", transition: "all 0.2s", textAlign: "left" }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#fff"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.2)"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = ""; (e.currentTarget as HTMLElement).style.borderColor = ""; }}

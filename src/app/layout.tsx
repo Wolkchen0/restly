@@ -1,5 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    themeColor: "#0A0A0F",
+};
 
 export const metadata: Metadata = {
     title: "Restly — AI Restaurant Manager",
@@ -13,6 +21,14 @@ export const metadata: Metadata = {
         title: "Restly — AI Restaurant Manager",
         description: "Run your restaurant smarter with AI-powered guest intelligence, real-time inventory, and smart scheduling.",
         type: "website",
+    },
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "black-translucent",
+        title: "Restly",
+    },
+    formatDetection: {
+        telephone: false,
     },
 };
 

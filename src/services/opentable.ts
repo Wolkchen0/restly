@@ -228,7 +228,36 @@ export function getStats() {
   };
 }
 
-export function addOrUpdateGuest(name: string, isVip?: boolean, notes?: string, dietaryNotes?: string, preferences?: string[]): Guest {
+export interface GuestUpdates {
+  isVip?: boolean;
+  notes?: string;
+  clearNotes?: boolean;
+  dietaryNotes?: string;
+  clearDietaryNotes?: boolean;
+  preferences?: string[];
+  removePreferences?: string[];
+  specialOccasions?: string[];
+  removeSpecialOccasions?: string[];
+  favoriteItems?: string[];
+  removeFavoriteItems?: string[];
+  phone?: string;
+  email?: string;
+}
+
+// Helper: case-insensitive remove from array
+function removeFromArray(arr: string[], toRemove: string[]): string[] {
+  const lowerRemove = toRemove.map(s => s.toLowerCase());
+  return arr.filter(item => !lowerRemove.includes(item.toLowerCase()));
+}
+
+// Helper: case-insensitive merge (add new, avoid duplicates)
+function mergeArray(existing: string[], toAdd: string[]): string[] {
+  const lowerExisting = existing.map(s => s.toLowerCase());
+  const newItems = toAdd.filter(item => !lowerExisting.includes(item.toLowerCase()));
+  return [...existing, ...newItems];
+}
+
+export function addOrUpdateGuest(name: string, updates: GuestUpdates = {}): Guest {
   const parts = name.trim().split(/\s+/);
   const firstName = parts[0] || name;
   const lastName = parts.slice(1).join(" ") || "";
@@ -242,14 +271,54 @@ export function addOrUpdateGuest(name: string, isVip?: boolean, notes?: string, 
   
   if (existing) {
     // Only change VIP if explicitly provided
-    if (isVip !== undefined) existing.isVip = isVip;
-    if (notes) existing.notes = notes;
-    if (dietaryNotes) existing.dietaryNotes = dietaryNotes;
-    if (preferences && preferences.length > 0) {
-      // Merge new preferences, avoiding duplicates
-      const merged = new Set([...existing.preferences, ...preferences]);
-      existing.preferences = [...merged];
+    if (updates.isVip !== undefined) existing.isVip = updates.isVip;
+
+    // Contact info
+    if (updates.phone !== undefined) existing.phone = updates.phone;
+    if (updates.email !== undefined) existing.email = updates.email;
+
+    // Clear or update notes — APPEND to existing notes, don't replace
+    if (updates.clearNotes) {
+      existing.notes = "";
+    } else if (updates.notes) {
+      if (existing.notes && existing.notes.trim()) {
+        existing.notes = existing.notes.trim() + "\n" + updates.notes;
+      } else {
+        existing.notes = updates.notes;
+      }
     }
+
+    // Clear or update dietary notes
+    if (updates.clearDietaryNotes) {
+      existing.dietaryNotes = "";
+    } else if (updates.dietaryNotes) {
+      existing.dietaryNotes = updates.dietaryNotes;
+    }
+
+    // Preferences: add then remove
+    if (updates.preferences && updates.preferences.length > 0) {
+      existing.preferences = mergeArray(existing.preferences, updates.preferences);
+    }
+    if (updates.removePreferences && updates.removePreferences.length > 0) {
+      existing.preferences = removeFromArray(existing.preferences, updates.removePreferences);
+    }
+
+    // Special occasions: add then remove
+    if (updates.specialOccasions && updates.specialOccasions.length > 0) {
+      existing.specialOccasions = mergeArray(existing.specialOccasions, updates.specialOccasions);
+    }
+    if (updates.removeSpecialOccasions && updates.removeSpecialOccasions.length > 0) {
+      existing.specialOccasions = removeFromArray(existing.specialOccasions, updates.removeSpecialOccasions);
+    }
+
+    // Favorite items: add then remove
+    if (updates.favoriteItems && updates.favoriteItems.length > 0) {
+      existing.favoriteItems = mergeArray(existing.favoriteItems, updates.favoriteItems);
+    }
+    if (updates.removeFavoriteItems && updates.removeFavoriteItems.length > 0) {
+      existing.favoriteItems = removeFromArray(existing.favoriteItems, updates.removeFavoriteItems);
+    }
+
     return existing;
   }
   
@@ -258,18 +327,18 @@ export function addOrUpdateGuest(name: string, isVip?: boolean, notes?: string, 
     id: `g${list.length + 1}`,
     firstName,
     lastName,
-    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`,
-    phone: "",
+    email: updates.email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@email.com`,
+    phone: updates.phone || "",
     visitCount: 1,
     lastVisit: new Date().toISOString().split("T")[0],
-    preferences: preferences || [],
-    dietaryNotes: dietaryNotes || "",
+    preferences: updates.preferences || [],
+    dietaryNotes: updates.dietaryNotes || "",
     averageSpend: 0,
-    isVip: isVip ?? false,
-    favoriteItems: [],
-    specialOccasions: [],
+    isVip: updates.isVip ?? false,
+    favoriteItems: updates.favoriteItems || [],
+    specialOccasions: updates.specialOccasions || [],
     averagePartySize: 2,
-    notes: notes || (isVip ? "Added as VIP via Restly AI." : "Added via Restly AI."),
+    notes: updates.notes || (updates.isVip ? "Added as VIP via Restly AI." : "Added via Restly AI."),
   };
   setGuestList([newGuest, ...list]);
   return newGuest;

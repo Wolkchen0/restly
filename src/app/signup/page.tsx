@@ -207,11 +207,11 @@ function SignupForm() {
         <div className="auth-card fade-in">
             <Link href="/" className="auth-logo">✦ Restly</Link>
             <div className="auth-title">Start your free trial</div>
-            <div className="auth-sub">14 days free · No credit card required · Cancel anytime</div>
+            <div className="auth-sub">30 days free · No credit card required · Cancel anytime</div>
 
             {/* Plan indicator */}
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.25)", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "var(--gold-light)", marginBottom: 24 }}>
-                ✦ {defaultPlan === "pro" ? "Professional Plan" : "Starter Plan"} — 14-day trial
+                ✦ {defaultPlan === "pro" ? "Professional Plan" : "Starter Plan"} — 30-day trial
             </div>
 
             {error && <div className="form-error">⚠ {error}</div>}

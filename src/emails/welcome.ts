@@ -6,7 +6,7 @@ interface WelcomeEmailProps {
 
 export function WelcomeEmail({ restaurantName, email, loginUrl }: WelcomeEmailProps): string {
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14);
+    trialEnd.setDate(trialEnd.getDate() + 30);
     const trialEndFormatted = trialEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
     return `<!DOCTYPE html>
@@ -61,7 +61,7 @@ export function WelcomeEmail({ restaurantName, email, loginUrl }: WelcomeEmailPr
                 <tr>
                   <td align="center" style="padding-bottom:32px;">
                     <p style="margin:0;font-size:16px;color:#8b8b9e;line-height:1.6;max-width:440px;">
-                      Your AI-powered restaurant manager is ready. You have <strong style="color:#E8C96E;">14 days free</strong> to explore everything Restly can do.
+                      Your AI-powered restaurant manager is ready. You have <strong style="color:#E8C96E;">30 days free</strong> to explore everything Restly can do.
                     </p>
                   </td>
                 </tr>

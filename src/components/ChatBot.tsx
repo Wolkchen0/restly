@@ -126,11 +126,8 @@ function ToolResultCard({ toolName, result }: { toolName: string; result: any })
 
     useEffect(() => {
         if (toolName === "add_or_update_guest" && result?.success && result?.guest) {
-            fetch("/api/guests", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: result.guest.name, isVip: result.guest.isVip }),
-            }).catch(() => {});
+            // Notify any open Guest Intelligence page to re-fetch data
+            window.dispatchEvent(new CustomEvent("guest-updated", { detail: result.guest }));
         }
     }, [toolName, result]);
 

@@ -62,9 +62,13 @@ function getAIRecommendation(staff: any, allStaff: any[]) {
 }
 
 export default function TeamPerformancePage() {
-    const [period, setPeriod] = useState<"today" | "month" | "year">("today");
+    const [period, setPeriod] = useState<"today" | "month" | "year" | "custom">("today");
     const isDemo = useIsDemo();
     const [selectedStaff, setSelectedStaff] = useState<any>(null);
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
 
 
     const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -74,7 +78,7 @@ export default function TeamPerformancePage() {
     };
 
     const handleExportStaff = () => {
-        const data = period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
+        const data = period === "custom" ? getCustomMonthData(selectedMonth) : period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
         import("@/utils/pdf-export").then(({ exportToPDF }) => {
             exportToPDF({
                 title: `Staff Performance — ${period.charAt(0).toUpperCase() + period.slice(1)}`,
@@ -88,7 +92,29 @@ export default function TeamPerformancePage() {
         });
     };
 
-    const data = period === "today" ? DEMO_STAFF_TODAY : period === "month" ? DEMO_STAFF_MONTH : DEMO_STAFF_YEAR;
+    // Generate month-specific data with variations
+    function getCustomMonthData(monthStr: string) {
+        const [year, month] = monthStr.split('-').map(Number);
+        const seed = year * 12 + month;
+        const vary = (base: number, pct: number) => {
+            const h = ((seed * 1237 + Math.round(base * 31)) % 100) / 100;
+            return Math.round(base * (1 + (h - 0.5) * pct * 2));
+        };
+        return DEMO_STAFF_MONTH.map((s, i) => ({
+            ...s,
+            rank: i + 1,
+            daysWorked: vary(s.daysWorked, 0.15),
+            totalSales: vary(s.totalSales, 0.2),
+            foodSales: vary(s.foodSales, 0.2),
+            drinkSales: vary(s.drinkSales, 0.2),
+            checkAvg: vary(s.checkAvg, 0.1),
+            turnTime: vary(s.turnTime, 0.08),
+            tipPct: Math.round((s.tipPct + ((seed * (i + 1) * 17) % 40 - 20) / 10) * 10) / 10,
+            upsellRate: Math.min(100, vary(s.upsellRate, 0.15)),
+        })).sort((a, b) => b.totalSales - a.totalSales).map((s, i) => ({ ...s, rank: i + 1 }));
+    }
+
+    const data = period === "today" ? DEMO_STAFF_TODAY : period === "month" ? DEMO_STAFF_MONTH : period === "custom" ? getCustomMonthData(selectedMonth) : DEMO_STAFF_YEAR;
     const topServer = data[0];
 
     return (
@@ -97,7 +123,7 @@ export default function TeamPerformancePage() {
                 <div className="topbar-title">🏆 Staff Performance & Sales</div>
                 <div className="topbar-right">
                     <button className="btn-secondary" onClick={handleExportStaff} style={{ fontSize: 13 }}>Export Leaderboard ↗</button>
-                    <div style={{ display: "flex", background: "var(--bg-card)", borderRadius: "8px", padding: "4px" }}>
+                    <div style={{ display: "flex", background: "var(--bg-card)", borderRadius: "8px", padding: "4px", alignItems: "center" }}>
                         {(["today", "month", "year"] as const).map(p => (
                             <button
                                 key={p}
@@ -107,6 +133,24 @@ export default function TeamPerformancePage() {
                                 {p === "today" ? "Today" : p === "month" ? "This Month" : "This Year"}
                             </button>
                         ))}
+                        <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+                        <div style={{ position: "relative" }}>
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={e => { setSelectedMonth(e.target.value); setPeriod("custom"); }}
+                                max={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`}
+                                min="2025-01"
+                                style={{
+                                    padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer",
+                                    fontSize: 12, fontWeight: period === "custom" ? 700 : 500,
+                                    background: period === "custom" ? "rgba(201,168,76,0.15)" : "transparent",
+                                    color: period === "custom" ? "#C9A84C" : "var(--text-muted)",
+                                    fontFamily: "inherit", outline: "none",
+                                    colorScheme: "dark",
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

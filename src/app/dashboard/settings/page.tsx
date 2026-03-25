@@ -88,6 +88,9 @@ export default function SettingsPage() {
     const pwCodeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     const [connectModalApp, setConnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
+    const [brandName, setBrandName] = useState("");
+    const [brandColor, setBrandColor] = useState("#C9A84C");
+    const [brandSaving, setBrandSaving] = useState(false);
     const [connectToken, setConnectToken] = useState("");
     const [disconnectModalApp, setDisconnectModalApp] = useState<{ name: string, keyName: string } | null>(null);
     const [toastMsg, setToastMsg] = useState<{ text: string, type: "success" | "error" } | null>(null);
@@ -157,7 +160,7 @@ export default function SettingsPage() {
         if (!connectModalApp) return;
         const appName = connectModalApp.name;
         const keyName = connectModalApp.keyName;
-        const token = connectToken.trim();
+        let token = connectToken.trim();
 
         if (!token) {
             showToast("Connection cancelled. A valid token is required.", "error");
@@ -165,25 +168,26 @@ export default function SettingsPage() {
             return;
         }
 
+        // Auto-strip "Bearer " prefix — users often paste the full header value
+        if (token.toLowerCase().startsWith("bearer ")) {
+            token = token.substring(7).trim();
+        }
+
         // Basic format validation per platform
         const validations: Record<string, { minLen: number; hint: string; pattern?: RegExp }> = {
-            googleBusinessToken: { minLen: 20, hint: "Google API keys are usually 39+ characters starting with 'AIza'", pattern: /^AIza/ },
-            yelpApiKey: { minLen: 20, hint: "Yelp API keys are 128-character strings" },
-            opentableRestaurantId: { minLen: 3, hint: "OpenTable Restaurant ID is a numeric ID (e.g. 12345)" },
-            xToken: { minLen: 20, hint: "X (Twitter) Bearer tokens are long alphanumeric strings" },
-            instagramToken: { minLen: 20, hint: "Instagram tokens are long alphanumeric strings starting with 'IGQV' or 'EAA'" },
-            facebookToken: { minLen: 20, hint: "Facebook tokens start with 'EAA' and are 100+ characters", pattern: /^EAA/ },
-            tiktokToken: { minLen: 20, hint: "TikTok tokens are long alphanumeric strings" },
+            googleBusinessToken: { minLen: 10, hint: "Enter your Google Place ID (starts with 'ChIJ' — find it on Google Maps URL or Google My Business)" },
+            yelpApiKey: { minLen: 40, hint: "Yelp API keys are long alphanumeric strings from https://www.yelp.com/developers" },
+            opentableRestaurantId: { minLen: 3, hint: "OpenTable Restaurant ID is a numeric ID (found in your OpenTable dashboard URL)" },
+            xToken: { minLen: 20, hint: "X (Twitter) Bearer token from developer.x.com/portal" },
+            instagramToken: { minLen: 20, hint: "Meta token starting with 'EAA' — get from Graph API Explorer" },
+            facebookToken: { minLen: 20, hint: "Meta token starting with 'EAA' (same token as Instagram)" },
+            tiktokToken: { minLen: 20, hint: "TikTok token from developers.tiktok.com" },
         };
 
         const rule = validations[keyName];
         if (rule) {
             if (token.length < rule.minLen) {
                 showToast(`❌ Invalid ${appName} token — too short. ${rule.hint}`, "error");
-                return; // Don't close modal, let user retry
-            }
-            if (rule.pattern && !rule.pattern.test(token)) {
-                showToast(`❌ Invalid ${appName} token format. ${rule.hint}`, "error");
                 return;
             }
         }
@@ -259,6 +263,7 @@ export default function SettingsPage() {
                     emailVerified: d.emailVerified ?? false,
                     createdAt: d.createdAt || ""
                 });
+                setBrandName(d.restaurantName || "");
 
                 if (d.locations?.length) {
                     setLocations(d.locations);
@@ -318,22 +323,50 @@ export default function SettingsPage() {
 
     const handleAddLocation = async () => {
         if (!newLocName.trim()) return;
-        const res = await fetch("/api/locations", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: newLocName, city: newLocCity }),
-        });
-        if (res.ok) {
+        try {
+            const res = await fetch("/api/locations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newLocName, city: newLocCity }),
+            });
             const data = await res.json();
-            const newLoc: LocationData = data.location;
-            setLocations(prev => [...prev, newLoc]);
-            setNewLocName(""); setNewLocCity(""); setAddingLoc(false);
-            selectLocation(newLoc);
+            if (res.ok) {
+                const newLoc: LocationData = data.location;
+                setLocations(prev => [...prev, newLoc]);
+                setNewLocName(""); setNewLocCity(""); setAddingLoc(false);
+                selectLocation(newLoc);
+                showToast("✅ Location added successfully!");
+            } else {
+                showToast(data.error || "Failed to add location", "error");
+            }
+        } catch {
+            showToast("Network error — could not add location", "error");
         }
     };
 
     const activeLoc = locations.find(l => l.id === activeLocId);
     const posInfo = POS_OPTIONS.find(p => p.id === selectedPOS);
+
+    const handleBrandSave = async () => {
+        setBrandSaving(true);
+        try {
+            const res = await fetch("/api/restaurant", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: brandName, primaryColor: brandColor }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setInfo(prev => ({ ...prev, restaurantName: brandName }));
+                showToast("✅ Brand settings saved!");
+            } else {
+                showToast(data.error || "Failed to save brand settings", "error");
+            }
+        } catch {
+            showToast("Network error — could not save", "error");
+        }
+        setBrandSaving(false);
+    };
 
     const planColors: Record<string, string> = {
         trial: "#6B7280", starter: "#3B82F6", pro: "#C9A84C", enterprise: "#8B5CF6",
@@ -968,14 +1001,16 @@ export default function SettingsPage() {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                             <div>
                                 <div className="f-label">Brand Name</div>
-                                <input className="s-input" defaultValue={info.restaurantName} />
+                                <input className="s-input" value={brandName} onChange={e => setBrandName(e.target.value)} placeholder="Your restaurant name" />
                             </div>
                             <div>
                                 <div className="f-label">Brand Color</div>
-                                <input className="s-input" type="color" defaultValue="#C9A84C" style={{ height: 44, padding: "4px 8px", cursor: "pointer" }} />
+                                <input className="s-input" type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} style={{ height: 44, padding: "4px 8px", cursor: "pointer" }} />
                             </div>
                         </div>
-                        <button className="btn-gold" style={{ marginTop: 20 }}>Save Brand Settings</button>
+                        <button className="btn-gold" style={{ marginTop: 20 }} onClick={handleBrandSave} disabled={brandSaving}>
+                            {brandSaving ? "Saving..." : "Save Brand Settings"}
+                        </button>
                     </div>
                 )
             }
@@ -993,7 +1028,7 @@ export default function SettingsPage() {
                         </div>
                         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 32, maxWidth: 400, margin: "0 auto 32px" }}>
                             {info.plan === "trial"
-                                ? "Your 14-day trial includes all Pro features. Upgrade before it expires to keep access."
+                                ? "Your 30-day trial includes all Pro features. Upgrade before it expires to keep access."
                                 : `You're on the ${info.plan} plan. Manage your subscription below.`}
                         </p>
                         <div style={{ display: "flex", gap: 14, justifyContent: "center" }}>

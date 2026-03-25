@@ -23,7 +23,7 @@ export async function sendWelcomeEmail({ restaurantName, email }: SendWelcomeEma
         const { data, error } = await resend.emails.send({
             from: "Restly <onboarding@resend.dev>",
             to: email,
-            subject: `Welcome to Restly, ${restaurantName}! 🎉 Your 14-day trial starts now`,
+            subject: `Welcome to Restly, ${restaurantName}! 🎉 Your 30-day trial starts now`,
             html: WelcomeEmail({ restaurantName, email, loginUrl }),
         });
 

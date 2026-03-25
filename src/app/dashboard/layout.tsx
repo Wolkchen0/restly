@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import ChatBot from "@/components/ChatBot";
+import DemoAutoLogout from "@/components/DemoAutoLogout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
     const session = await auth();
@@ -17,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 {children}
             </div>
             <ChatBot />
+            <DemoAutoLogout />
         </div>
     );
 }

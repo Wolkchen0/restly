@@ -2,12 +2,15 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { searchGuests, getVipGuests, getTodayReservations, addOrUpdateGuest } from "@/services/opentable";
 import { getInventory, getLowStockItems, getInventoryStats } from "@/services/toast";
 import { getAllTimeOffRequests } from "@/services/timeoff";
+import { getKDSSnapshot } from "@/services/kds";
 import { getRecentReviews, getReviewStats } from "@/services/reviews";
 import { BOTTLE_INVENTORY, DRINK_RECIPES } from "@/services/drinks";
 import { FOOD_INGREDIENTS, FOOD_RECIPES, getFoodCost, getFoodServingsRemaining } from "@/services/food-recipes";
+import { getAllRecommendations, getPricingStats } from "@/services/pricing";
 
 export const maxDuration = 30;
 const AI_MODEL = "gpt-4o-mini";
@@ -58,6 +61,7 @@ You are NOT just a chatbot — you are an active operations manager. You can:
 12. Compliance → Provide California food safety and RBS certification rules.
 13. Navigation → Guide users to specific pages or take them there directly.
 14. POS Integration Help → Guide users through connecting their Point of Sale system.
+15. Location Management → Add new locations/branches directly. (e.g. "Add a new location called Downtown in San Francisco")
 
 ## POS INTEGRATION KNOWLEDGE
 When users ask about connecting their POS, give them exact steps. Here is the official info:
@@ -338,27 +342,146 @@ IMPORTANT: Instagram and Facebook use the SAME Meta developer platform. ONE toke
                 }),
 
                 add_or_update_guest: tool({
-                    description: "Add a new guest or update their info. Use this for dietary preferences, seating preferences, notes, AND/OR VIP status. IMPORTANT: Only set isVip if the user explicitly asks to make someone VIP. For dietary notes, use the dietaryNotes field with the specific restriction — do NOT assume 'vegan' if they just say 'no red meat'.",
+                    description: `Manage ALL aspects of a guest profile. You can add, update, or remove ANY field. Supports:
+• VIP status (only change if explicitly asked)
+• Contact info (phone, email)
+• Dietary notes (allergies, restrictions)
+• Seating/service preferences (add or remove specific ones)
+• Special occasions — anniversaries, birthdays (add or remove. Format: "Anniversary - December 30")
+• Favorite menu items (add or remove specific ones)
+• Manager notes — general observations (APPENDED to existing, never replaced unless clearNotes=true)
+
+RULES:
+1. Anniversaries/birthdays → ALWAYS use specialOccasions, NEVER put in notes
+2. Notes are APPENDED (existing notes stay). Only clear with clearNotes=true
+3. To REMOVE items from lists, use the remove* fields (removePreferences, removeSpecialOccasions, removeFavoriteItems)
+4. Existing data is ALWAYS preserved unless user explicitly says to remove/clear/delete`,
                     parameters: z.object({
                         name: z.string().describe("Full name of the guest"),
-                        isVip: z.boolean().optional().describe("Only set this if user explicitly wants to change VIP status. Leave undefined to keep current status unchanged."),
-                        notes: z.string().optional().describe("General notes about the guest"),
-                        dietaryNotes: z.string().optional().describe("Specific dietary restriction. Examples: 'No red meat', 'No pork', 'No shellfish', 'Vegetarian', 'Vegan', 'Halal', 'Kosher', 'Gluten-free', 'Dairy-free', 'Nut allergy'. Use the EXACT restriction mentioned by the user, do NOT generalize."),
-                        preferences: z.array(z.string()).optional().describe("Seating or service preferences, e.g. ['Window seat', 'Quiet table']"),
+                        isVip: z.boolean().optional().describe("Only set if user explicitly asks to change VIP status"),
+                        phone: z.string().optional().describe("Guest phone number"),
+                        email: z.string().optional().describe("Guest email address"),
+                        notes: z.string().optional().describe("Manager notes — APPENDED to existing notes. Do NOT put anniversaries/birthdays here"),
+                        clearNotes: z.boolean().optional().describe("Set true to DELETE ALL manager notes"),
+                        dietaryNotes: z.string().optional().describe("Dietary restriction (replaces existing). Use EXACT text from user"),
+                        clearDietaryNotes: z.boolean().optional().describe("Set true to DELETE dietary notes"),
+                        preferences: z.array(z.string()).optional().describe("Seating/service preferences to ADD"),
+                        removePreferences: z.array(z.string()).optional().describe("Seating/service preferences to REMOVE"),
+                        specialOccasions: z.array(z.string()).optional().describe("Special occasions to ADD. Format: 'Anniversary - December 30' or 'Birthday - April 8'"),
+                        removeSpecialOccasions: z.array(z.string()).optional().describe("Special occasions to REMOVE"),
+                        favoriteItems: z.array(z.string()).optional().describe("Favorite menu items to ADD"),
+                        removeFavoriteItems: z.array(z.string()).optional().describe("Favorite menu items to REMOVE"),
                     }),
-                    execute: async ({ name, isVip, notes, dietaryNotes, preferences }) => {
-                        const guest = addOrUpdateGuest(name, isVip, notes, dietaryNotes, preferences);
+                    execute: async ({ name, isVip, phone, email, notes, clearNotes, dietaryNotes, clearDietaryNotes, preferences, removePreferences, specialOccasions, removeSpecialOccasions, favoriteItems, removeFavoriteItems }) => {
+                        // Build updates object
+                        const guestUpdates = {
+                            isVip, phone, email, notes, clearNotes,
+                            dietaryNotes, clearDietaryNotes,
+                            preferences, removePreferences,
+                            specialOccasions, removeSpecialOccasions,
+                            favoriteItems, removeFavoriteItems,
+                        };
+
+                        // Use in-memory for demo
+                        const guest = addOrUpdateGuest(name, guestUpdates);
+
+                        // Also persist to database for real accounts
+                        try {
+                            const parts = name.trim().split(/\s+/);
+                            const firstName = parts[0] || name;
+                            const lastName = parts.slice(1).join(" ") || "";
+                            const restaurant = await prisma.restaurant.findUnique({
+                                where: { id: session.user!.id! },
+                                select: { name: true, email: true },
+                            });
+                            const isDemoAcct = restaurant?.name?.toLowerCase().includes("sample") || restaurant?.email?.startsWith("demo");
+                            if (!isDemoAcct) {
+                                await prisma.guest.upsert({
+                                    where: {
+                                        restaurantId_firstName_lastName: {
+                                            restaurantId: session.user!.id!,
+                                            firstName,
+                                            lastName,
+                                        },
+                                    },
+                                    update: {
+                                        ...(isVip !== undefined && { isVip }),
+                                        ...(clearNotes ? { notes: "" } : notes ? { notes } : {}),
+                                        ...(clearDietaryNotes ? { dietaryNotes: "" } : dietaryNotes ? { dietaryNotes } : {}),
+                                        ...(preferences && preferences.length > 0 && { preferences }),
+                                    },
+                                    create: {
+                                        restaurantId: session.user!.id!,
+                                        firstName,
+                                        lastName,
+                                        isVip: isVip ?? false,
+                                        notes: clearNotes ? "" : (notes || ""),
+                                        dietaryNotes: clearDietaryNotes ? "" : (dietaryNotes || ""),
+                                        preferences: preferences || [],
+                                        source: "chatbot",
+                                    },
+                                });
+                            }
+                        } catch (e) { console.error("Guest DB upsert error:", e); }
+
                         const updates: string[] = [];
                         if (isVip !== undefined) updates.push(isVip ? "marked as VIP" : "removed from VIP");
-                        if (dietaryNotes) updates.push(`dietary: ${dietaryNotes}`);
-                        if (notes) updates.push(`notes updated`);
-                        if (preferences && preferences.length > 0) updates.push(`preferences: ${preferences.join(", ")}`);
+                        if (phone) updates.push(`phone: ${phone}`);
+                        if (email) updates.push(`email: ${email}`);
+                        if (clearDietaryNotes) updates.push("dietary notes cleared");
+                        else if (dietaryNotes) updates.push(`dietary: ${dietaryNotes}`);
+                        if (clearNotes) updates.push("manager notes cleared");
+                        else if (notes) updates.push("notes updated");
+                        if (specialOccasions && specialOccasions.length > 0) updates.push(`added occasions: ${specialOccasions.join(", ")}`);
+                        if (removeSpecialOccasions && removeSpecialOccasions.length > 0) updates.push(`removed occasions: ${removeSpecialOccasions.join(", ")}`);
+                        if (favoriteItems && favoriteItems.length > 0) updates.push(`added favorites: ${favoriteItems.join(", ")}`);
+                        if (removeFavoriteItems && removeFavoriteItems.length > 0) updates.push(`removed favorites: ${removeFavoriteItems.join(", ")}`);
+                        if (preferences && preferences.length > 0) updates.push(`added preferences: ${preferences.join(", ")}`);
+                        if (removePreferences && removePreferences.length > 0) updates.push(`removed preferences: ${removePreferences.join(", ")}`);
                         const summary = updates.length > 0 ? updates.join(", ") : "profile updated";
                         return {
                             success: true,
                             message: `${guest.firstName} ${guest.lastName} — ${summary}.`,
-                            guest: { id: guest.id, name: `${guest.firstName} ${guest.lastName}`, isVip: guest.isVip, dietaryNotes: guest.dietaryNotes },
+                            guest: {
+                                id: guest.id,
+                                name: `${guest.firstName} ${guest.lastName}`,
+                                isVip: guest.isVip,
+                                phone: guest.phone,
+                                email: guest.email,
+                                dietaryNotes: guest.dietaryNotes,
+                                notes: guest.notes,
+                                preferences: guest.preferences,
+                                specialOccasions: guest.specialOccasions,
+                                favoriteItems: guest.favoriteItems,
+                            },
                             navigation: { path: "/dashboard/guests", label: "Guest Intelligence" }
+                        };
+                    },
+                }),
+
+                get_pricing_recommendations: tool({
+                    description: "Get AI dynamic pricing recommendations for menu items. Returns suggested price changes based on ingredient costs, demand patterns, and market context. Use when user asks about pricing, margins, or what prices to change.",
+                    parameters: z.object({
+                        itemName: z.string().optional().describe("Optional: filter by specific menu item name"),
+                    }),
+                    execute: async ({ itemName }) => {
+                        const all = getAllRecommendations();
+                        const stats = getPricingStats();
+                        let results = all;
+                        if (itemName) {
+                            results = all.filter(r => r.recipeName.toLowerCase().includes(itemName.toLowerCase()));
+                        } else {
+                            results = all.filter(r => r.reason !== "optimal").slice(0, 5);
+                        }
+                        const summary = results.map(r => 
+                            `${r.recipeName}: $${r.currentPrice} → $${r.suggestedPrice} (${r.priceChange > 0 ? "+" : ""}$${r.priceChange}) — ${r.reasonShort}, margin ${r.currentMargin}%, ${r.dailySold}/day`
+                        ).join("\n");
+                        return {
+                            success: true,
+                            message: itemName 
+                                ? `Pricing for "${itemName}":\n${summary}` 
+                                : `Top ${results.length} price recommendations:\n${summary}\n\nOverall avg margin: ${stats.avgMargin}%, ${stats.underpricedCount} underpriced items.`,
+                            navigation: { path: "/dashboard/pricing", label: "Dynamic Pricing" }
                         };
                     },
                 }),
@@ -558,27 +681,26 @@ IMPORTANT: Instagram and Facebook use the SAME Meta developer platform. ONE toke
 
                 // ── NEW: KDS TOOL ───────────────────────────────────────────────────
                 get_kds_status: tool({
-                    description: "Get current Kitchen Display System status: live ticket times, station bottleneck data, longest ticket, average ticket time, and throughput.",
+                    description: "Get current Kitchen Display System status: live ticket times, station bottleneck data, longest ticket, average ticket time, and throughput. Data is live and changes in real-time.",
                     parameters: z.object({}),
-                    execute: async () => ({
-                        avgTicketTime: "18m 30s",
-                        longestTicket: "28m 05s (T-8902, Table 14 — 2x Ribeye M, 1x Caesar, 1x Truffle Fries)",
-                        openTickets: 14,
-                        throughput: "42 plates/hr",
-                        stationBottlenecks: [
-                            { station: "Grill", avgTime: "24m", load: "85%", status: "BOTTLENECK" },
-                            { station: "Fryer", avgTime: "12m", load: "90%", status: "HIGH" },
-                            { station: "Expo", avgTime: "4m", load: "95%", status: "HIGH" },
-                            { station: "Saute", avgTime: "18m", load: "60%", status: "OK" },
-                            { station: "Garde Manger", avgTime: "8m", load: "40%", status: "OK" },
-                        ],
-                        lateTickets: [
-                            { id: "T-8902", table: "14", server: "Lisa P.", time: "28m", status: "LATE", items: "2x Ribeye (M), 1x Caesar, 1x Truffle Fries" },
-                            { id: "T-8903", table: "22", server: "Carlos R.", time: "18m", status: "WARNING", items: "1x Salmon, 1x Vegan Bowl" },
-                        ],
-                        aiRecommendation: "Grill station averaging 24m/ticket (target 15m). Recommend shifting a prep cook to Grill line or 86ing well-done steaks.",
-                        navigation: { path: "/dashboard/kds", label: "Kitchen Performance" }
-                    }),
+                    execute: async () => {
+                        const snapshot = getKDSSnapshot();
+                        return {
+                            period: snapshot.period,
+                            avgTicketTime: snapshot.avgTicketTime,
+                            longestTicket: snapshot.longestTicket,
+                            openTickets: snapshot.openTickets,
+                            throughput: snapshot.throughput,
+                            stationBottlenecks: snapshot.stationBottlenecks,
+                            lateTickets: snapshot.lateTickets.map(t => ({
+                                id: t.id, table: t.table, server: t.server,
+                                time: t.time, status: t.status,
+                                items: t.items.join(", "),
+                            })),
+                            aiRecommendation: snapshot.aiRecommendation,
+                            navigation: { path: "/dashboard/kds", label: "Kitchen Performance" },
+                        };
+                    },
                 }),
 
                 // ── NEW: LOGBOOK TOOL ───────────────────────────────────────────────
@@ -668,6 +790,40 @@ IMPORTANT: Instagram and Facebook use the SAME Meta developer platform. ONE toke
                         reviewAlerts: { newReviews: 3, avgRating: 4.2, platformBreakdown: { google: 4.3, yelp: 4.0, opentable: 4.4 } },
                         navigation: { path: "/dashboard/inbox", label: "Social Inbox" }
                     }),
+                }),
+
+                add_location: tool({
+                    description: "Add a new location/branch to the restaurant. Use when user asks to add, create, or set up a new location.",
+                    parameters: z.object({
+                        name: z.string().describe("Name for the new location, e.g. 'Downtown' or 'Milpitas'"),
+                        city: z.string().optional().describe("City for the new location, e.g. 'Milpitas, CA'"),
+                        address: z.string().optional().describe("Full street address"),
+                        timezone: z.string().optional().describe("Timezone, defaults to America/Los_Angeles"),
+                    }),
+                    execute: async ({ name, city, address, timezone }) => {
+                        try {
+                            const location = await prisma.location.create({
+                                data: {
+                                    restaurantId: session.user!.id!,
+                                    name,
+                                    city: city || null,
+                                    address: address || null,
+                                    timezone: timezone || "America/Los_Angeles",
+                                },
+                            });
+                            return {
+                                success: true,
+                                message: `New location "${name}" created successfully!${city ? ` City: ${city}.` : ""}`,
+                                location: { id: location.id, name: location.name, city: location.city },
+                                navigation: { path: "/dashboard/settings", label: "View in Settings" },
+                            };
+                        } catch (err: any) {
+                            return {
+                                success: false,
+                                message: `Failed to create location: ${err?.message || "Unknown error"}`,
+                            };
+                        }
+                    },
                 }),
 
                 navigate_to: tool({

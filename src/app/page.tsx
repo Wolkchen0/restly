@@ -84,7 +84,7 @@ const PRICING = [
         ],
         cta: "Start Free Trial",
         highlight: false,
-        note: "14-day free trial",
+        note: "30-day free trial",
     },
     {
         name: "Pro",
@@ -167,6 +167,7 @@ export default function LandingPage() {
           .features-grid { grid-template-columns:1fr !important; }
           .testimonials-grid { grid-template-columns:1fr !important; }
           .how-grid { grid-template-columns:1fr !important; }
+          .stats-grid { grid-template-columns:repeat(2,1fr) !important; }
         }
       `}</style>
 
@@ -220,7 +221,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Stats bar */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
                         {[
                             { val: "2 min", label: "Setup time" },
                             { val: "6+", label: "POS integrations" },
@@ -228,8 +229,8 @@ export default function LandingPage() {
                             { val: "24/7", label: "AI Support" },
                         ].map((s, i) => (
                             <div key={i} style={{ padding: "20px 16px", textAlign: "center", background: "rgba(255,255,255,0.02)" }}>
-                                <div style={{ fontSize: 24, fontWeight: 900, color: "#E8C96E", letterSpacing: "-1px" }}>{s.val}</div>
-                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 500 }}>{s.label}</div>
+                                <div style={{ fontSize: "clamp(18px, 4vw, 24px)", fontWeight: 900, color: "#E8C96E", letterSpacing: "-1px" }}>{s.val}</div>
+                                <div style={{ fontSize: "clamp(10px, 2vw, 12px)", color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 500 }}>{s.label}</div>
                             </div>
                         ))}
                     </div>

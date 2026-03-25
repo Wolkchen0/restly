@@ -21,7 +21,6 @@ export default function MaintenancePage() {
     const isDemo = useIsDemo();
     const userPrefix = useUserPrefix();
     const [equipmentList, setEquipmentList] = useState<any[]>([]);
-    const [aiDispatched, setAiDispatched] = useState(false);
     const [expandedEq, setExpandedEq] = useState<string | null>(null);
 
     // Load/save equipment per user — non-demo starts empty
@@ -283,29 +282,48 @@ export default function MaintenancePage() {
 
                 {isDemo ? (
                     <>
-                        {/* AI ALERT - Now Dynamic */}
-                        {(detectedIssues.length > 0) && (
-                            <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16, padding: "20px", marginBottom: 24, display: "flex", gap: 16, alignItems: "flex-start" }}>
-                                <div style={{ fontSize: 24 }}>🚨</div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>Maintenance Required (AI Detected)</div>
-                                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
-                                        {detectedIssues.map((issue, idx) => (
-                                            <div key={idx} style={{ marginBottom: 8 }}>• {issue}</div>
-                                        ))}
-                                    </div>
-                                    <div style={{ marginTop: 12 }}>
-                                        <button
-                                            className="btn-primary"
-                                            style={{ fontSize: 12, padding: "6px 16px", background: aiDispatched ? "var(--green)" : "var(--purple)", borderColor: aiDispatched ? "var(--green)" : "var(--purple)" }}
-                                            onClick={() => setAiDispatched(true)}
-                                        >
-                                            {aiDispatched ? "✓ Request Sent to Technician" : "Dispatch Repair Service ↗"}
-                                        </button>
-                                    </div>
+                        {/* AI MAINTENANCE INSIGHTS — Informational only */}
+                    {(detectedIssues.length > 0) && (
+                        <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16, padding: "20px", marginBottom: 24, display: "flex", gap: 16, alignItems: "flex-start" }}>
+                            <div style={{ fontSize: 24 }}>🚨</div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 14, fontWeight: 700, color: "#ef4444", marginBottom: 4 }}>Maintenance Required (AI Detected from Shift Logs)</div>
+                                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+                                    {detectedIssues.map((issue, idx) => (
+                                        <div key={idx} style={{ marginBottom: 8 }}>• {issue}</div>
+                                    ))}
+                                </div>
+                                <div style={{ marginTop: 12, fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.6 }}>
+                                    💡 Update equipment status below by clicking the status badge. You can also tell Restly AI chatbot to change status (e.g. "mark dishwasher as out of order").
                                 </div>
                             </div>
-                        )}
+                        </div>
+                    )}
+
+                    {/* AI Service Schedule Insight */}
+                    {equipmentList.length > 0 && (
+                        <div style={{ background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", gap: 14, alignItems: "flex-start" }}>
+                            <span style={{ fontSize: 20 }}>🤖</span>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#E8C96E", marginBottom: 4 }}>AI Maintenance Summary</div>
+                                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.7 }}>
+                                    {(() => {
+                                        const broken = equipmentList.filter(e => e.status === "BROKEN");
+                                        const needsService = equipmentList.filter(e => e.status === "NEEDS_MAINTENANCE");
+                                        const operational = equipmentList.filter(e => e.status === "OK");
+                                        const overdue = equipmentList.filter(e => e.nextService && new Date(e.nextService) < new Date());
+                                        const parts: string[] = [];
+                                        if (broken.length > 0) parts.push(`⛔ ${broken.length} equipment out of order: ${broken.map(b => b.name).join(", ")} — schedule repair immediately.`);
+                                        if (needsService.length > 0) parts.push(`⚠️ ${needsService.length} need service: ${needsService.map(n => n.name).join(", ")}.`);
+                                        if (overdue.length > 0) parts.push(`📅 ${overdue.length} overdue for scheduled maintenance.`);
+                                        if (operational.length > 0 && broken.length === 0 && needsService.length === 0) parts.push(`✅ All ${operational.length} pieces of equipment are operational.`);
+                                        if (parts.length === 0) parts.push("No maintenance issues detected.");
+                                        return parts.join(" ");
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                         <div className="card">
                             <div className="card-header">
@@ -333,9 +351,22 @@ export default function MaintenancePage() {
                                                     </td>
                                                     <td>{eq.type}</td>
                                                     <td>
-                                                        {eq.status === "OK" && <span className="badge badge-green">Operational</span>}
-                                                        {eq.status === "NEEDS_MAINTENANCE" && <span className="badge badge-yellow">Needs Service</span>}
-                                                        {eq.status === "BROKEN" && <span className="badge badge-red">Out of Order</span>}
+                                                        <span
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const statusCycle: Record<string, string> = { "OK": "NEEDS_MAINTENANCE", "NEEDS_MAINTENANCE": "BROKEN", "BROKEN": "OK" };
+                                                                const newStatus = statusCycle[eq.status] || "OK";
+                                                                setEquipmentList(prev => prev.map(e => e.id === eq.id ? { ...e, status: newStatus, urgent: newStatus !== "OK" } : e));
+                                                                const labels: Record<string, string> = { "OK": "Operational", "NEEDS_MAINTENANCE": "Needs Service", "BROKEN": "Out of Order" };
+                                                                showToast(`${eq.name} → ${labels[newStatus]}`);
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
+                                                            title="Click to change status"
+                                                        >
+                                                            {eq.status === "OK" && <span className="badge badge-green">✅ Operational</span>}
+                                                            {eq.status === "NEEDS_MAINTENANCE" && <span className="badge badge-yellow">⚠️ Needs Service</span>}
+                                                            {eq.status === "BROKEN" && <span className="badge badge-red">🛑 Out of Order</span>}
+                                                        </span>
                                                     </td>
                                                     <td style={{ color: eq.urgent ? "var(--red)" : "inherit", fontWeight: eq.urgent ? 600 : 400 }}>
                                                         {eq.nextService}
