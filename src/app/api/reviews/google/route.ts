@@ -1,6 +1,9 @@
 // Google Places Reviews API Route
 // Fetches real reviews from Google Places API (requires API key)
+// Only returns demo reviews for demo accounts
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -12,15 +15,35 @@ export async function GET(req: Request) {
 
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
     if (!apiKey) {
-        // Return demo reviews if no API key
+        // Check if this is a demo account before returning demo reviews
+        const session = await auth();
+        let isDemoAccount = false;
+        if (session?.user?.id) {
+            try {
+                const restaurant = await prisma.restaurant.findUnique({ where: { id: session.user.id } });
+                if (restaurant) {
+                    isDemoAccount = restaurant.email === "demo@restly.com" || restaurant.name.toLowerCase().includes("sample");
+                }
+            } catch { /* ignore */ }
+        }
+
+        if (isDemoAccount) {
+            return NextResponse.json({
+                reviews: [
+                    { id: "gd1", platform: "Google", author: "Mike R.", rating: 5, text: "Exceptional dining experience. The truffle burger was outstanding, service attentive.", date: "2 days ago", sentiment: "positive" },
+                    { id: "gd2", platform: "Google", author: "Elena R.", rating: 4, text: "Great atmosphere and solid cocktails. The Spicy Marg is a must-try.", date: "3 days ago", sentiment: "positive" },
+                    { id: "gd3", platform: "Google", author: "Chris W.", rating: 3, text: "Food was decent but wait time was too long on a Friday night.", date: "5 days ago", sentiment: "neutral" },
+                ],
+                source: "demo",
+                note: "Set GOOGLE_PLACES_API_KEY in .env.local for real reviews",
+            });
+        }
+
+        // Real user without API key — return empty
         return NextResponse.json({
-            reviews: [
-                { id: "gd1", platform: "Google", author: "Mike R.", rating: 5, text: "Exceptional dining experience. The truffle burger was outstanding, service attentive.", date: "2 days ago", sentiment: "positive" },
-                { id: "gd2", platform: "Google", author: "Elena R.", rating: 4, text: "Great atmosphere and solid cocktails. The Spicy Marg is a must-try.", date: "3 days ago", sentiment: "positive" },
-                { id: "gd3", platform: "Google", author: "Chris W.", rating: 3, text: "Food was decent but wait time was too long on a Friday night.", date: "5 days ago", sentiment: "neutral" },
-            ],
-            source: "demo",
-            note: "Set GOOGLE_PLACES_API_KEY in .env.local for real reviews",
+            reviews: [],
+            source: "none",
+            note: "Connect Google Business in Settings to see reviews here.",
         });
     }
 

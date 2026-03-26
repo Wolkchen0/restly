@@ -1,6 +1,8 @@
 // Email Inbox API Route
-// Tests email connectivity — uses JSONPlaceholder for demo, real IMAP/Gmail for production
+// Returns demo emails only for demo accounts, empty for real users without IMAP/Gmail connected
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 const EMAIL_SENDERS: Record<number, { name: string; email: string }> = {
     1: { name: "Jennifer Oaks", email: "joaks@company.com" },
@@ -21,10 +23,32 @@ const EMAIL_SUBJECTS: Record<number, string> = {
 };
 
 export async function GET() {
+    // Check if user is demo
+    const session = await auth();
+    let isDemoAccount = false;
+    if (session?.user?.id) {
+        try {
+            const restaurant = await prisma.restaurant.findUnique({ where: { id: session.user.id } });
+            if (restaurant) {
+                isDemoAccount = restaurant.email === "demo@restly.com" || restaurant.name.toLowerCase().includes("sample");
+            }
+        } catch { /* ignore */ }
+    }
+
+    // Real users without email integration: return empty
+    if (!isDemoAccount) {
+        return NextResponse.json({
+            emails: [],
+            source: "none",
+            apiStatus: "not_connected",
+            note: "Connect your email account in Settings to see messages here.",
+        });
+    }
+
+    // Demo account: return demo emails from JSONPlaceholder
     try {
-        // Test with JSONPlaceholder (free, always-on API)
         const res = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=6", {
-            next: { revalidate: 60 }, // Cache 60s
+            next: { revalidate: 60 },
         });
 
         if (!res.ok) {
@@ -49,7 +73,7 @@ export async function GET() {
 
         return NextResponse.json({
             emails,
-            source: "api",
+            source: "demo",
             apiStatus: "connected",
             apiUrl: "https://jsonplaceholder.typicode.com",
             fetchedAt: new Date().toISOString(),
