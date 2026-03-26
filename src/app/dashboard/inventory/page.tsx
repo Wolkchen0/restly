@@ -13,11 +13,11 @@ export default function InventoryPage() {
     const [lastSynced, setLastSynced] = useState<string>("");
     const [syncCountdown, setSyncCountdown] = useState(600);
     const [bottles, setBottles] = useState<BottleInfo[]>([]);
-    const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>(FOOD_INGREDIENTS);
+    const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([]);
     const [drinkSubTab, setDrinkSubTab] = useState<"liquor" | "wine">("liquor");
     const [foodSubTab, setFoodSubTab] = useState<"ingredients" | "recipes">("recipes");
     const [toastMsg, setToastMsg] = useState<string | null>(null);
-    const [recipes, setRecipes] = useState<DrinkRecipe[]>(DRINK_RECIPES);
+    const [recipes, setRecipes] = useState<DrinkRecipe[]>([]);
     const [confirmDelete, setConfirmDelete] = useState<{ type: "bottle" | "food"; id: string; name: string } | null>(null);
 
     // Receive Stock Modal
@@ -88,8 +88,18 @@ export default function InventoryPage() {
     }, []);
 
     useEffect(() => {
-        setBottles(deductSalesFromBottles(BOTTLE_INVENTORY, recipes));
-    }, [recipes, deductSalesFromBottles]);
+        if (isDemo) {
+            setFoodIngredients(FOOD_INGREDIENTS);
+            setRecipes(DRINK_RECIPES);
+            setBottles(deductSalesFromBottles(BOTTLE_INVENTORY, DRINK_RECIPES));
+        }
+    }, [isDemo, deductSalesFromBottles]);
+
+    useEffect(() => {
+        if (isDemo && recipes.length > 0) {
+            setBottles(deductSalesFromBottles(BOTTLE_INVENTORY, recipes));
+        }
+    }, [recipes, isDemo, deductSalesFromBottles]);
 
     const openReceiveBottle = (b: BottleInfo, mode: "add" | "remove" = "add") => {
         setReceiveModal({ type: "bottle", id: b.spiritId, name: b.name, unit: "bottles", sizeMl: b.sizeMl });
