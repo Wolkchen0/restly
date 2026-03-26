@@ -82,6 +82,38 @@ export default function PricingPage() {
 
     const { recommendations, stats, insights } = data;
 
+    // If no recommendations (real user, no POS data), show empty state
+    if (recommendations.length === 0) {
+        return (
+            <div style={{ padding: "24px 28px", color: "#fff", minHeight: "100vh" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                    <div>
+                        <h1 style={{ fontSize: 24, fontWeight: 700, display: "flex", alignItems: "center", gap: 10 }}>
+                            💲 AI Dynamic Pricing
+                        </h1>
+                        <p style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
+                            AI-powered price recommendations based on ingredient costs, demand patterns, and market signals
+                        </p>
+                    </div>
+                </div>
+                <div style={{ textAlign: "center", padding: "80px 20px" }}>
+                    <div style={{ fontSize: 56, marginBottom: 20 }}>💲</div>
+                    <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 10 }}>Dynamic Pricing Engine</h2>
+                    <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", maxWidth: 520, margin: "0 auto 16px" }}>
+                        Connect your POS system and add menu recipes to unlock AI-powered price recommendations.
+                    </p>
+                    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.35)", maxWidth: 500, margin: "0 auto 28px" }}>
+                        The AI engine analyzes ingredient costs, sales velocity, demand patterns, and market signals to suggest optimal pricing for every item on your menu.
+                    </p>
+                    <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                        <button onClick={() => window.location.href = '/dashboard/recipes'} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>Go to Recipes</button>
+                        <button onClick={() => window.location.href = '/dashboard/inventory'} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Manage Inventory</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     const filtered = recommendations.filter(r => {
         if (filter === "food") return r.type === "food";
         if (filter === "drink") return r.type === "drink";

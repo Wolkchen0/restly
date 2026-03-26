@@ -466,7 +466,7 @@ export default function InventoryPage() {
             <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 28px 80px" }}>
 
                 {/* ═══════════════ FOOD TAB ═══════════════ */}
-                {activeTab === "Food" && isDemo && (
+                {activeTab === "Food" && (
                     <>
                         {/* Sub-tabs + Search */}
                         <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
@@ -682,7 +682,7 @@ export default function InventoryPage() {
                 )}
 
                 {/* ═══════════════ DRINK TAB ═══════════════ */}
-                {activeTab === "Drink" && isDemo && (
+                {activeTab === "Drink" && (
                     <>
                         <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
                             {(["liquor", "wine"] as const).map(st => (
@@ -897,14 +897,7 @@ export default function InventoryPage() {
             )}
 
                 {/* NOT CONNECTED STATE */}
-                {!isDemo && (
-                    <div style={{ textAlign: "center", padding: "80px 20px" }}>
-                        <div style={{ fontSize: 56, marginBottom: 20 }}>📦</div>
-                        <h2 style={{ fontSize: 26, fontWeight: 900, color: "#fff", marginBottom: 10 }}>Connect Your POS</h2>
-                        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", maxWidth: 500, margin: "0 auto 28px" }}>Connect Toast, Square, or Clover to auto-populate your inventory from menu items and track usage in real-time.</p>
-                        <button onClick={() => window.location.href = '/dashboard/settings'} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>Go to Integrations</button>
-                    </div>
-                )}
+
             </div>
         </>
     );
