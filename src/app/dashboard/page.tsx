@@ -56,10 +56,10 @@ export default function DashboardOverview() {
     const handleExportDashboard = () => {
         import("@/utils/pdf-export").then(({ exportToPDF }) => {
             const metricRows: (string | number)[][] = [
-                ["Gross Sales Today", isDemo ? "$6,100" : "$0", "↑ 14.5%"],
-                ["Total Covers", isDemo ? "124" : "0", "↑ 8%"],
-                ["Avg Spend", isDemo ? "$49.19" : "$0.00", "↓ 2.1%"],
-                ["Labour Cost %", isDemo ? "28.4%" : "0%", "Optimal"],
+                ["Gross Sales Today", isDemo ? "$6,100" : "$0", isDemo ? "+14.5%" : "--"],
+                ["Total Covers", isDemo ? "124" : "0", isDemo ? "+8%" : "--"],
+                ["Avg Spend", isDemo ? "$49.19" : "$0.00", isDemo ? "-2.1%" : "--"],
+                ["Labour Cost %", isDemo ? "28.4%" : "0%", isDemo ? "Optimal" : "--"],
                 ["", "", ""],
                 ["Hourly Sales Breakdown", "", ""],
                 ...salesData.map(s => [s.time, `$${s.today}`, `$${s.yesterday}`]),
