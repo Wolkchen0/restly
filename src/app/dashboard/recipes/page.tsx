@@ -44,7 +44,7 @@ export default function RecipesPage() {
     const [foodIngredients, setFoodIngredients] = useState<FoodIngredient[]>([]);
     const [foodRecipes, setFoodRecipes] = useState<FoodRecipe[]>([]);
     const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([]);
-    const [bottles] = useState<BottleInfo[]>([...BOTTLE_INVENTORY]);
+    const [bottles, setBottles] = useState<BottleInfo[]>([]);
     const isDemo = useIsDemo();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
@@ -102,6 +102,8 @@ export default function RecipesPage() {
         else if (isDemo) { setDrinkRecipes([...DRINK_RECIPES]); }
         if (savedIngredients) { setFoodIngredients(savedIngredients); }
         else if (isDemo) { setFoodIngredients([...FOOD_INGREDIENTS]); }
+        // Bottles
+        if (isDemo) { setBottles([...BOTTLE_INVENTORY]); }
     }, [userPrefix, isDemo]);
 
     // Persist recipes to localStorage whenever they change
