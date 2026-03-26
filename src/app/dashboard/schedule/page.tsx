@@ -188,18 +188,35 @@ export default function SchedulePage() {
                 }).catch(() => { setData({ requests: DEMO_REQUESTS }); setLocalRequests(DEMO_REQUESTS); });
             } else {
                 // Real user — use their actual location ID
+                let locIdForFetch = "";
                 if (d.locations?.length > 0) {
                     const savedId = localStorage.getItem("restly_active_location");
                     const loc = d.locations.find((l: any) => l.id === savedId) || d.locations.find((l: any) => l.isDefault) || d.locations[0];
                     setLocationId(loc.id);
+                    locIdForFetch = loc.id;
                 }
-                fetch("/api/timeoff").then(res => res.json()).then(tData => { setData(tData); setLocalRequests(tData.requests ?? []); });
+                const url = locIdForFetch ? `/api/timeoff?locId=${locIdForFetch}` : "/api/timeoff";
+                fetch(url).then(res => res.json()).then(tData => {
+                    const reqs = (tData.requests ?? []).map((r: any) => ({
+                        ...r,
+                        formSource: r.type === "TIMEOFF" ? 2 : 1,
+                    }));
+                    setData({ requests: reqs });
+                    setLocalRequests(reqs);
+                }).catch(() => { setData({ requests: [] }); setLocalRequests([]); });
             }
         }).catch(() => { });
     }, []);
 
-    const handleStatusChange = (id: string, newStatus: string) => {
+    const handleStatusChange = async (id: string, newStatus: string) => {
         setLocalRequests(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+        try {
+            await fetch("/api/timeoff", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, status: newStatus }),
+            });
+        } catch { /* silently fail — local state already updated */ }
     };
 
     // Smart time auto-complete: "2" → "2:00 PM", "11" → "11:00 AM"
@@ -710,7 +727,7 @@ export default function SchedulePage() {
                 )}
 
                 {/* ═══════════════ TIME OFF / TIME ENTRY TABS ═══════════════ */}
-                {(activeTab === "timeoff" || activeTab === "timeentry") && isDemo && (
+                {(activeTab === "timeoff" || activeTab === "timeentry") && (
                     <>
                         <div className="kpi-grid">
                             {[
@@ -785,14 +802,7 @@ export default function SchedulePage() {
                     </>
                 )}
 
-                {(activeTab === "timeoff" || activeTab === "timeentry") && !isDemo && (
-                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <div style={{ fontSize: 48, marginBottom: 16 }}>📅</div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Schedule System Not Connected</h2>
-                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>Sync your scheduling software to automatically manage requests.</p>
-                        <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>Go to Integrations</button>
-                    </div>
-                )}
+
 
                 {/* Form links */}
                 {(activeTab === "timeoff" || activeTab === "timeentry") && (
