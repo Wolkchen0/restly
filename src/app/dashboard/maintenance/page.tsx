@@ -280,9 +280,7 @@ export default function MaintenancePage() {
 
             <div className="page-content fade-in">
 
-                {isDemo ? (
-                    <>
-                        {/* AI MAINTENANCE INSIGHTS — Informational only */}
+                {/* AI MAINTENANCE INSIGHTS — Informational only */}
                     {(detectedIssues.length > 0) && (
                         <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 16, padding: "20px", marginBottom: 24, display: "flex", gap: 16, alignItems: "flex-start" }}>
                             <div style={{ fontSize: 24 }}>🚨</div>
@@ -325,6 +323,18 @@ export default function MaintenancePage() {
                         </div>
                     )}
 
+                {equipmentList.length === 0 ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>🔧</div>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Equipment Maintenance Tracker</h2>
+                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
+                            Manage your restaurant's equipment, set reminders for periodic maintenance, and track repair logs in one place.
+                        </p>
+                        <button className="btn-primary" onClick={handleAddEquipment}>
+                            + Add New Equipment
+                        </button>
+                    </div>
+                ) : (
                         <div className="card">
                             <div className="card-header">
                                 <span className="card-title">Assets & Appliances Tracker</span>
@@ -431,18 +441,6 @@ export default function MaintenancePage() {
                                 </table>
                             </div>
                         </div>
-                    </>
-                ) : (
-                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <div style={{ fontSize: 48, marginBottom: 16 }}>🔧</div>
-                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Equipment Maintenance Tracker</h2>
-                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
-                            Manage your restaurant's equipment, set reminders for periodic maintenance, and track repair logs in one place.
-                        </p>
-                        <button className="btn-primary" onClick={handleAddEquipment}>
-                            + Add New Equipment
-                        </button>
-                    </div>
                 )}
 
             </div>
