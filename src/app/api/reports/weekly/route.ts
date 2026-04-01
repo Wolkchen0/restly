@@ -76,10 +76,10 @@ export async function GET() {
         ],
         menuHighlights,
         aiRecommendations: [
-            "Labor cost %32.4 son 2 haftadır hedefin üstünde. Salı ve Çarşamba öğlen shift'lerinde 1 server azaltmayı düşünün — tahmini haftalık tasarruf: $380.",
-            "Wagyu Tenderloin %72 marjla Puzzle kategorisinde — satışı haftada sadece 28. Server'lara $50 upsell bonusu verin, $1,600/hafta ek gelir potansiyeli.",
-            "3 ürün out of stock — Black Truffle, Crème Brûlée Mix, Aperol. Bu 3 ürün 4 menü itemını etkiliyor.",
-            "Pitco Fryer #2 arızası 5. gününde. Garanti süresi dolmuş. Yeni fryer maliyeti vs. tamir maliyetini değerlendirin.",
+            "Labor cost at 32.4% has been above target for 2 weeks. Consider reducing 1 server on Tuesday and Wednesday lunch shifts — estimated weekly savings: $380.",
+            "Wagyu Tenderloin has 72% margin but only 28 sales/week (Puzzle category). Offer servers $50 upsell bonus — potential $1,600/week additional revenue.",
+            "3 items out of stock — Black Truffle, Crème Brûlée Mix, Aperol. These affect 4 menu items.",
+            "Pitco Fryer #2 has been broken for 5 days. Warranty expired. Evaluate new fryer cost vs. repair cost.",
         ],
     };
 
