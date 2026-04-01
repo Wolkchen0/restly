@@ -1113,136 +1113,76 @@ export default function SettingsPage() {
                                         )}
                                     </div>
 
-                                    {/* Quick presets */}
-                                    <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                                        {[
-                                            { label: "Gmail", imap: "imap.gmail.com", smtp: "smtp.gmail.com", ip: "993", sp: "587" },
-                                            { label: "Outlook", imap: "outlook.office365.com", smtp: "smtp.office365.com", ip: "993", sp: "587" },
-                                            { label: "Yahoo", imap: "imap.mail.yahoo.com", smtp: "smtp.mail.yahoo.com", ip: "993", sp: "587" },
-                                        ].map(p => (
-                                            <button key={p.label} className="btn-ghost" style={{ fontSize: 11, padding: "6px 12px" }} onClick={() => {
-                                                setEmailImapHost(p.imap); setEmailSmtpHost(p.smtp); setEmailImapPort(p.ip); setEmailSmtpPort(p.sp);
-                                            }}>{p.label}</button>
-                                        ))}
-                                    </div>
+                                    {!emailConnected ? (
+                                        <>
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+                                                <div>
+                                                    <div className="f-label">Email Address</div>
+                                                    <input className="s-input" value={emailAddress} onChange={e => { setEmailAddress(e.target.value); setEmailUser(e.target.value); }} placeholder="info@myrestaurant.com" />
+                                                </div>
+                                                <div>
+                                                    <div className="f-label">Password</div>
+                                                    <input className="s-input" type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)} placeholder="App Password or email password" />
+                                                </div>
+                                            </div>
 
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-                                        <div>
-                                            <div className="f-label">Email Address</div>
-                                            <input className="s-input" value={emailAddress} onChange={e => setEmailAddress(e.target.value)} placeholder="info@myrestaurant.com" />
-                                        </div>
-                                        <div>
-                                            <div className="f-label">Login Username</div>
-                                            <input className="s-input" value={emailUser} onChange={e => setEmailUser(e.target.value)} placeholder="Same as email or custom" />
-                                        </div>
-                                        <div>
-                                            <div className="f-label">Password / App Password</div>
-                                            <input className="s-input" type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)} placeholder="Use App Password for Gmail" />
-                                        </div>
-                                        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8 }}>
-                                            <div>
-                                                <div className="f-label">IMAP Host</div>
-                                                <input className="s-input" value={emailImapHost} onChange={e => setEmailImapHost(e.target.value)} placeholder="imap.gmail.com" />
-                                            </div>
-                                            <div>
-                                                <div className="f-label">Port</div>
-                                                <input className="s-input" value={emailImapPort} onChange={e => setEmailImapPort(e.target.value)} placeholder="993" />
-                                            </div>
-                                        </div>
-                                        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8 }}>
-                                            <div>
-                                                <div className="f-label">SMTP Host</div>
-                                                <input className="s-input" value={emailSmtpHost} onChange={e => setEmailSmtpHost(e.target.value)} placeholder="smtp.gmail.com" />
-                                            </div>
-                                            <div>
-                                                <div className="f-label">Port</div>
-                                                <input className="s-input" value={emailSmtpPort} onChange={e => setEmailSmtpPort(e.target.value)} placeholder="587" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                                        <button
-                                            className="btn-primary"
-                                            disabled={emailTesting || !emailImapHost || !emailUser || !emailPass}
-                                            onClick={async () => {
-                                                setEmailTesting(true);
-                                                setEmailTestResult(null);
-                                                try {
-                                                    const res = await fetch("/api/inbox/emails/test", {
-                                                        method: "POST",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({
-                                                            emailAddress, imapHost: emailImapHost, imapPort: parseInt(emailImapPort) || 993,
-                                                            smtpHost: emailSmtpHost, smtpPort: parseInt(emailSmtpPort) || 587,
-                                                            user: emailUser, pass: emailPass,
-                                                        }),
-                                                    });
-                                                    const data = await res.json();
-                                                    if (data.success) {
-                                                        setEmailTestResult({ ok: true, msg: data.message });
-                                                        // Auto-save to location
-                                                        const saveRes = await fetch("/api/locations", {
-                                                            method: "PATCH",
-                                                            headers: { "Content-Type": "application/json" },
-                                                            body: JSON.stringify({
-                                                                locationId: activeLocId,
-                                                                emailAddress, emailImapHost, emailImapPort: parseInt(emailImapPort) || 993,
-                                                                emailSmtpHost, emailSmtpPort: parseInt(emailSmtpPort) || 587,
-                                                                emailUser, emailPass,
-                                                            }),
-                                                        });
-                                                        if (saveRes.ok) {
-                                                            setEmailConnected(true);
-                                                            showToast("✅ Email connected and saved!");
-                                                        }
-                                                    } else {
-                                                        setEmailTestResult({ ok: false, msg: data.error || "Connection failed" });
-                                                    }
-                                                } catch {
-                                                    setEmailTestResult({ ok: false, msg: "Network error" });
-                                                } finally {
-                                                    setEmailTesting(false);
-                                                }
-                                            }}
-                                            style={{ fontSize: 13 }}
-                                        >
-                                            {emailTesting ? "Testing..." : emailConnected ? "Re-test Connection" : "Test & Connect"}
-                                        </button>
-
-                                        {emailConnected && (
                                             <button
-                                                className="btn-ghost"
-                                                style={{ fontSize: 12, color: "#ef4444" }}
+                                                className="btn-primary"
+                                                disabled={emailTesting || !emailAddress || !emailPass || !emailAddress.includes("@")}
                                                 onClick={async () => {
-                                                    await fetch("/api/locations", {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({
-                                                            locationId: activeLocId,
-                                                            emailAddress: null, emailImapHost: null, emailImapPort: null,
-                                                            emailSmtpHost: null, emailSmtpPort: null, emailUser: null, emailPass: null,
-                                                        }),
-                                                    });
-                                                    setEmailConnected(false);
-                                                    setEmailAddress(""); setEmailImapHost(""); setEmailSmtpHost(""); setEmailUser(""); setEmailPass("");
-                                                    showToast("Email disconnected.");
+                                                    setEmailTesting(true);
+                                                    setEmailTestResult(null);
+                                                    const domain = emailAddress.split("@")[1]?.toLowerCase() || "";
+                                                    let imap = "imap." + domain, smtp = "smtp." + domain, ip = 993, sp = 587;
+                                                    if (domain.includes("gmail")) { imap = "imap.gmail.com"; smtp = "smtp.gmail.com"; }
+                                                    else if (domain.includes("outlook") || domain.includes("hotmail") || domain.includes("live")) { imap = "outlook.office365.com"; smtp = "smtp.office365.com"; }
+                                                    else if (domain.includes("yahoo")) { imap = "imap.mail.yahoo.com"; smtp = "smtp.mail.yahoo.com"; }
+                                                    try {
+                                                        const res = await fetch("/api/inbox/emails/test", {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ emailAddress, imapHost: imap, imapPort: ip, smtpHost: smtp, smtpPort: sp, user: emailAddress, pass: emailPass }),
+                                                        });
+                                                        const data = await res.json();
+                                                        if (data.success) {
+                                                            const saveRes = await fetch("/api/locations", {
+                                                                method: "PATCH",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ locationId: activeLocId, emailAddress, emailImapHost: imap, emailImapPort: ip, emailSmtpHost: smtp, emailSmtpPort: sp, emailUser: emailAddress, emailPass: emailPass }),
+                                                            });
+                                                            if (saveRes.ok) {
+                                                                setEmailConnected(true);
+                                                                setEmailTestResult({ ok: true, msg: `Connected! ${data.messageCount || 0} emails in inbox.` });
+                                                                showToast("✅ Email connected!");
+                                                            }
+                                                        } else {
+                                                            setEmailTestResult({ ok: false, msg: data.error || "Connection failed. Check email & password." });
+                                                        }
+                                                    } catch { setEmailTestResult({ ok: false, msg: "Network error" }); }
+                                                    finally { setEmailTesting(false); }
                                                 }}
+                                                style={{ fontSize: 13 }}
                                             >
-                                                Disconnect Email
+                                                {emailTesting ? "⏳ Connecting..." : "Connect Email"}
                                             </button>
-                                        )}
-                                    </div>
-
-                                    {emailTestResult && (
-                                        <div style={{ marginTop: 10, fontSize: 12, padding: "8px 12px", borderRadius: 8, background: emailTestResult.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: emailTestResult.ok ? "#4ade80" : "#ef4444", border: `1px solid ${emailTestResult.ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
-                                            {emailTestResult.msg}
+                                            {emailTestResult && (
+                                                <div style={{ marginTop: 10, fontSize: 12, padding: "8px 12px", borderRadius: 8, background: emailTestResult.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: emailTestResult.ok ? "#4ade80" : "#ef4444", border: `1px solid ${emailTestResult.ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
+                                                    {emailTestResult.msg}
+                                                </div>
+                                            )}
+                                            <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
+                                                💡 Gmail users: Use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" style={{ color: "#E8C96E", textDecoration: "none" }}>App Password</a> instead of your regular password.
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                            <div style={{ fontSize: 13, color: "#4ade80" }}>📧 {emailAddress || "Connected"} — emails synced to Social Inbox</div>
+                                            <button className="btn-ghost" style={{ fontSize: 12, color: "#ef4444" }} onClick={async () => {
+                                                await fetch("/api/locations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locationId: activeLocId, emailAddress: null, emailImapHost: null, emailImapPort: null, emailSmtpHost: null, emailSmtpPort: null, emailUser: null, emailPass: null }) });
+                                                setEmailConnected(false); setEmailAddress(""); setEmailPass(""); setEmailTestResult(null); showToast("Email disconnected.");
+                                            }}>Disconnect</button>
                                         </div>
                                     )}
-
-                                    <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-                                        💡 For Gmail: Use an App Password (Google Account → Security → App Passwords) instead of your regular password.
-                                    </div>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 20 }}>
                                     <button className="btn-gold" onClick={handleSaveLocation} disabled={saving}>
