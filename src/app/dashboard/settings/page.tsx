@@ -903,10 +903,15 @@ export default function SettingsPage() {
                                                                 try {
                                                                     const fields: Record<string, string> = {};
                                                                     posInfo.fields.forEach(f => { fields[f.key] = (editLoc as any)[f.key] || ""; });
-                                                                    const res = await fetch("/api/pos-validate", {
+                                                                    const res = await fetch("/api/pos/test", {
                                                                         method: "POST",
                                                                         headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({ posProvider: selectedPOS, fields })
+                                                                        body: JSON.stringify({
+                                                                            provider: selectedPOS,
+                                                                            apiKey: (editLoc as any).posApiKey || "",
+                                                                            secretKey: (editLoc as any).posSecretKey || "",
+                                                                            locationId: (editLoc as any).posLocationId || "",
+                                                                        })
                                                                     });
                                                                     const data = await res.json();
                                                                     setPosStatus(data.ok ? "connected" : "error");

@@ -124,6 +124,12 @@ export default function TeamPerformancePage() {
     const [emailTo, setEmailTo] = useState("");
     const [emailSending, setEmailSending] = useState(false);
 
+    // Real POS data state
+    const [posData, setPosData] = useState<any[] | null>(null);
+    const [posConnected, setPosConnected] = useState<boolean | null>(null);
+    const [posLoading, setPosLoading] = useState(false);
+    const [posError, setPosError] = useState("");
+
     const [toastMsg, setToastMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
     const showToast = (text: string, type: "success" | "error" = "success") => {
         setToastMsg({ text, type });
@@ -135,6 +141,33 @@ export default function TeamPerformancePage() {
             setRestaurantName(d.restaurantName || "Restaurant");
         }).catch(() => {});
     }, []);
+
+    // Fetch real POS data for non-demo accounts
+    useEffect(() => {
+        if (isDemo === true) return; // demo uses hardcoded data
+        if (isDemo === null) return; // still loading demo check
+
+        setPosLoading(true);
+        setPosError("");
+        const params = new URLSearchParams({ period });
+        if (period === "custom") params.set("date", selectedDate);
+
+        fetch(`/api/team/performance?${params}`)
+            .then(r => r.json())
+            .then(d => {
+                setPosConnected(d.connected);
+                if (d.connected && d.staff) {
+                    setPosData(d.staff);
+                } else if (d.connected && d.error) {
+                    setPosError(d.error);
+                    setPosData([]);
+                } else {
+                    setPosData(null);
+                }
+            })
+            .catch(() => setPosError("Failed to load staff data"))
+            .finally(() => setPosLoading(false));
+    }, [isDemo, period, selectedDate]);
 
     const handleExportStaff = () => {
         import("@/utils/pdf-export").then(({ exportToPDF }) => {
@@ -212,36 +245,41 @@ export default function TeamPerformancePage() {
         return y * 400 + m * 31 + d;
     };
 
+    // Period label mapping
+    const periodLabels: Record<string, string> = {
+        today: "Today", yesterday: "Yesterday", week: "This Week",
+        month: "This Month", year: "This Year", custom: selectedDate,
+    };
+    const periodLabel = periodLabels[period] || "Today";
+
+    // Data source: real POS data for real accounts, demo data for demo
     let data: any[];
-    let periodLabel: string;
-    switch (period) {
-        case "today":
-            data = DEMO_STAFF_TODAY;
-            periodLabel = "Today";
-            break;
-        case "yesterday":
-            data = getSeededData(DEMO_STAFF_TODAY, getYesterdaySeed());
-            periodLabel = "Yesterday";
-            break;
-        case "week":
-            data = getSeededData(DEMO_STAFF_MONTH, getWeekSeed(), 0.25);
-            periodLabel = "This Week";
-            break;
-        case "month":
-            data = DEMO_STAFF_MONTH;
-            periodLabel = "This Month";
-            break;
-        case "year":
-            data = DEMO_STAFF_YEAR;
-            periodLabel = "This Year";
-            break;
-        case "custom":
-            data = getSeededData(DEMO_STAFF_TODAY, getDateSeed(selectedDate));
-            periodLabel = selectedDate;
-            break;
-        default:
-            data = DEMO_STAFF_TODAY;
-            periodLabel = "Today";
+    if (!isDemo && posData !== null) {
+        data = posData;
+    } else {
+        // Demo data fallback
+        switch (period) {
+            case "today":
+                data = DEMO_STAFF_TODAY;
+                break;
+            case "yesterday":
+                data = getSeededData(DEMO_STAFF_TODAY, getYesterdaySeed());
+                break;
+            case "week":
+                data = getSeededData(DEMO_STAFF_MONTH, getWeekSeed(), 0.25);
+                break;
+            case "month":
+                data = DEMO_STAFF_MONTH;
+                break;
+            case "year":
+                data = DEMO_STAFF_YEAR;
+                break;
+            case "custom":
+                data = getSeededData(DEMO_STAFF_TODAY, getDateSeed(selectedDate));
+                break;
+            default:
+                data = DEMO_STAFF_TODAY;
+        }
     }
 
     const topServer = data[0];
@@ -542,6 +580,39 @@ export default function TeamPerformancePage() {
                             </div>
                         </div>
                     </>
+                ) : posLoading ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 36, marginBottom: 16, animation: "spin 1s linear infinite" }}>⏳</div>
+                        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>Loading POS Data...</h2>
+                        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>Fetching staff performance from your POS system</p>
+                    </div>
+                ) : posConnected === false ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
+                        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Staff Performance Not Tracked</h2>
+                        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", maxWidth: 500, marginBottom: 24 }}>
+                            See which servers are generating the most revenue, have the highest check averages, and flip tables the fastest. Connect your POS system to let AI automatically pull and rank these metrics.
+                        </p>
+                        <button className="btn-primary" onClick={() => window.location.href = '/dashboard/settings'}>
+                            Connect POS System
+                        </button>
+                    </div>
+                ) : posError ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+                        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 8 }}>POS Connection Error</h2>
+                        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 500, marginBottom: 16 }}>{posError}</p>
+                        <div style={{ display: "flex", gap: 12 }}>
+                            <button className="btn-secondary" onClick={() => window.location.href = '/dashboard/settings'}>Check Settings</button>
+                            <button className="btn-primary" onClick={() => { setPosLoading(true); setPosError(''); fetch(`/api/team/performance?period=${period}`).then(r => r.json()).then(d => { setPosConnected(d.connected); setPosData(d.staff || []); if (d.error) setPosError(d.error); }).catch(() => setPosError('Retry failed')).finally(() => setPosLoading(false)); }}>Retry</button>
+                        </div>
+                    </div>
+                ) : data.length === 0 ? (
+                    <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+                        <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 8 }}>No Staff Data for {periodLabel}</h2>
+                        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", maxWidth: 500 }}>No orders were found for this period. Staff metrics will appear once orders are processed through your POS.</p>
+                    </div>
                 ) : (
                     <div className="card" style={{ padding: 48, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
                         <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
