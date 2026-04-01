@@ -1122,7 +1122,7 @@ export default function SettingsPage() {
                                                 </div>
                                                 <div>
                                                     <div className="f-label">Password</div>
-                                                    <input className="s-input" type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)} placeholder="App Password or email password" />
+                                                    <input className="s-input" type="password" value={emailPass} onChange={e => setEmailPass(e.target.value)} placeholder="Email password" />
                                                 </div>
                                             </div>
 
@@ -1171,7 +1171,7 @@ export default function SettingsPage() {
                                                 </div>
                                             )}
                                             <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-                                                💡 Gmail users: Use an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" style={{ color: "#E8C96E", textDecoration: "none" }}>App Password</a> instead of your regular password.
+                                                📬 Emails received at this address will appear in your Social Inbox. You can read and reply directly from Restly.
                                             </div>
                                         </>
                                     ) : (
