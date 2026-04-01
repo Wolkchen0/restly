@@ -982,12 +982,11 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
 
-                                    {/* ── Reviews & Reservations ── */}
+                                    {/* ── Reviews ── */}
                                     <div style={{ marginBottom: 16 }}>
-                                        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Reviews & Reservations</div>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Reviews</div>
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
                                             {[
-                                                { name: "OpenTable", key: "opentableRestaurantId", icon: "🍽️", helpUrl: "https://restaurant.opentable.com", desc: "Reservation sync & guest profiles" },
                                                 { name: "Google Business", key: "googleBusinessToken", icon: "📍", helpUrl: "https://console.cloud.google.com/apis/credentials", desc: "Google reviews & star ratings" },
                                                 { name: "Yelp", key: "yelpApiKey", icon: "⭐", helpUrl: "https://www.yelp.com/developers/v3/manage_app", desc: "Yelp reviews & ratings" },
                                             ].map(app => {
@@ -1025,6 +1024,54 @@ export default function SettingsPage() {
                                                     </div>
                                                 );
                                             })}
+                                        </div>
+                                    </div>
+
+                                    {/* ── OpenTable Guest Import ── */}
+                                    <div style={{ marginBottom: 16 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Guest Data</div>
+                                        <div style={{
+                                            padding: "16px", borderRadius: 12,
+                                            background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)",
+                                            textAlign: "center", position: "relative",
+                                        }}>
+                                            <div style={{ fontSize: 28, marginBottom: 6 }}>🍽️</div>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>OpenTable Guest Import</div>
+                                            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 12, lineHeight: 1.5 }}>
+                                                Export guests from <a href="https://guestcenter.opentable.com" target="_blank" rel="noopener noreferrer" style={{ color: "#E8C96E", textDecoration: "none" }}>OpenTable Guest Center</a> as CSV, then upload here.
+                                            </div>
+                                            <input
+                                                type="file" accept=".csv,.txt" id="csv-upload-settings"
+                                                style={{ display: "none" }}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    const formData = new FormData();
+                                                    formData.append("file", file);
+                                                    showToast("⏳ Importing guests...");
+                                                    try {
+                                                        const res = await fetch("/api/guests/import", { method: "POST", body: formData });
+                                                        const data = await res.json();
+                                                        if (data.success) {
+                                                            showToast(`✅ Imported! ${data.summary.created} new, ${data.summary.updated} updated, ${data.summary.skipped} skipped`);
+                                                        } else {
+                                                            showToast(`❌ ${data.error || "Import failed"}`);
+                                                        }
+                                                    } catch { showToast("❌ Upload failed"); }
+                                                    e.target.value = "";
+                                                }}
+                                            />
+                                            <label htmlFor="csv-upload-settings" style={{
+                                                display: "inline-block", padding: "10px 24px", borderRadius: 8,
+                                                background: "rgba(232,201,110,0.1)", border: "1px solid rgba(232,201,110,0.3)",
+                                                color: "#E8C96E", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                                                transition: "all 0.2s",
+                                            }}>
+                                                📥 Upload CSV File
+                                            </label>
+                                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 8 }}>
+                                                Supports OpenTable export format. Duplicate guests are automatically merged.
+                                            </div>
                                         </div>
                                     </div>
 

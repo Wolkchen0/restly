@@ -129,7 +129,7 @@ export default function GuestsPage() {
                 <div className="topbar">
                     <div className="topbar-title">👤 Guest Intelligence</div>
                     <div className="topbar-right">
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>OpenTable Integration</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Guest Intelligence</span>
                     </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "calc(100vh - 70px)", padding: 32 }}>
@@ -172,14 +172,32 @@ export default function GuestsPage() {
         <>
             <div className="topbar">
                 <div className="topbar-title">👤 Guest Intelligence</div>
-                <div className="topbar-right">
-                    {isDemo ? (
+                <div className="topbar-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                        type="file" accept=".csv,.txt" id="csv-upload-guests"
+                        style={{ display: "none" }}
+                        onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            try {
+                                const res = await fetch("/api/guests/import", { method: "POST", body: formData });
+                                const d = await res.json();
+                                if (d.success) {
+                                    alert(`✅ Imported! ${d.summary.created} new, ${d.summary.updated} updated`);
+                                    window.location.reload();
+                                } else {
+                                    alert(`❌ ${d.error || "Import failed"}`);
+                                }
+                            } catch { alert("❌ Upload failed"); }
+                            e.target.value = "";
+                        }}
+                    />
+                    <label htmlFor="csv-upload-guests" style={{ fontSize: 12, padding: "6px 14px", background: "rgba(232,201,110,0.08)", border: "1px solid rgba(232,201,110,0.2)", color: "#E8C96E", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontFamily: "inherit" }}>📥 Import CSV</label>
+                    {data?.stats?.totalGuests > 0 && (
                         <span style={{ fontSize: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--green)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
-                            🟢 OpenTable Connected (Demo)
-                        </span>
-                    ) : (
-                        <span style={{ fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
-                            ⚪ OpenTable Not Connected
+                            {data.stats.totalGuests} Guests
                         </span>
                     )}
                 </div>
