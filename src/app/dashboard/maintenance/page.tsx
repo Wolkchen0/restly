@@ -55,6 +55,11 @@ export default function MaintenancePage() {
 
     useEffect(() => {
         // AI Logic: Scan logs for maintenance issues
+        // Only use demo data for demo accounts — real accounts don't have fake alerts
+        if (!isDemo) {
+            setDetectedIssues([]);
+            return;
+        }
         const issues: string[] = [];
         const keywords = ["broken", "not working", "fails", "arizali", "bozuk", "tamir", "leak", "noise"];
         INITIAL_LOGS.forEach(log => {
@@ -68,7 +73,7 @@ export default function MaintenancePage() {
             }
         });
         setDetectedIssues(issues);
-    }, []);
+    }, [isDemo]);
 
     const handleDispatch = (id: string) => {
         setActioned(id);
