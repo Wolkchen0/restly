@@ -47,8 +47,16 @@ async function detectEmailProvider(domain: string): Promise<{ imap: string; smtp
         if (mx.includes("bluehost")) {
             return { imap: `mail.${domain}`, smtp: `mail.${domain}` };
         }
-
-        return null;
+        // Rackspace / Serverdata / Netchanger
+        if (mx.includes("serverdata") || mx.includes("netchanger") || mx.includes("emailsrvr") || mx.includes("rackspace")) {
+            return { imap: `secure.emailsrvr.com`, smtp: `secure.emailsrvr.com` };
+        }
+        // iCloud
+        if (mx.includes("icloud") || mx.includes("apple")) {
+            return { imap: "imap.mail.me.com", smtp: "smtp.mail.me.com" };
+        }
+        // Generic cPanel fallback: try mail.domain
+        return { imap: `mail.${domain}`, smtp: `mail.${domain}` };
     } catch {
         return null;
     }
