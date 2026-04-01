@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { usePOSSync, centsToDisplay } from "@/lib/pos/use-pos-sync";
 import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Legend } from "recharts";
 
@@ -96,6 +97,11 @@ export default function FinancePage() {
     const [editingOpex, setEditingOpex] = useState(false);
     const [showAllInsights, setShowAllInsights] = useState(false);
 
+    // POS sync — map period to API period parameter
+    const posPeriodMap: Record<string, string> = { "Today": "today", "Yesterday": "yesterday", "Week-to-Date": "week", "Month-to-Date": "month", "Last Month": "month" };
+    const pos = usePOSSync(undefined, posPeriodMap[period] || "today");
+    const hasLiveData = pos.connected && pos.data && !pos.loading && pos.data.revenue.totalOrders > 0;
+
     useEffect(() => { if (userPrefix) { const saved = userLoad<any[]>(userPrefix, "finance_opex"); if (saved) setOpex(saved); const lab = userLoad<string>(userPrefix, "finance_labor"); if (lab) setLaborOverride(lab); } }, [userPrefix]);
     useEffect(() => { userSave(userPrefix, "finance_opex", opex); }, [opex, userPrefix]);
     useEffect(() => { userSave(userPrefix, "finance_labor", laborOverride); }, [laborOverride, userPrefix]);
@@ -105,28 +111,34 @@ export default function FinancePage() {
         setTimeout(() => setToastMsg(null), 3000);
     };
 
-
-
     const totalOpex = opex.reduce((a, e) => a + e.amount, 0);
 
-    // Period multipliers based on daily averages
-    // Monthly baseline: Revenue=176000, COGS=51300, Labor=57100, OpEx=15000
-    // Daily baseline (30-day month): Revenue≈5867, COGS≈1710, Labor≈1903
-    const DAILY_BASE = { revenue: 5867, cogs: 1710, labor: 1903 };
-    const periodMultiplier: Record<string, number> = {
-        "Today": 1,
-        "Yesterday": 1,
-        "Week-to-Date": new Date().getDay() || 7, // days so far this week (1-7)
-        "Month-to-Date": new Date().getDate(),     // day of month (1-31)
-        "Last Month": 30,
-    };
-    const mult = periodMultiplier[period] || 30;
+    // ── Calculate financials from POS or demo ──
+    let periodRevenue: number, periodCogs: number, laborDefault: number, periodOpex: number;
 
-    const periodRevenue = Math.round(DAILY_BASE.revenue * mult);
-    const periodCogs = Math.round(DAILY_BASE.cogs * mult);
-    const laborDefault = Math.round(DAILY_BASE.labor * mult);
+    if (hasLiveData) {
+        const rev = pos.data!.revenue;
+        periodRevenue = Math.round(rev.grossSales / 100);
+        periodCogs = Math.round(periodRevenue * 0.29); // Estimate 29% COGS
+        laborDefault = Math.round(pos.data!.laborCostTotal / 100);
+        const mult = period === "Today" || period === "Yesterday" ? 1 : period === "Week-to-Date" ? (new Date().getDay() || 7) : new Date().getDate();
+        periodOpex = Math.round(totalOpex * (mult / 30));
+    } else {
+        const DAILY_BASE = { revenue: 5867, cogs: 1710, labor: 1903 };
+        const periodMultiplier: Record<string, number> = {
+            "Today": 1, "Yesterday": 1,
+            "Week-to-Date": new Date().getDay() || 7,
+            "Month-to-Date": new Date().getDate(),
+            "Last Month": 30,
+        };
+        const mult = periodMultiplier[period] || 30;
+        periodRevenue = Math.round(DAILY_BASE.revenue * mult);
+        periodCogs = Math.round(DAILY_BASE.cogs * mult);
+        laborDefault = Math.round(DAILY_BASE.labor * mult);
+        periodOpex = Math.round(totalOpex * (mult / 30));
+    }
+
     const laborTotal = laborOverride ? parseFloat(laborOverride) || 0 : laborDefault;
-    const periodOpex = Math.round(totalOpex * (mult / 30)); // scale opex proportionally
 
     const stats = {
         totalRevenue: periodRevenue,
