@@ -122,12 +122,25 @@ export default function RecipesPage() {
     useEffect(() => { userSave(userPrefix, "drink_recipes", drinkRecipes); }, [drinkRecipes, userPrefix]);
     useEffect(() => { userSave(userPrefix, "food_ingredients", foodIngredients); }, [foodIngredients, userPrefix]);
 
+    // Build POS sales lookup: item name → quantity sold today
+    const posSalesMap = new Map<string, number>();
+    if (!isDemo && pos.connected && pos.data?.orders?.length) {
+        for (const order of pos.data.orders) {
+            for (const item of (order as any).items || []) {
+                const name = (item.name || "").toLowerCase();
+                posSalesMap.set(name, (posSalesMap.get(name) || 0) + (item.quantity || 1));
+            }
+        }
+    }
+
     // Calculate cost & servings for each food recipe
     const getFoodData = (r: FoodRecipe) => {
         const cost = getFoodCost(r, foodIngredients);
         const servings = getFoodServingsRemaining(r, foodIngredients);
         const margin = r.menuPrice > 0 ? Math.round((1 - cost / r.menuPrice) * 100) : 0;
-        const dailySales = isDemo ? (DEMO_FOOD_SALES.find(s => s.recipeId === r.id)?.sold || 0) : 0;
+        const dailySales = isDemo
+            ? (DEMO_FOOD_SALES.find(s => s.recipeId === r.id)?.sold || 0)
+            : (posSalesMap.get(r.name.toLowerCase()) || 0);
         const daysSupply = dailySales > 0 ? Math.floor(servings / dailySales) : null;
         return { cost, servings, margin, dailySales, daysSupply };
     };
@@ -168,7 +181,9 @@ export default function RecipesPage() {
     const getDrinkData = (r: DrinkRecipe) => {
         const cost = getPourCost(r, bottles);
         const margin = r.menuPrice > 0 ? Math.round((1 - cost / r.menuPrice) * 100) : 0;
-        const dailySales = isDemo ? (DEMO_DRINK_SALES.find(s => s.recipeId === r.id)?.sold || 0) : 0;
+        const dailySales = isDemo
+            ? (DEMO_DRINK_SALES.find(s => s.recipeId === r.id)?.sold || 0)
+            : (posSalesMap.get(r.name.toLowerCase()) || 0);
         const servings = getServingsRemaining(r, bottles);
         return { cost, margin, dailySales, servings };
     };
@@ -188,7 +203,9 @@ export default function RecipesPage() {
     const totalRecipes = foodRecipes.length + drinkRecipes.length;
     const lowStockRecipes = foodRecipes.filter(r => getFoodServingsRemaining(r, foodIngredients) <= 5).length;
     const avgMarginFood = foodRecipes.length > 0 ? Math.round(foodRecipes.reduce((a, r) => a + getFoodData(r).margin, 0) / foodRecipes.length) : 0;
-    const totalDailySales = isDemo ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0) : 0;
+    const totalDailySales = isDemo
+        ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) + DEMO_DRINK_SALES.reduce((a, s) => a + s.sold, 0)
+        : [...posSalesMap.values()].reduce((a, b) => a + b, 0);
 
     const openEdit = (r: FoodRecipe) => {
         setEditModal(r);

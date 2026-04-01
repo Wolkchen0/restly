@@ -1,5 +1,10 @@
-// ── Toast POS Adapter ────────────────────────────────────────────────────────
-// Implements POSAdapter interface for Toast Standard API Access.
+// ── Toast POS Adapter (Staff Performance) ────────────────────────────────────
+// Used by: /api/team/performance, /api/pos/test
+// Constructor pattern: new ToastAdapter(creds) → getOrders(), getEmployees()
+// 
+// NOTE: There is also src/lib/pos/toast-adapter.ts which is used by
+// /api/pos-sync (dashboard sync). Both share the same Toast API endpoints
+// but have different interface patterns for their consumers.
 // Auth: OAuth2 client-credentials → clientId + clientSecret → Bearer token
 // Docs: https://doc.toasttab.com/doc/devguide/authentication.html
 

@@ -37,6 +37,21 @@ export default function DashboardOverview() {
         yesterday: 0,
     })) || [];
 
+    // Derive floor metrics from POS orders
+    const liveOrders = pos.data?.orders || [];
+    const openOrders = liveOrders.filter(o => o.status === "open");
+    const closedOrders = liveOrders.filter(o => o.status === "closed");
+    const activeTables = openOrders.length;
+    const totalTables = Math.max(activeTables + 4, 18); // assume some empty tables
+    const capacityPct = totalTables > 0 ? Math.round((activeTables / totalTables) * 100) : 0;
+    // Avg ticket time from closed orders (open→close in minutes)
+    const ticketTimes = closedOrders
+        .filter(o => o.closedAt && o.createdAt)
+        .map(o => (new Date(o.closedAt!).getTime() - new Date(o.createdAt).getTime()) / 60000)
+        .filter(t => t > 0 && t < 180);
+    const avgTicketMin = ticketTimes.length > 0 ? Math.round(ticketTimes.reduce((a, b) => a + b, 0) / ticketTimes.length) : 0;
+    const avgTicketSec = ticketTimes.length > 0 ? Math.round(((ticketTimes.reduce((a, b) => a + b, 0) / ticketTimes.length) % 1) * 60) : 0;
+
     const showToast = (msg: string) => {
         setToastMsg(msg);
         setTimeout(() => setToastMsg(null), 3000);
@@ -71,13 +86,13 @@ export default function DashboardOverview() {
     const handleExportDashboard = () => {
         import("@/utils/pdf-export").then(({ exportToPDF }) => {
             const metricRows: (string | number)[][] = [
-                ["Gross Sales Today", isDemo ? "$6,100" : "$0", isDemo ? "+14.5%" : "--"],
-                ["Total Covers", isDemo ? "124" : "0", isDemo ? "+8%" : "--"],
-                ["Avg Spend", isDemo ? "$49.19" : "$0.00", isDemo ? "-2.1%" : "--"],
-                ["Labour Cost %", isDemo ? "28.4%" : "0%", isDemo ? "Optimal" : "--"],
+                ["Gross Sales Today", hasLiveData ? liveGross : isDemo ? "$6,100" : "$0", hasLiveData ? `${rev!.totalOrders} orders` : isDemo ? "+14.5%" : "--"],
+                ["Total Covers", hasLiveData ? liveCovers : isDemo ? "124" : "0", hasLiveData ? `via ${pos.provider}` : isDemo ? "+8%" : "--"],
+                ["Avg Spend", hasLiveData ? liveAvgSpend : isDemo ? "$49.19" : "$0.00", hasLiveData ? "Live from POS" : isDemo ? "-2.1%" : "--"],
+                ["Labour Cost %", hasLiveData ? `${liveLaborPct}%` : isDemo ? "28.4%" : "0%", hasLiveData ? (liveLaborPct <= 30 ? "Optimal" : "Above target") : isDemo ? "Optimal" : "--"],
                 ["", "", ""],
                 ["Hourly Sales Breakdown", "", ""],
-                ...salesData.map(s => [s.time, `$${s.today}`, `$${s.yesterday}`]),
+                ...(hasLiveData && liveSalesData.length > 0 ? liveSalesData : salesData).map(s => [s.time, `$${s.today}`, `$${s.yesterday}`]),
             ];
             exportToPDF({
                 title: "Executive Dashboard Overview",
@@ -237,29 +252,29 @@ export default function DashboardOverview() {
                             <div>
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
                                     <span style={{ color: "rgba(255,255,255,0.6)" }}>Dining Room Capacity</span>
-                                    <span style={{ fontWeight: 700, color: "#fff" }}>{isDemo ? "78%" : "0%"}</span>
+                                    <span style={{ fontWeight: 700, color: "#fff" }}>{isDemo ? "78%" : hasLiveData ? `${capacityPct}%` : "0%"}</span>
                                 </div>
                                 <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
-                                    <div style={{ width: isDemo ? "78%" : "0%", height: "100%", background: "#4ade80", borderRadius: 4 }} />
+                                    <div style={{ width: isDemo ? "78%" : hasLiveData ? `${capacityPct}%` : "0%", height: "100%", background: capacityPct > 85 ? "#f87171" : capacityPct > 60 ? "#fbbf24" : "#4ade80", borderRadius: 4 }} />
                                 </div>
                             </div>
                             <div>
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
                                     <span style={{ color: "rgba(255,255,255,0.6)" }}>Kitchen Ticket Time (Avg)</span>
-                                    <span style={{ fontWeight: 700, color: "#fff" }}>{isDemo ? "14m 30s" : "0m 0s"}</span>
+                                    <span style={{ fontWeight: 700, color: "#fff" }}>{isDemo ? "14m 30s" : hasLiveData && avgTicketMin > 0 ? `${avgTicketMin}m ${avgTicketSec}s` : "0m 0s"}</span>
                                 </div>
                                 <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 4, overflow: "hidden" }}>
-                                    <div style={{ width: isDemo ? "45%" : "0%", height: "100%", background: "#C9A84C", borderRadius: 4 }} />
+                                    <div style={{ width: isDemo ? "45%" : hasLiveData ? `${Math.min(avgTicketMin * 3, 100)}%` : "0%", height: "100%", background: avgTicketMin > 20 ? "#f87171" : "#C9A84C", borderRadius: 4 }} />
                                 </div>
                             </div>
                             <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
                                 <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, textAlign: "center" }}>
-                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{isDemo ? "14" : "0"}</div>
+                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{isDemo ? "14" : hasLiveData ? activeTables : "0"}</div>
                                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: 2 }}>Active Tables</div>
                                 </div>
                                 <div style={{ flex: 1, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: 12, textAlign: "center" }}>
-                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#E8C96E" }}>{isDemo ? "4" : "0"}</div>
-                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: 2 }}>VIPs Seated</div>
+                                    <div style={{ fontSize: 20, fontWeight: 900, color: "#E8C96E" }}>{isDemo ? "4" : hasLiveData ? openOrders.filter(o => o.guestCount >= 4).length : "0"}</div>
+                                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: 2 }}>Large Parties</div>
                                 </div>
                             </div>
                         </div>

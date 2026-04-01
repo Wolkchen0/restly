@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { usePOSSync } from "@/lib/pos/use-pos-sync";
 import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 
 const FORM_TIME_ENTRY = "/forms/time-entry";
@@ -140,6 +141,7 @@ export default function SchedulePage() {
     const [copied, setCopied] = useState<string | null>(null);
     const [locationId, setLocationId] = useState<string>("");
     const isDemo = useIsDemo();
+    const pos = usePOSSync();
     const userPrefix = useUserPrefix();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [schedule, setSchedule] = useState<Record<string, ShiftEntry[]>>({});
@@ -164,8 +166,36 @@ export default function SchedulePage() {
     const weekDates = getWeekDates(weekOffset);
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
 
-    // Per-user persistence for employees and schedule — non-demo starts empty
-    useEffect(() => { if (userPrefix) { const se = userLoad<Employee[]>(userPrefix, "schedule_employees"); if (se) setEmployees(se); else if (isDemo) { setEmployees([...INITIAL_EMPLOYEES]); setSchedule(generateDefaultSchedule(INITIAL_EMPLOYEES)); } const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data"); if (ss) setSchedule(ss); } }, [userPrefix, isDemo]);
+    // Per-user persistence for employees and schedule — non-demo starts empty or from POS
+    useEffect(() => {
+        if (!userPrefix) return;
+        const se = userLoad<Employee[]>(userPrefix, "schedule_employees");
+        if (se) {
+            setEmployees(se);
+        } else if (isDemo) {
+            setEmployees([...INITIAL_EMPLOYEES]);
+            setSchedule(generateDefaultSchedule(INITIAL_EMPLOYEES));
+        } else if (!isDemo && pos.connected && pos.data?.employees?.length) {
+            // Auto-populate from POS employees
+            const posEmps: Employee[] = pos.data.employees.map((e: any) => {
+                const role = (e.role || "").toLowerCase();
+                let department: "Kitchen" | "FOH" | "Bar" = "FOH";
+                if (role.includes("chef") || role.includes("cook") || role.includes("kitchen") || role.includes("prep") || role.includes("dish")) department = "Kitchen";
+                else if (role.includes("bar") || role.includes("mixo")) department = "Bar";
+                return {
+                    name: `${e.firstName || ""} ${e.lastName || ""}`.trim() || "Unknown",
+                    position: e.role || "Staff",
+                    department,
+                };
+            });
+            if (posEmps.length > 0) {
+                setEmployees(posEmps);
+                setSchedule(generateDefaultSchedule(posEmps));
+            }
+        }
+        const ss = userLoad<Record<string, ShiftEntry[]>>(userPrefix, "schedule_data");
+        if (ss) setSchedule(ss);
+    }, [userPrefix, isDemo, pos.connected, pos.data?.employees?.length]);
     useEffect(() => { userSave(userPrefix, "schedule_employees", employees); }, [employees, userPrefix]);
     useEffect(() => { userSave(userPrefix, "schedule_data", schedule); }, [schedule, userPrefix]);
 

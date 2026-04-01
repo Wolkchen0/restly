@@ -914,9 +914,9 @@ export default function SettingsPage() {
                                                                         })
                                                                     });
                                                                     const data = await res.json();
-                                                                    setPosStatus(data.ok ? "connected" : "error");
+                                                                    setPosStatus(data.success ? "connected" : "error");
                                                                     setPosMessage(data.message || "");
-                                                                    showToast(data.message, data.ok ? "success" : "error");
+                                                                    showToast(data.message, data.success ? "success" : "error");
                                                                 } catch {
                                                                     setPosStatus("error");
                                                                     setPosMessage("Network error. Check your connection.");
@@ -943,17 +943,20 @@ export default function SettingsPage() {
                                                         setPosStatus("connecting");
                                                         setPosMessage("");
                                                         try {
-                                                            const fields: Record<string, string> = {};
-                                                            posInfo.fields.forEach(f => { fields[f.key] = (editLoc as any)[f.key] || ""; });
-                                                            const res = await fetch("/api/pos-validate", {
+                                                            const res = await fetch("/api/pos/test", {
                                                                 method: "POST",
                                                                 headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ posProvider: selectedPOS, fields })
+                                                                body: JSON.stringify({
+                                                                    provider: selectedPOS,
+                                                                    apiKey: (editLoc as any).posApiKey || "",
+                                                                    secretKey: (editLoc as any).posSecretKey || "",
+                                                                    locationId: (editLoc as any).posLocationId || "",
+                                                                })
                                                             });
                                                             const data = await res.json();
-                                                            setPosStatus(data.ok ? "connected" : "error");
+                                                            setPosStatus(data.success ? "connected" : "error");
                                                             setPosMessage(data.message || "");
-                                                            showToast(data.message, data.ok ? "success" : "error");
+                                                            showToast(data.message, data.success ? "success" : "error");
                                                         } catch {
                                                             setPosStatus("error");
                                                             setPosMessage("Network error. Check your connection.");

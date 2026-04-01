@@ -1,5 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════
-// Toast POS Adapter — Real API integration
+// Toast POS Adapter (Dashboard Sync)
+// Used by: /api/pos-sync → usePOSSync hook → Overview, Finance, Recipes, KDS
+// Factory pattern: authenticate(creds) → fetchOrders(token, guid, ...)
+//
+// NOTE: There is also src/services/pos/toast-adapter.ts which is used by
+// /api/team/performance and /api/pos/test. Both share the same Toast API
+// endpoints but have different interface patterns for their consumers.
 // Docs: https://doc.toasttab.com/openapi
 // ═══════════════════════════════════════════════════════════════════
 

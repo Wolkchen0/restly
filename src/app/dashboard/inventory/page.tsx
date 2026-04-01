@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { usePOSSync, centsToDisplay } from "@/lib/pos/use-pos-sync";
 import { BOTTLE_INVENTORY, DRINK_RECIPES, DEMO_DRINK_SALES, getTotalMlRemaining, getServingsRemaining, getPourCost, getCocktailsUsing, type BottleInfo, type DrinkRecipe } from "@/services/drinks";
 import { FOOD_INGREDIENTS, FOOD_RECIPES, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, getRecipesUsing, type FoodIngredient } from "@/services/food-recipes";
 
@@ -9,6 +10,7 @@ export default function InventoryPage() {
     const [search, setSearch] = useState("");
     const [activeTab, setActiveTab] = useState<"Food" | "Drink">("Food");
     const isDemo = useIsDemo();
+    const pos = usePOSSync();
     const [loading, setLoading] = useState(true);
     const [lastSynced, setLastSynced] = useState<string>("");
     const [syncCountdown, setSyncCountdown] = useState(600);
@@ -302,10 +304,14 @@ export default function InventoryPage() {
             <div className="topbar">
                 <div className="topbar-title">Inventory Management</div>
                 <div className="topbar-right" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    {isDemo && (
+                    {(isDemo || (pos.connected && !pos.loading)) && (
                         <>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Next sync: {Math.floor(syncCountdown / 60)}m {syncCountdown % 60}s · Last: {lastSynced}</span>
-                            <span style={{ fontSize: 12, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", color: "#4ade80", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>POS Connected</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                                {pos.connected ? `Last sync: ${pos.lastSynced || "just now"}` : `Next sync: ${Math.floor(syncCountdown / 60)}m ${syncCountdown % 60}s · Last: ${lastSynced}`}
+                            </span>
+                            <span style={{ fontSize: 12, background: pos.connected ? "rgba(34,197,94,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${pos.connected ? "rgba(34,197,94,0.2)" : "rgba(34,197,94,0.2)"}`, color: "#4ade80", padding: "5px 12px", borderRadius: 20, fontWeight: 600 }}>
+                                {pos.connected ? `${pos.provider} Connected` : "POS Connected"}
+                            </span>
                         </>
                     )}
                 </div>
@@ -506,8 +512,8 @@ export default function InventoryPage() {
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
                                     {[
                                         { label: "Menu Items", value: foodRecipesSource.length, color: "#fff" },
-                                        { label: "Dishes Sold Today", value: isDemo ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) : 0, color: "#60a5fa" },
-                                        { label: "Food Revenue", value: isDemo ? `$${DEMO_FOOD_SALES.reduce((a, s) => { const r = FOOD_RECIPES.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}` : "$0", color: "#4ade80" },
+                                        { label: "Dishes Sold Today", value: isDemo ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) : (pos.connected && pos.data?.revenue ? pos.data.revenue.totalOrders : 0), color: "#60a5fa" },
+                                        { label: "Food Revenue", value: isDemo ? `$${DEMO_FOOD_SALES.reduce((a, s) => { const r = FOOD_RECIPES.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}` : (pos.connected && pos.data?.revenue ? centsToDisplay(pos.data.revenue.grossSales) : "$0"), color: "#4ade80" },
                                         { label: "Cannot Make", value: foodRecipesSource.filter(r => getFoodServingsRemaining(r, foodIngredients) === 0).length, color: "#f87171" },
                                     ].map(c => (
                                         <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
