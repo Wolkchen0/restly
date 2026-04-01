@@ -11,6 +11,7 @@ import { getRecentReviews, getReviewStats } from "@/services/reviews";
 import { BOTTLE_INVENTORY, DRINK_RECIPES } from "@/services/drinks";
 import { FOOD_INGREDIENTS, FOOD_RECIPES, getFoodCost, getFoodServingsRemaining } from "@/services/food-recipes";
 import { getAllRecommendations, getPricingStats } from "@/services/pricing";
+import { runPOSSync } from "@/lib/pos";
 
 export const maxDuration = 30;
 const AI_MODEL = "gpt-4o-mini";
@@ -53,7 +54,7 @@ You are NOT just a chatbot — you are an active operations manager. You can:
 4. Maintenance → Report broken equipment, check equipment status/warranty/service contacts.
 5. Logbook → Create AND read shift log entries for incidents, notes, and handovers.
 6. Recipes → Read and update food and drink recipes with costs, margins, and ingredients.
-7. Finance → Analyze profit margins, labor costs, COGS, and P&L with daily/weekly/monthly breakdowns.
+7. Finance → Analyze profit margins, labor costs, COGS, and P&L with daily/weekly/monthly breakdowns. USES REAL POS DATA when connected.
 8. Kitchen (KDS) → Check live ticket times, station bottlenecks, and throughput data.
 9. Team Performance → Get staff leaderboard with sales, tips, check averages, and upsell rates.
 10. Social Reviews → Pull and analyze sentiment from Google/Yelp/OpenTable.
@@ -62,6 +63,12 @@ You are NOT just a chatbot — you are an active operations manager. You can:
 13. Navigation → Guide users to specific pages or take them there directly.
 14. POS Integration Help → Guide users through connecting their Point of Sale system.
 15. Location Management → Add new locations/branches directly. (e.g. "Add a new location called Downtown in San Francisco")
+
+## IMPORTANT DATA SOURCE RULES
+When returning financial data, ALWAYS check the "source" field in tool results:
+- If source is "LIVE POS DATA" → Tell the user "This is live data from your POS system" and give the exact numbers.
+- If source is "DEMO / NO POS" → Tell the user "These are sample figures. Connect your POS in Settings for real data." Do NOT present demo data as if it were the user's actual data.
+- When a user asks about their sales/revenue/finance and their POS is not connected, proactively suggest: "Go to Settings → Select your POS (Toast, Square, etc.) → Enter your credentials → Click Connect"
 
 ## POS INTEGRATION KNOWLEDGE
 When users ask about connecting their POS, give them exact steps. Here is the official info:
@@ -543,11 +550,77 @@ RULES:
 
                 // ── ANALYTICS TOOLS ────────────────────────────────────────────────
                 get_financial_overview: tool({
-                    description: "Get comprehensive P&L, Revenue, COGS, Labor Cost, and Profit data. Returns daily, weekly, and monthly breakdowns so you can answer ANY finance question directly.",
+                    description: "Get comprehensive P&L, Revenue, COGS, Labor Cost, and Profit data. Returns daily, weekly, and monthly breakdowns so you can answer ANY finance question directly. Uses REAL POS data when connected.",
                     parameters: z.object({
                         period: z.enum(["today", "week", "month", "all"]).default("all").describe("Time period to get data for")
                     }),
                     execute: async ({ period }) => {
+                        // Check if user has POS connected and try to get real data
+                        let useLiveData = false;
+                        let liveRevenue: any = null;
+                        let liveLaborCost = 0;
+                        let liveLaborPct = 0;
+
+                        try {
+                            const restaurant = await prisma.restaurant.findUnique({
+                                where: { id: session.user!.id! },
+                                include: { locations: true },
+                            });
+                            const isDemoAcct = restaurant?.name?.toLowerCase().includes("sample") || restaurant?.email?.startsWith("demo");
+                            
+                            if (!isDemoAcct && restaurant) {
+                                const loc = restaurant.locations.find(l => l.isDefault) || restaurant.locations[0];
+                                if (loc?.posProvider && loc.posProvider !== "manual" && loc.posApiKey) {
+                                    const today = new Date().toISOString().split("T")[0];
+                                    const syncResult = await runPOSSync(
+                                        { provider: loc.posProvider, apiKey: loc.posApiKey, secretKey: loc.posSecretKey || undefined, locationId: loc.posLocationId || undefined },
+                                        loc.id,
+                                        { start: today, end: today }
+                                    );
+                                    if (syncResult.errors.length === 0 && syncResult.revenue.totalOrders > 0) {
+                                        useLiveData = true;
+                                        liveRevenue = syncResult.revenue;
+                                        liveLaborCost = syncResult.laborCostTotal;
+                                        liveLaborPct = syncResult.laborPercentage;
+                                    }
+                                }
+                            }
+                        } catch (e) { console.error("POS sync for chatbot:", e); }
+
+                        if (useLiveData && liveRevenue) {
+                            const rev = liveRevenue.grossSales / 100;
+                            const net = liveRevenue.netSales / 100;
+                            const tax = liveRevenue.tax / 100;
+                            const tips = liveRevenue.tips / 100;
+                            const labor = liveLaborCost / 100;
+                            const cogs = rev * 0.29; // Estimated COGS 29%
+                            const opex = rev * 0.08; // Estimated OpEx 8%
+                            const profit = net - cogs - labor - opex;
+                            
+                            return {
+                                source: "LIVE POS DATA",
+                                today: {
+                                    label: "Today (Live from POS)",
+                                    revenue: "$" + rev.toLocaleString(undefined, {maximumFractionDigits: 0}),
+                                    netSales: "$" + net.toLocaleString(undefined, {maximumFractionDigits: 0}),
+                                    tax: "$" + tax.toLocaleString(undefined, {maximumFractionDigits: 0}),
+                                    tips: "$" + tips.toLocaleString(undefined, {maximumFractionDigits: 0}),
+                                    cogs: "$" + cogs.toLocaleString(undefined, {maximumFractionDigits: 0}) + " (est. 29%)",
+                                    labor: "$" + labor.toLocaleString(undefined, {maximumFractionDigits: 0}) + ` (${liveLaborPct}%)`,
+                                    opex: "$" + opex.toLocaleString(undefined, {maximumFractionDigits: 0}) + " (est.)",
+                                    netProfit: "$" + profit.toLocaleString(undefined, {maximumFractionDigits: 0}),
+                                    profitMargin: rev > 0 ? ((profit / rev) * 100).toFixed(1) + "%" : "0%",
+                                    totalOrders: liveRevenue.totalOrders,
+                                    totalCovers: liveRevenue.totalCovers,
+                                    avgOrderValue: "$" + (liveRevenue.avgOrderValue / 100).toFixed(2),
+                                    topItems: liveRevenue.topSellingItems.slice(0, 5).map((i: any) => `${i.name}: ${i.quantity} sold ($${(i.revenue / 100).toFixed(0)})`),
+                                },
+                                benchmarks: { cogTarget: "Under 30%", laborTarget: "25-33%", primeCostTarget: "Under 65%", profitMarginTarget: "10-15%" },
+                                navigation: { path: "/dashboard/finance", label: "P&L / Finance" }
+                            };
+                        }
+
+                        // Fallback: demo data or no POS connected
                         const daily = { revenue: 5867, cogs: 1710, labor: 1903, opex: 500 };
                         const dayOfWeek = new Date().getDay() || 7;
                         const dayOfMonth = new Date().getDate();
@@ -586,6 +659,7 @@ RULES:
 
                         const result = period === "all" ? periods : { [period]: periods[period] };
                         return {
+                            source: "DEMO / NO POS",
                             ...result,
                             dailyAverages: {
                                 revenue: "$" + daily.revenue.toLocaleString(),
