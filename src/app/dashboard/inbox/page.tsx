@@ -90,6 +90,14 @@ export default function SocialInboxPage() {
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
     const isDemo = useIsDemo();
 
+    // Email compose state
+    const [composing, setComposing] = useState(false);
+    const [composeTo, setComposeTo] = useState("");
+    const [composeCc, setComposeCc] = useState("");
+    const [composeSubject, setComposeSubject] = useState("");
+    const [composeBody, setComposeBody] = useState("");
+    const [sending, setSending] = useState(false);
+
     // ── Fetch all data from API routes ──────────────────────────────────────
     const loadInboxData = useCallback(async () => {
         setLoading(true);
@@ -300,6 +308,7 @@ export default function SocialInboxPage() {
                 </div>
                 <div className="topbar-right" style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <button onClick={() => { setLoading(true); loadInboxData(); showToast("Refreshing inbox..."); }} style={{ fontSize: 12, padding: "8px 16px", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>🔄 Refresh</button>
+                    <button onClick={() => { setComposing(true); setSelectedId(null); setSelectedAiId(null); setComposeTo(""); setComposeCc(""); setComposeSubject(""); setComposeBody(""); }} style={{ fontSize: 12, padding: "8px 16px", background: "rgba(232,201,110,0.08)", border: "1px solid rgba(232,201,110,0.2)", color: "#E8C96E", borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>✉️ Compose</button>
                     <button onClick={handleAiScan} disabled={aiScanning} style={{ fontSize: 12, padding: "8px 16px", background: aiScanning ? "rgba(167,139,250,0.2)" : "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", borderRadius: 10, cursor: aiScanning ? "not-allowed" : "pointer", fontFamily: "inherit", fontWeight: 700 }}>
                         {aiScanning ? "⏳ Scanning..." : "✨ AI Scan"}
                     </button>
@@ -409,24 +418,90 @@ export default function SocialInboxPage() {
                                 </div>
                             )}
 
-                            {selectedMsg ? (
+                            {composing ? (
+                                /* ── COMPOSE NEW EMAIL ── */
+                                <>
+                                    <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", background: "var(--bg-card)", flexShrink: 0 }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>✉️ New Email</h3>
+                                            <button onClick={() => setComposing(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 18 }}>✕</button>
+                                        </div>
+                                    </div>
+                                    <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            <label style={{ fontSize: 12, color: "var(--text-muted)", width: 60, fontWeight: 600 }}>To:</label>
+                                            <input value={composeTo} onChange={e => setComposeTo(e.target.value)} placeholder="recipient@example.com" style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border)", padding: "10px 14px", borderRadius: 8, color: "white", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            <label style={{ fontSize: 12, color: "var(--text-muted)", width: 60, fontWeight: 600 }}>CC:</label>
+                                            <input value={composeCc} onChange={e => setComposeCc(e.target.value)} placeholder="cc@example.com (optional)" style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border)", padding: "10px 14px", borderRadius: 8, color: "white", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            <label style={{ fontSize: 12, color: "var(--text-muted)", width: 60, fontWeight: 600 }}>Subject:</label>
+                                            <input value={composeSubject} onChange={e => setComposeSubject(e.target.value)} placeholder="Email subject" style={{ flex: 1, background: "var(--bg-secondary)", border: "1px solid var(--border)", padding: "10px 14px", borderRadius: 8, color: "white", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+                                        </div>
+                                        <textarea
+                                            value={composeBody} onChange={e => setComposeBody(e.target.value)}
+                                            placeholder="Write your email..."
+                                            style={{ flex: 1, minHeight: 200, background: "var(--bg-secondary)", border: "1px solid var(--border)", padding: "14px 16px", borderRadius: 8, color: "white", fontSize: 14, fontFamily: "inherit", outline: "none", resize: "none", lineHeight: 1.7 }}
+                                        />
+                                    </div>
+                                    <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", background: "var(--bg-card)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Sent from your connected email via SMTP</div>
+                                        <button
+                                            className="btn-primary" disabled={sending || !composeTo || !composeSubject || !composeBody}
+                                            style={{ padding: "10px 24px", borderRadius: 8, fontSize: 13 }}
+                                            onClick={async () => {
+                                                setSending(true);
+                                                try {
+                                                    const res = await fetch("/api/inbox/emails/send", {
+                                                        method: "POST",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ to: composeTo, subject: composeSubject, body: composeBody }),
+                                                    });
+                                                    const data = await res.json();
+                                                    if (data.success) {
+                                                        showToast(`✅ Email sent to ${composeTo}!`);
+                                                        setComposing(false);
+                                                    } else {
+                                                        showToast(`❌ ${data.error || "Failed to send"}`);
+                                                    }
+                                                } catch { showToast("❌ Network error"); }
+                                                finally { setSending(false); }
+                                            }}
+                                        >
+                                            {sending ? "Sending..." : "Send Email ↗"}
+                                        </button>
+                                    </div>
+                                </>
+                            ) : selectedMsg ? (
                                 /* ── MESSAGE DETAIL VIEW ── */
                                 <>
                                     {/* Header */}
-                                    <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", gap: 14, alignItems: "center", background: "var(--bg-card)", flexShrink: 0 }}>
-                                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}20`, border: `1px solid ${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff", flexShrink: 0 }}>
-                                            {selectedMsg.avatar.length <= 2 ? selectedMsg.avatar : selectedMsg.avatar.substring(0, 2)}
+                                    <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", background: "var(--bg-card)", flexShrink: 0 }}>
+                                        <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: selectedMsg.platform === "Email" ? 12 : 0 }}>
+                                            <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}20`, border: `1px solid ${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff", flexShrink: 0 }}>
+                                                {selectedMsg.avatar.length <= 2 ? selectedMsg.avatar : selectedMsg.avatar.substring(0, 2)}
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedMsg.sender}</div>
+                                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{selectedMsg.handle} · via {selectedMsg.platform}</div>
+                                            </div>
+                                            {selectedMsg.rating && (
+                                                <div style={{ fontSize: 13, color: "#fbbf24" }}>{"⭐".repeat(selectedMsg.rating)}</div>
+                                            )}
+                                            <div style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: `${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}15`, color: PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff", fontWeight: 600 }}>
+                                                {selectedMsg.type === "review" ? "Review" : selectedMsg.type === "mention" ? "Mention" : selectedMsg.type === "email" ? "Email" : "Direct Message"}
+                                            </div>
                                         </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: 16, fontWeight: 700 }}>{selectedMsg.sender}</div>
-                                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{selectedMsg.handle} · via {selectedMsg.platform}</div>
-                                        </div>
-                                        {selectedMsg.rating && (
-                                            <div style={{ fontSize: 13, color: "#fbbf24" }}>{"⭐".repeat(selectedMsg.rating)}</div>
+                                        {/* Email-specific headers */}
+                                        {selectedMsg.platform === "Email" && (
+                                            <div style={{ background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "10px 14px", border: "1px solid var(--border)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.8 }}>
+                                                <div><span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>From:</span> {selectedMsg.sender} &lt;{selectedMsg.handle}&gt;</div>
+                                                <div><span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>Subject:</span> <span style={{ color: "#fff", fontWeight: 600 }}>{selectedMsg.preview}</span></div>
+                                                <div><span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 600 }}>Date:</span> {selectedMsg.time}</div>
+                                            </div>
                                         )}
-                                        <div style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6, background: `${PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff"}15`, color: PLATFORM_STYLE[selectedMsg.platform]?.color || "#fff", fontWeight: 600 }}>
-                                            {selectedMsg.type === "review" ? "Review" : selectedMsg.type === "mention" ? "Mention" : selectedMsg.type === "email" ? "Email" : "Direct Message"}
-                                        </div>
                                     </div>
 
                                     {/* Message content — scrollable */}
@@ -456,20 +531,47 @@ export default function SocialInboxPage() {
                                         </div>
                                     </div>
 
-                                    {/* Reply bar — always visible at bottom */}
+                                    {/* Reply bar */}
                                     <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", background: "var(--bg-card)", flexShrink: 0 }}>
-                                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                                            <input
-                                                type="text" value={replyText} onChange={e => setReplyText(e.target.value)}
-                                                onKeyDown={e => { if (e.key === "Enter") handleSendReply(); }}
-                                                placeholder={`Reply to ${selectedMsg.sender}...`}
-                                                style={{ flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border)", padding: "10px 16px", borderRadius: 24, color: "white", fontSize: 14, fontFamily: "inherit", outline: "none" }}
-                                            />
-                                            <button onClick={handleSendReply} className="btn-primary" style={{ padding: "10px 20px", borderRadius: 24, fontSize: 13 }}>Send ↗</button>
-                                        </div>
-                                        <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "center" }}>
-                                            Replies sent via {selectedMsg.platform} API · Press Enter to send
-                                        </div>
+                                        {selectedMsg.platform === "Email" ? (
+                                            /* Email reply with Subject line */
+                                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                    <span style={{ fontSize: 11, color: "var(--text-muted)", width: 50, fontWeight: 600 }}>To:</span>
+                                                    <input value={selectedMsg.handle} disabled style={{ flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border)", padding: "8px 12px", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+                                                </div>
+                                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                                    <span style={{ fontSize: 11, color: "var(--text-muted)", width: 50, fontWeight: 600 }}>Subject:</span>
+                                                    <input value={`Re: ${selectedMsg.preview}`} disabled style={{ flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border)", padding: "8px 12px", borderRadius: 8, color: "rgba(255,255,255,0.6)", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+                                                </div>
+                                                <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                                                    <textarea
+                                                        value={replyText} onChange={e => setReplyText(e.target.value)}
+                                                        placeholder="Write your reply..."
+                                                        rows={3}
+                                                        style={{ flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border)", padding: "10px 14px", borderRadius: 8, color: "white", fontSize: 13, fontFamily: "inherit", outline: "none", resize: "none", lineHeight: 1.6 }}
+                                                    />
+                                                    <button onClick={handleSendReply} className="btn-primary" style={{ padding: "10px 20px", borderRadius: 8, fontSize: 13, height: "fit-content" }}>Reply ↗</button>
+                                                </div>
+                                                <div style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "center" }}>Reply sent via SMTP to {selectedMsg.handle}</div>
+                                            </div>
+                                        ) : (
+                                            /* Social media reply — simple input */
+                                            <>
+                                                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                                    <input
+                                                        type="text" value={replyText} onChange={e => setReplyText(e.target.value)}
+                                                        onKeyDown={e => { if (e.key === "Enter") handleSendReply(); }}
+                                                        placeholder={`Reply to ${selectedMsg.sender}...`}
+                                                        style={{ flex: 1, background: "var(--bg-primary)", border: "1px solid var(--border)", padding: "10px 16px", borderRadius: 24, color: "white", fontSize: 14, fontFamily: "inherit", outline: "none" }}
+                                                    />
+                                                    <button onClick={handleSendReply} className="btn-primary" style={{ padding: "10px 20px", borderRadius: 24, fontSize: 13 }}>Send ↗</button>
+                                                </div>
+                                                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 6, textAlign: "center" }}>
+                                                    Replies sent via {selectedMsg.platform} API · Press Enter to send
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </>
                             ) : selectedAiMention ? (
