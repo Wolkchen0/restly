@@ -1,0 +1,24 @@
+demo@meyhouse.com | Meyhouse | pro
+  -> Meyhouse — Hollywood [cmmi1k8cg0001105nui1dj878]
+  -> Meyhouse — Beverly Hills [cmmi1k8cg0002105ncaofwgwx]
+  -> Meyhouse — Santa Monica [cmmi1k8cg0003105nq1a94lh2]
+demo+1774571471419_1d54r@restly.com | Sample Restaurant | pro
+  -> Sample Rest. — Downtown [cmn861bi90001esru1b5rjhfp]
+  -> Sample Rest. — Westside [cmn861bi90002esrujkkrvb2e]
+  -> Sample Rest. — Waterfront [cmn861bi90003esrur5u2gtss]
+demo+1774590146727_qlxxv@restly.com | Sample Restaurant | pro
+  -> Sample Rest. — Downtown [cmn8h5l5w00019nrw1k6xcs7z]
+  -> Sample Rest. — Westside [cmn8h5l5w00029nrw9z61y9ce]
+  -> Sample Rest. — Waterfront [cmn8h5l5w00039nrwtvnofyck]
+demo+1774617051022_mnhjg@restly.com | Sample Restaurant | pro
+  -> Sample Rest. — Downtown [cmn8x68mw0001gsn1maqh5xgc]
+  -> Sample Rest. — Westside [cmn8x68mw0002gsn1ye7aujnn]
+  -> Sample Rest. — Waterfront [cmn8x68mw0003gsn14nx45ovt]
+demo+1774637597037_ewzdf@restly.com | Sample Restaurant | pro
+  -> Sample Rest. — Downtown [cmn99em2g0001qxia1wxieqzg]
+  -> Sample Rest. — Westside [cmn99em2g0002qxiajjgomn4j]
+  -> Sample Rest. — Waterfront [cmn99em2g0003qxia3jeo5z1i]
+ihsanduygu357@gmail.com | wolkchen | trial
+  -> ww [cmmpvuujb0001potp9exqmjaq]
+
+TOTAL: 6 accounts

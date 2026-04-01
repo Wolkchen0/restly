@@ -258,6 +258,7 @@ export default function InventoryPage() {
 
     const getIngredientStatus = (i: FoodIngredient) => {
         if (i.onHand <= 0) return "OUT";
+        if (!isDemo) return i.onHand > 0 ? "OK" : "OUT";
         const recipes = getRecipesUsing(i.inventoryId);
         if (recipes.length > 0) {
             const avgDaily = DEMO_FOOD_SALES.reduce((acc, s) => {
@@ -279,7 +280,8 @@ export default function InventoryPage() {
         return !search || b.name.toLowerCase().includes(search.toLowerCase());
     });
     const filteredFoodIngredients = foodIngredients.filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()));
-    const filteredFoodRecipes = FOOD_RECIPES.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
+    const foodRecipesSource = isDemo ? FOOD_RECIPES : [];
+    const filteredFoodRecipes = foodRecipesSource.filter(r => !search || r.name.toLowerCase().includes(search.toLowerCase()));
 
     return (
         <>
@@ -503,10 +505,10 @@ export default function InventoryPage() {
                             <>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
                                     {[
-                                        { label: "Menu Items", value: FOOD_RECIPES.length, color: "#fff" },
-                                        { label: "Dishes Sold Today", value: DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0), color: "#60a5fa" },
-                                        { label: "Food Revenue", value: `$${DEMO_FOOD_SALES.reduce((a, s) => { const r = FOOD_RECIPES.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}`, color: "#4ade80" },
-                                        { label: "Cannot Make", value: FOOD_RECIPES.filter(r => getFoodServingsRemaining(r, foodIngredients) === 0).length, color: "#f87171" },
+                                        { label: "Menu Items", value: foodRecipesSource.length, color: "#fff" },
+                                        { label: "Dishes Sold Today", value: isDemo ? DEMO_FOOD_SALES.reduce((a, s) => a + s.sold, 0) : 0, color: "#60a5fa" },
+                                        { label: "Food Revenue", value: isDemo ? `$${DEMO_FOOD_SALES.reduce((a, s) => { const r = FOOD_RECIPES.find(x => x.id === s.recipeId); return a + (r ? r.menuPrice * s.sold : 0); }, 0).toLocaleString()}` : "$0", color: "#4ade80" },
+                                        { label: "Cannot Make", value: foodRecipesSource.filter(r => getFoodServingsRemaining(r, foodIngredients) === 0).length, color: "#f87171" },
                                     ].map(c => (
                                         <div key={c.label} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, padding: "20px 24px" }}>
                                             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{c.label}</div>
@@ -529,7 +531,7 @@ export default function InventoryPage() {
                                                 const cost = getFoodCost(r, foodIngredients);
                                                 const servings = getFoodServingsRemaining(r, foodIngredients);
                                                 const margin = r.menuPrice > 0 ? Math.round(((r.menuPrice - cost) / r.menuPrice) * 100) : 0;
-                                                const sale = DEMO_FOOD_SALES.find(s => s.recipeId === r.id);
+                                                const sale = isDemo ? DEMO_FOOD_SALES.find(s => s.recipeId === r.id) : undefined;
                                                 return (
                                                     <tr key={r.id}>
                                                         <td style={{ fontWeight: 700, color: servings === 0 ? "#f87171" : "#fff", fontSize: 15 }}>
@@ -589,13 +591,13 @@ export default function InventoryPage() {
                                                 const status = getIngredientStatus(i);
                                                 const recipes = getRecipesUsing(i.inventoryId);
                                                 // Calc daily usage
-                                                const dailyUse = DEMO_FOOD_SALES.reduce((acc, s) => {
+                                                const dailyUse = isDemo ? DEMO_FOOD_SALES.reduce((acc, s) => {
                                                     const r = FOOD_RECIPES.find(x => x.id === s.recipeId);
                                                     if (!r) return acc;
                                                     const ing = r.ingredients.find(x => x.inventoryId === i.inventoryId);
                                                     if (!ing) return acc;
                                                     return acc + (s.sold * ing.amount);
-                                                }, 0);
+                                                }, 0) : 0;
                                                 const daysLeft = dailyUse > 0 && i.onHand > 0 ? Math.floor(i.onHand / dailyUse) : i.onHand <= 0 ? 0 : null;
                                                 return (
                                                     <tr key={i.inventoryId} onClick={() => editingRowId !== i.inventoryId && startRowEdit(i)} style={{ cursor: editingRowId === i.inventoryId ? "default" : "pointer", background: editingRowId === i.inventoryId ? "rgba(201,168,76,0.04)" : undefined, transition: "background 0.15s" }}>
