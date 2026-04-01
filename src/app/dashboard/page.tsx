@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useIsDemo } from "@/lib/use-demo";
+import { usePOSSync, centsToDisplay } from "@/lib/pos/use-pos-sync";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 // Dummy live sales data for the chart
@@ -19,8 +20,22 @@ export default function DashboardOverview() {
     const [activeLoc, setActiveLoc] = useState<string>("Loading...");
     const [currentTime, setCurrentTime] = useState("");
     const isDemo = useIsDemo();
+    const pos = usePOSSync();
     const [isSyncing, setIsSyncing] = useState(false);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    // Derive real KPI values from POS data
+    const hasLiveData = pos.connected && pos.data && !pos.loading;
+    const rev = pos.data?.revenue;
+    const liveGross = rev ? centsToDisplay(rev.grossSales) : "$0";
+    const liveCovers = rev?.totalCovers || 0;
+    const liveAvgSpend = rev && rev.totalCovers > 0 ? centsToDisplay(rev.avgSpendPerCover) : "$0.00";
+    const liveLaborPct = pos.data?.laborPercentage || 0;
+    const liveSalesData = rev?.salesByHour?.filter(h => h.revenue > 0).map(h => ({
+        time: `${h.hour % 12 || 12}${h.hour < 12 ? 'am' : 'pm'}`,
+        today: Math.round(h.revenue / 100),
+        yesterday: 0,
+    })) || [];
 
     const showToast = (msg: string) => {
         setToastMsg(msg);
@@ -113,12 +128,15 @@ export default function DashboardOverview() {
                     <button onClick={handleExportDashboard} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                         Export Report ↗
                     </button>
-                    <button onClick={() => {
+                    <button onClick={async () => {
                         setIsSyncing(true);
-                        setTimeout(() => setIsSyncing(false), 2000);
-                        showToast("POS Data Sync Complete.");
+                        try {
+                            await pos.refresh("today");
+                            showToast(hasLiveData ? "POS Data Sync Complete." : "POS sync attempted — check Settings if no data appears.");
+                        } catch { showToast("Sync failed."); }
+                        setIsSyncing(false);
                     }} style={{ background: "linear-gradient(135deg,#C9A84C,#E8C96E)", border: "none", color: "#1a1000", borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
-                        {isSyncing ? "Syncing..." : "Sync POS"}
+                        {isSyncing || pos.loading ? "Syncing..." : "Sync POS"}
                     </button>
                 </div>
             </div>
@@ -150,23 +168,31 @@ export default function DashboardOverview() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 32 }}>
                 <div className="kpi-card">
                     <div className="kpi-label">Gross Sales (Today)</div>
-                    <div className="kpi-val">{isDemo ? "$6,100" : "$0"}</div>
-                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : ''}`}>{isDemo ? "↑ 14.5% vs yesterday" : "No POS connected"}</div>
+                    <div className="kpi-val">{isDemo ? "$6,100" : hasLiveData ? liveGross : "$0"}</div>
+                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : hasLiveData ? 'diff-pos' : ''}`}>
+                        {isDemo ? "↑ 14.5% vs yesterday" : hasLiveData ? `${rev!.totalOrders} orders today` : pos.loading ? "Syncing..." : "No POS connected"}
+                    </div>
                 </div>
                 <div className="kpi-card">
                     <div className="kpi-label">Total Covers</div>
-                    <div className="kpi-val">{isDemo ? "124" : "0"}</div>
-                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : ''}`}>{isDemo ? "↑ 8% vs yesterday" : "No OpenTable connected"}</div>
+                    <div className="kpi-val">{isDemo ? "124" : hasLiveData ? liveCovers : "0"}</div>
+                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : hasLiveData ? 'diff-pos' : ''}`}>
+                        {isDemo ? "↑ 8% vs yesterday" : hasLiveData ? `via ${pos.provider}` : "No POS connected"}
+                    </div>
                 </div>
                 <div className="kpi-card">
                     <div className="kpi-label">Avg Spend per Guest</div>
-                    <div className="kpi-val">{isDemo ? "$49.19" : "$0.00"}</div>
-                    <div className={`kpi-diff ${isDemo ? 'diff-neg' : ''}`}>{isDemo ? "↓ 2.1% vs yesterday" : "—"}</div>
+                    <div className="kpi-val">{isDemo ? "$49.19" : hasLiveData ? liveAvgSpend : "$0.00"}</div>
+                    <div className={`kpi-diff ${hasLiveData && rev!.avgSpendPerCover > 4000 ? 'diff-pos' : isDemo ? 'diff-neg' : ''}`}>
+                        {isDemo ? "↓ 2.1% vs yesterday" : hasLiveData ? "Live from POS" : "—"}
+                    </div>
                 </div>
                 <div className="kpi-card">
                     <div className="kpi-label">Labour Cost %</div>
-                    <div className="kpi-val">{isDemo ? "28.4%" : "0%"}</div>
-                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : ''}`}>{isDemo ? "Optimal (Target: 30%)" : "No Payroll connected"}</div>
+                    <div className="kpi-val">{isDemo ? "28.4%" : hasLiveData ? `${liveLaborPct}%` : "0%"}</div>
+                    <div className={`kpi-diff ${isDemo ? 'diff-pos' : hasLiveData && liveLaborPct <= 30 ? 'diff-pos' : hasLiveData ? 'diff-neg' : ''}`}>
+                        {isDemo ? "Optimal (Target: 30%)" : hasLiveData ? (liveLaborPct <= 30 ? "Optimal" : "Above target") : "No Payroll connected"}
+                    </div>
                 </div>
             </div>
 
@@ -181,7 +207,7 @@ export default function DashboardOverview() {
                     </div>
                     <div style={{ height: 300, width: "100%" }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={isDemo ? salesData : []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                            <AreaChart data={isDemo ? salesData : hasLiveData && liveSalesData.length > 0 ? liveSalesData : []} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorToday" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#C9A84C" stopOpacity={0.3} />

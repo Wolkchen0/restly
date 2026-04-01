@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useIsDemo } from "@/lib/use-demo";
+import { usePOSSync } from "@/lib/pos/use-pos-sync";
 import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
 import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining, mlToOz, formatOzFraction } from "@/services/drinks";
@@ -46,6 +47,7 @@ export default function RecipesPage() {
     const [drinkRecipes, setDrinkRecipes] = useState<DrinkRecipe[]>([]);
     const [bottles, setBottles] = useState<BottleInfo[]>([]);
     const isDemo = useIsDemo();
+    const pos = usePOSSync();
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
     const [editModal, setEditModal] = useState<FoodRecipe | null>(null);
@@ -77,14 +79,22 @@ export default function RecipesPage() {
     const [newInvCost, setNewInvCost] = useState("");
     const [newInvSupplier, setNewInvSupplier] = useState("");
 
-    // POS menu items that don't have recipes yet (simulated)
-    const POS_UNLINKED_ITEMS = [
-        { name: "Grilled Chicken Breast", price: 28, category: "Main" as const },
-        { name: "Caesar Salad", price: 16, category: "Appetizer" as const },
-        { name: "Crème Brûlée", price: 14, category: "Dessert" as const },
-        { name: "French Onion Soup", price: 13, category: "Soup" as const },
-        { name: "Garlic Bread", price: 9, category: "Bread" as const },
-    ].filter(p => !foodRecipes.some(r => r.name.toLowerCase() === p.name.toLowerCase()));
+    // POS menu items that don't have recipes yet — from real POS or demo
+    const posMenuItems = (!isDemo && pos.connected && pos.data?.menuItems?.length)
+        ? pos.data.menuItems.map(m => ({
+            name: m.name,
+            price: Math.round(m.price / 100),
+            category: (m.category || "Main") as "Main" | "Appetizer" | "Side" | "Dessert" | "Soup" | "Bread",
+        }))
+        : [
+            { name: "Grilled Chicken Breast", price: 28, category: "Main" as const },
+            { name: "Caesar Salad", price: 16, category: "Appetizer" as const },
+            { name: "Crème Brûlée", price: 14, category: "Dessert" as const },
+            { name: "French Onion Soup", price: 13, category: "Soup" as const },
+            { name: "Garlic Bread", price: 9, category: "Bread" as const },
+        ];
+    const POS_UNLINKED_ITEMS = posMenuItems
+        .filter(p => !foodRecipes.some(r => r.name.toLowerCase() === p.name.toLowerCase()));
 
     const showToast = (msg: string) => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000); };
     const userPrefix = useUserPrefix();
