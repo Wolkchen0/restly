@@ -7,6 +7,7 @@ import type {
     POSAdapter, POSCredentials, POSOrder, POSOrderItem,
     POSMenuItem, POSEmployee, POSLaborEntry, POSRevenueSummary,
 } from "./types";
+import { mapPOSCategory } from "./category-mapper";
 
 const TOAST_BASE = "https://ws-api.toasttab.com";
 
@@ -156,7 +157,8 @@ export class ToastAdapter implements POSAdapter {
         // Toast menus structure: menus[] -> groups[] -> items[]
         for (const menu of (Array.isArray(menus) ? menus : [])) {
             for (const group of (menu.groups || [])) {
-                const category = group.name || "Uncategorized";
+                const rawCategory = group.name || "Uncategorized";
+                const category = mapPOSCategory(rawCategory);
                 for (const item of (group.items || [])) {
                     items.push({
                         id: item.guid || `menu_${items.length}`,

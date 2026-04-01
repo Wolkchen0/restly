@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useIsDemo } from "@/lib/use-demo";
 import { usePOSSync } from "@/lib/pos/use-pos-sync";
+import { mapPOSCategory } from "@/lib/pos/category-mapper";
 import { useUserPrefix, userSave, userLoad } from "@/lib/use-persisted-state";
 import { FOOD_RECIPES, FOOD_INGREDIENTS, DEMO_FOOD_SALES, getFoodCost, getFoodServingsRemaining, FoodRecipe, FoodIngredient } from "@/services/food-recipes";
 import { DRINK_RECIPES, BOTTLE_INVENTORY, DEMO_DRINK_SALES, DrinkRecipe, BottleInfo, getPourCost, getServingsRemaining, mlToOz, formatOzFraction } from "@/services/drinks";
@@ -84,7 +85,7 @@ export default function RecipesPage() {
         ? pos.data.menuItems.map(m => ({
             name: m.name,
             price: Math.round(m.price / 100),
-            category: (m.category || "Main") as "Main" | "Appetizer" | "Side" | "Dessert" | "Soup" | "Bread",
+            category: mapPOSCategory(m.category || "Main") as "Main" | "Appetizer" | "Side" | "Dessert" | "Soup" | "Bread",
         }))
         : [
             { name: "Grilled Chicken Breast", price: 28, category: "Main" as const },
