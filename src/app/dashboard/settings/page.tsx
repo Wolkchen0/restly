@@ -181,6 +181,7 @@ export default function SettingsPage() {
             xToken: { minLen: 20, hint: "X (Twitter) Bearer token from developer.x.com/portal" },
             instagramToken: { minLen: 20, hint: "Meta token starting with 'EAA' — get from Graph API Explorer" },
             facebookToken: { minLen: 20, hint: "Meta token starting with 'EAA' (same token as Instagram)" },
+            metaToken: { minLen: 20, hint: "Meta token starting with 'EAA' — get from developers.facebook.com/tools/explorer/" },
             tiktokToken: { minLen: 20, hint: "TikTok token from developers.tiktok.com" },
         };
 
@@ -196,18 +197,36 @@ export default function SettingsPage() {
         setConnectingApp(appName);
 
         try {
+            // Meta special case: save the same token to both instagramToken and facebookToken
+            const payload: Record<string, any> = { locationId: activeLocId };
+            if (keyName === "metaToken") {
+                payload.instagramToken = token;
+                payload.facebookToken = token;
+            } else {
+                payload[keyName] = token;
+            }
+
             const res = await fetch("/api/locations", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    locationId: activeLocId,
-                    [keyName]: token
-                })
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
-                setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
-                showToast(`✅ ${appName} connected successfully!`);
+                if (keyName === "metaToken") {
+                    // Mark both Instagram and Facebook as connected
+                    setConnectedApps(prev => {
+                        const updated = [...prev];
+                        if (!updated.includes("Instagram")) updated.push("Instagram");
+                        if (!updated.includes("Facebook")) updated.push("Facebook");
+                        if (!updated.includes("Meta")) updated.push("Meta");
+                        return updated;
+                    });
+                    showToast(`✅ Instagram & Facebook connected via Meta!`);
+                } else {
+                    setConnectedApps(prev => prev.includes(appName) ? prev : [...prev, appName]);
+                    showToast(`✅ ${appName} connected successfully!`);
+                }
             } else {
                 showToast(`Failed to connect ${appName}.`, "error");
             }
@@ -230,17 +249,28 @@ export default function SettingsPage() {
         setDisconnectModalApp(null);
 
         try {
+            // Meta special case: clear both instagramToken and facebookToken
+            const payload: Record<string, any> = { locationId: activeLocId };
+            if (appName === "Meta" || keyName === "instagramToken" || keyName === "facebookToken") {
+                payload.instagramToken = null;
+                payload.facebookToken = null;
+            } else {
+                payload[keyName] = null;
+            }
+
             const res = await fetch("/api/locations", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    locationId: activeLocId,
-                    [keyName]: null
-                })
+                body: JSON.stringify(payload)
             });
             if (res.ok) {
-                setConnectedApps(prev => prev.filter(app => app !== appName));
-                showToast(`${appName} disconnected successfully.`);
+                if (appName === "Meta") {
+                    setConnectedApps(prev => prev.filter(a => a !== "Instagram" && a !== "Facebook" && a !== "Meta"));
+                    showToast(`Instagram & Facebook disconnected.`);
+                } else {
+                    setConnectedApps(prev => prev.filter(a => a !== appName));
+                    showToast(`${appName} disconnected successfully.`);
+                }
             } else {
                 showToast(`Failed to disconnect ${appName}.`, "error");
             }
@@ -401,13 +431,29 @@ export default function SettingsPage() {
                 </div>
             )}
 
-            {connectModalApp && (
+            {connectModalApp && (() => {
+                const META_HELP: Record<string, { desc: string; url: string; placeholder: string }> = {
+                    "Meta": { desc: "One token connects both Instagram & Facebook. Go to Meta Graph API Explorer, select your app, generate an access token with pages_show_list, instagram_basic, and instagram_manage_insights permissions. Then extend it to a long-lived token (60 days) at the Token Debugger.", url: "https://developers.facebook.com/tools/explorer/", placeholder: "Paste Meta access token (starts with EAA...)" },
+                    "OpenTable": { desc: "Enter your OpenTable Restaurant ID. You can find it in your OpenTable Restaurant Center dashboard URL or Restaurant Settings.", url: "https://restaurant.opentable.com", placeholder: "Enter OpenTable Restaurant ID" },
+                    "Google Business": { desc: "Create a project in Google Cloud Console, enable the Google My Business API, and create an API key. Restrict the key to only the My Business API.", url: "https://console.cloud.google.com/apis/credentials", placeholder: "Paste Google API Key (starts with AIza...)" },
+                    "Yelp": { desc: "Sign in at yelp.com/developers, create an app, and copy the API Key (128+ chars). Free tier: 5,000 calls/day.", url: "https://www.yelp.com/developers/v3/manage_app", placeholder: "Paste Yelp API Key" },
+                    "TikTok": { desc: "Create a developer account at TikTok for Developers, create an app with Content Discovery scope, submit for review, then generate an access token.", url: "https://developers.tiktok.com/apps/", placeholder: "Paste TikTok access token" },
+                    "X": { desc: "Sign in at the X Developer Portal, create a project with an app, go to Keys & Tokens, and generate a Bearer Token.", url: "https://developer.x.com/en/portal/dashboard", placeholder: "Paste X Bearer Token" },
+                };
+                const help = META_HELP[connectModalApp.name] || { desc: `Provide a valid API token from the ${connectModalApp.name} developer portal.`, url: "", placeholder: `Enter your ${connectModalApp.name} Token` };
+
+                return (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
-                    <div className="card" style={{ width: 450, padding: 24 }}>
-                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#fff" }}>Connect {connectModalApp.name}</h3>
-                        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.5 }}>
-                            [Production Ready Mode]<br />To connect {connectModalApp.name}, you must provide a valid API Access Token or API Key obtained from the {connectModalApp.name} Developer Portal.
+                    <div className="card" style={{ width: 480, padding: 28 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: "#fff" }}>Connect {connectModalApp.name}</h3>
+                        <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
+                            {help.desc}
                         </p>
+                        {help.url && (
+                            <a href={help.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", fontSize: 12, color: "#E8C96E", marginBottom: 14, textDecoration: "none" }}>
+                                🔗 Open Developer Portal →
+                            </a>
+                        )}
                         <input
                             autoFocus
                             type="text"
@@ -415,7 +461,7 @@ export default function SettingsPage() {
                             onChange={e => setConnectToken(e.target.value)}
                             onKeyDown={e => { if (e.key === "Enter") confirmConnectApp(); }}
                             style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "#fff", padding: "12px", borderRadius: 8, fontSize: 14, outline: "none", marginBottom: 20 }}
-                            placeholder={`Enter your ${connectModalApp.name} Token`}
+                            placeholder={help.placeholder}
                         />
                         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
                             <button className="btn-secondary" onClick={() => setConnectModalApp(null)}>Cancel</button>
@@ -423,7 +469,8 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()}
 
             {disconnectModalApp && (
                 <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
@@ -911,62 +958,125 @@ export default function SettingsPage() {
                                         <div>
                                             <h2 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Online Profiles & Reviews</h2>
                                             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.5 }}>
-                                                Connect your profiles to allow AI to analyze sentiment and fetch guest profiles automatically.
+                                                Connect your profiles to allow AI to analyze sentiment, fetch reviews, and manage social messages.
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* OpenTable - Priority at the top */}
-                                    <div style={{ marginBottom: 14 }}>
-                                        {connectedApps.includes("OpenTable") ? (
-                                            <button onClick={() => handleDisconnectApp("OpenTable", "opentableRestaurantId")} style={{ width: "100%", padding: "14px", background: "rgba(34, 197, 94, 0.08)", border: "1px solid rgba(34, 197, 94, 0.2)", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center", color: "#4ade80", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                                                <span>OpenTable Connected</span>
-                                                <span style={{ fontSize: 11, background: "rgba(34, 197, 94, 0.2)", padding: "2px 8px", borderRadius: 4 }}>ACTIVE</span>
-                                            </button>
-                                        ) : (
-                                            <button className="btn-ghost" style={{ width: "100%", padding: "14px", justifyContent: "center", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", gap: "8px", alignItems: "center", opacity: connectingApp === "OpenTable" ? 0.5 : 1 }} onClick={() => handleConnectApp("OpenTable", "opentableRestaurantId")} disabled={!!connectingApp}>
-                                                {connectingApp === "OpenTable" ? "Verifying..." : "Connect OpenTable Restaurant ID"}
-                                            </button>
-                                        )}
+                                    {/* ── Reviews & Reservations ── */}
+                                    <div style={{ marginBottom: 16 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Reviews & Reservations</div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+                                            {[
+                                                { name: "OpenTable", key: "opentableRestaurantId", icon: "🍽️", helpUrl: "https://restaurant.opentable.com", desc: "Reservation sync & guest profiles" },
+                                                { name: "Google Business", key: "googleBusinessToken", icon: "📍", helpUrl: "https://console.cloud.google.com/apis/credentials", desc: "Google reviews & star ratings" },
+                                                { name: "Yelp", key: "yelpApiKey", icon: "⭐", helpUrl: "https://www.yelp.com/developers/v3/manage_app", desc: "Yelp reviews & ratings" },
+                                            ].map(app => {
+                                                const isConnected = connectedApps.includes(app.name);
+                                                const isConnecting = connectingApp === app.name;
+                                                return (
+                                                    <div key={app.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                        <button
+                                                            onClick={() => isConnected ? handleDisconnectApp(app.name, app.key) : handleConnectApp(app.name, app.key)}
+                                                            disabled={!!connectingApp && !isConnecting}
+                                                            style={{
+                                                                flex: 1, padding: "12px 14px", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "all 0.2s",
+                                                                background: isConnected ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.03)",
+                                                                border: `1px solid ${isConnected ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)"}`,
+                                                                color: isConnected ? "#4ade80" : "rgba(255,255,255,0.7)",
+                                                                fontWeight: 600, fontSize: 13, opacity: isConnecting ? 0.5 : 1,
+                                                            }}
+                                                        >
+                                                            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                <span>{app.icon}</span>
+                                                                <span>{app.name}</span>
+                                                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>— {app.desc}</span>
+                                                            </span>
+                                                            {isConnected ? (
+                                                                <span style={{ fontSize: 10, background: "rgba(34,197,94,0.2)", color: "#4ade80", padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>CONNECTED</span>
+                                                            ) : isConnecting ? (
+                                                                <span style={{ fontSize: 11 }}>Connecting...</span>
+                                                            ) : (
+                                                                <span style={{ fontSize: 11, color: "#E8C96E" }}>+ Connect</span>
+                                                            )}
+                                                        </button>
+                                                        {app.helpUrl && (
+                                                            <a href={app.helpUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", textDecoration: "none", whiteSpace: "nowrap" }} title="Get API Key">🔗</a>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                                        {[
-                                            { name: "Google Business", key: "googleBusinessToken" },
-                                            { name: "Yelp", key: "yelpApiKey" },
-                                            { name: "X", key: "xToken" },
-                                            { name: "Instagram", key: "instagramToken" },
-                                            { name: "Facebook", key: "facebookToken" },
-                                            { name: "TikTok", key: "tiktokToken" },
-                                        ].map(app => {
-                                            const isConnected = connectedApps.includes(app.name);
-                                            const isConnecting = connectingApp === app.name;
+                                    {/* ── Social Media ── */}
+                                    <div style={{ marginBottom: 12 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Social Media — Inbox & Monitoring</div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+                                            {[
+                                                { name: "Meta", keys: ["instagramToken", "facebookToken"], icon: "📸", helpUrl: "https://developers.facebook.com/tools/explorer/", desc: "Instagram & Facebook — one token for both", combined: true },
+                                                { name: "TikTok", keys: ["tiktokToken"], icon: "🎵", helpUrl: "https://developers.tiktok.com/apps/", desc: "TikTok mentions & viral monitoring" },
+                                                { name: "X", keys: ["xToken"], icon: "𝕏", helpUrl: "https://developer.x.com/en/portal/dashboard", desc: "X (Twitter) mentions & hashtags" },
+                                            ].map(app => {
+                                                const isConnected = app.combined
+                                                    ? connectedApps.includes("Instagram") || connectedApps.includes("Facebook")
+                                                    : connectedApps.includes(app.name);
+                                                const isConnecting = connectingApp === app.name || (app.combined && (connectingApp === "Instagram" || connectingApp === "Facebook"));
+                                                const displayKey = app.keys[0];
 
-                                            return isConnected ? (
-                                                <button
-                                                    key={app.name}
-                                                    onClick={() => handleDisconnectApp(app.name, app.key)}
-                                                    style={{ padding: "12px", background: "rgba(34, 197, 94, 0.05)", border: "1px solid rgba(34, 197, 94, 0.15)", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center", color: "#4ade80", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                                                >
-                                                    {app.name}
-                                                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80" }} />
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    key={app.name}
-                                                    className="btn-ghost"
-                                                    style={{ padding: "12px", justifyContent: "center", opacity: isConnecting ? 0.5 : 1, fontSize: 13 }}
-                                                    onClick={() => handleConnectApp(app.name, app.key)}
-                                                    disabled={!!connectingApp}
-                                                >
-                                                    {isConnecting ? "..." : `Add ${app.name}`}
-                                                </button>
-                                            );
-                                        })}
+                                                return (
+                                                    <div key={app.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (isConnected) {
+                                                                    if (app.combined) {
+                                                                        // Disconnect both Instagram and Facebook
+                                                                        handleDisconnectApp("Meta", "instagramToken");
+                                                                    } else {
+                                                                        handleDisconnectApp(app.name, displayKey);
+                                                                    }
+                                                                } else {
+                                                                    if (app.combined) {
+                                                                        // Connect Meta → will save to both instagramToken and facebookToken
+                                                                        handleConnectApp("Meta", "metaToken");
+                                                                    } else {
+                                                                        handleConnectApp(app.name, displayKey);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            disabled={!!connectingApp && !isConnecting}
+                                                            style={{
+                                                                flex: 1, padding: "12px 14px", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", transition: "all 0.2s",
+                                                                background: isConnected ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.03)",
+                                                                border: `1px solid ${isConnected ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)"}`,
+                                                                color: isConnected ? "#4ade80" : "rgba(255,255,255,0.7)",
+                                                                fontWeight: 600, fontSize: 13, opacity: isConnecting ? 0.5 : 1,
+                                                            }}
+                                                        >
+                                                            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                <span>{app.icon}</span>
+                                                                <span>{app.name}</span>
+                                                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>— {app.desc}</span>
+                                                            </span>
+                                                            {isConnected ? (
+                                                                <span style={{ fontSize: 10, background: "rgba(34,197,94,0.2)", color: "#4ade80", padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>CONNECTED</span>
+                                                            ) : isConnecting ? (
+                                                                <span style={{ fontSize: 11 }}>Connecting...</span>
+                                                            ) : (
+                                                                <span style={{ fontSize: 11, color: "#E8C96E" }}>+ Connect</span>
+                                                            )}
+                                                        </button>
+                                                        {app.helpUrl && (
+                                                            <a href={app.helpUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", textDecoration: "none", whiteSpace: "nowrap" }} title="Get API Key">🔗</a>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
-                                    <div style={{ marginTop: 18, fontSize: 11, color: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", gap: 6, padding: "0 4px" }}>
-                                        <span>🤖 Need an API Key? Ask Restly AI for instructions.</span>
+                                    <div style={{ marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", gap: 6, padding: "0 4px" }}>
+                                        <span>🤖 Need help? Ask Restly AI: "How do I connect my Instagram?" — includes direct links & step-by-step guide.</span>
                                     </div>
                                 </div>
 
