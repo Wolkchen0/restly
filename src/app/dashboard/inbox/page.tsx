@@ -255,11 +255,39 @@ export default function SocialInboxPage() {
         setSelectedId(null);
     };
 
-    const handleSendReply = () => {
-        if (!replyText.trim()) return;
-        setReplySent(true);
-        setReplyText("");
-        showToast(`Reply sent via ${selectedMsg?.platform}!`);
+    const handleSendReply = async () => {
+        if (!replyText.trim() || !selectedMsg) return;
+
+        if (selectedMsg.platform === "Email") {
+            // Real email reply via SMTP
+            try {
+                const res = await fetch("/api/inbox/emails/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        to: selectedMsg.handle, // fromEmail
+                        subject: `Re: ${selectedMsg.preview}`,
+                        body: replyText,
+                        replyToId: selectedMsg.id,
+                    }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setReplySent(true);
+                    setReplyText("");
+                    showToast(`✅ Email sent to ${selectedMsg.handle}!`);
+                } else {
+                    showToast(`❌ Failed to send: ${data.error || "Unknown error"}`);
+                }
+            } catch {
+                showToast("❌ Network error — email not sent.");
+            }
+        } else {
+            // Social media replies (simulated for now)
+            setReplySent(true);
+            setReplyText("");
+            showToast(`Reply sent via ${selectedMsg.platform}!`);
+        }
     };
 
     return (

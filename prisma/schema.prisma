@@ -73,6 +73,15 @@ model Location {
   googleBusinessToken   String?
   yelpApiKey            String?
 
+  // Email Integration (IMAP/SMTP)
+  emailAddress          String?   // e.g. info@myrestaurant.com
+  emailImapHost         String?   // e.g. imap.gmail.com
+  emailImapPort         Int?      // e.g. 993
+  emailSmtpHost         String?   // e.g. smtp.gmail.com
+  emailSmtpPort         Int?      // e.g. 587
+  emailUser             String?   // login username (usually same as email)
+  emailPass             String?   // app password or real password
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
